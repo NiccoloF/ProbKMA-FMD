@@ -58,7 +58,6 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     arma::ivec length_inter(y_rep_size);
     
     arma::mat temp_y;
-    int i = 0;
     for (unsigned int i = 0; i < y_rep_size; ++i){
       const Rcpp::List & y_rep_i = y_rep[i];
       if (use0) 
@@ -89,7 +88,7 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
         min_s = s_rep[i];
       }
     }
-    return arma::vec({min_s, min_d});  
+    return arma::vec({static_cast<double>(min_s), min_d});  
   }
   
   // [[Rcpp::export(.find_diss_aligned_rcpp)]]
@@ -161,7 +160,7 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
         min_s = s_rep(i);
       }
     }
-    return arma::vec({min_s,min_d});
+    return arma::vec({static_cast<double>(min_s),min_d});
   }
 
 // [[Rcpp::export(.find_shift_warp_min)]]
