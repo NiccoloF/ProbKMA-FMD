@@ -470,11 +470,18 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     start=proc.time()
     c_k=floor(unlist(lapply(V_new,function(v_new) unlist(lapply(v_new,nrow))[1]))*(1-max_gap))
     c_k[c_k<c]=c
-    SD <- .find_shift_warp_min(Y,V_new,w,c_k,K,d,max_gap,
-                               alpha,use0,use1,
-                               domain,
-                               select_domain,
-                               diss_d0_d1_L2)
+    if(worker_number==1){
+      SD <- .find_shift_warp_min(Y,V_new,w,c_k,K,d,max_gap,
+                                 alpha,use0,use1,
+                                 domain,
+                                 select_domain,
+                                 diss_d0_d1_L2)
+    } else {
+      c_k=rep(c_k,each=length(Y))
+      YV=expand.grid(Y,V_new)
+      SD=.mapply_custom(cl_probKMA,.find_min_diss,YV[,1],YV[,2],c_k,
+                        MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
+    }
     S_new=SD[[1]]
     D_new=SD[[2]]
     rm(SD)

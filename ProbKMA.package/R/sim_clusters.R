@@ -35,6 +35,6 @@
 #' \item{\code{freq_motifs}}{list of 18 vectors with the frequency (number of
 #' occurrences) of the two motifs in each of the 18 curves}
 #' }
-#'
-#' @source \url(https://github.com/marziacremona/ProbKMA-FMD/tree/main/Functional%20motif%20discovery%20example)
-"sim_clusters"
+#' @name sim_clusters
+#' @usage data(sim_clusters)
+NULL
