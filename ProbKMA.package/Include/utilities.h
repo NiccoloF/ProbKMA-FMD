@@ -106,6 +106,8 @@ namespace util
         result(k++) = v(i);
     return result;
   }
+
+  arma::field<arma::mat> conv_to_field(const Rcpp::List & Y);
   
 }
 

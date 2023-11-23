@@ -14,3 +14,4 @@ RoxygenNote: 7.2.3
 Imports: Rcpp (>= 1.0.11),parallel,dendextend,class,combinat,rlang
 LinkingTo: Rcpp, RcppArmadillo
 LazyData: true
+

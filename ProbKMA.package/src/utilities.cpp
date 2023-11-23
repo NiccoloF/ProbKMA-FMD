@@ -22,3 +22,13 @@ Rcpp::IntegerVector util::myseq(int first, int last) {
   }
   return y;
 }
+
+arma::field<arma::mat> util::conv_to_field(const Rcpp::List & Y){
+  arma::field<arma::mat> result(Y.size(),2);
+  for(unsigned int i=0; i < Y.size(); ++i){
+    const Rcpp::List & y = Y[i];
+    result(i,0) = Rcpp::as<arma::mat>(y[0]);
+    result(i,1) = Rcpp::as<arma::mat>(y[1]);
+  }
+  return result;
+}

@@ -3,12 +3,10 @@
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
+// [[Rcpp::plugins(openmp)]]
 
 // [[Rcpp::export(.probKMA_silhouette_rcpp)]]
 Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
-                                   const Rcpp::Function & domain,
-                                   const Rcpp::Function & select_domain,
-                                   const Rcpp::Function & diss_d0_d1_L2,
                                    bool align){ 
   double alpha;
   bool use0, use1;
@@ -24,50 +22,39 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
     Y_size = Y1.size();
   }
   
-  Rcpp::List Y(Y_size);
+  arma::field<arma::mat> Y(Y_size,2);
   // @TODO: declare as external functions and used also in probKMA
   if (diss == "d0_L2") {
     alpha = 0;
     use0 = true;
     use1 = false;
     const Rcpp::List & Y0 = probKMA_results["Y0"];
-    std::transform(Y0.cbegin(),
-                   Y0.cend(),
-                   Y.begin(),
-                   [](const arma::mat & y0) 
-                   { return Rcpp::List::create(Rcpp::_["y0"] = y0,
-                                           Rcpp::_["y1"] = R_NilValue); });
+    for (unsigned int i = 0; i < Y_size; ++i){
+      Y(i,0) = Rcpp::as<arma::mat>(Y0[i]);
+    }
   } else if (diss == "d1_L2") {
     alpha = 1;
     use0 = false;
     use1 = true;
     const Rcpp::List & Y1 = probKMA_results["Y1"];
-    std::transform(Y1.cbegin(),
-                   Y1.cend(),
-                   Y.begin(),
-                   [](const arma::mat & y1) 
-                   { return Rcpp::List::create(Rcpp::_["y0"] = R_NilValue,
-                                           Rcpp::_["y1"] = y1); });
+    for (unsigned int i = 0; i < Y_size; ++i){
+      Y(i,1) = Rcpp::as<arma::mat>(Y1[i]);
+    }
   } else {
     alpha = Rcpp::as<double>(probKMA_results["alpha"]);
     use0 = true;
     use1 = true;
     const Rcpp::List & Y0 = probKMA_results["Y0"];
     const Rcpp::List & Y1 = probKMA_results["Y1"];
-    std::transform(Y0.cbegin(),
-                   Y0.cend(),
-                   Y1.cbegin(),
-                   Y.begin(),
-                   [](const arma::mat & y0, const arma::mat & y1) 
-                   {  return Rcpp::List::create(Rcpp::_["y0"] = y0,
-                                            Rcpp::_["y1"] = y1); });
+    for (unsigned int i=0; i < Y_size; ++i){
+      Y(i,0) = Rcpp::as<arma::mat>(Y0[i]);
+      Y(i,1) = Rcpp::as<arma::mat>(Y1[i]);
+   }
   }
   
   const arma::vec & w = probKMA_results["w"];
-  const Rcpp::List & first_y = Y[0];
-  const arma::mat & first_y0 = use0 ? Rcpp::as<arma::mat>(first_y[0]) : as<arma::mat>(first_y[1]); 
+  const arma::mat & first_y0 = use0 ? Y(0,0) : Y(0,1); 
   const unsigned int d = first_y0.n_cols;
-  //const unsigned int N = first_y0.n_rows;
   const unsigned int K = probKMA_results["K"];
   const Rcpp::List & motifs = use0 ? probKMA_results["V0"] : probKMA_results["V1"];
 
@@ -101,7 +88,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  // if(!is.null(ncol(curves_in_motifs))) this if condition makes no sense since curves_in_motifs is a list
  //   curves_in_motifs=split(curves_in_motifs,rep(seq_len(ncol(curves_in_motifs)),each=nrow(curves_in_motifs))) 
  
- const arma::ivec & curves_in_motifs_number=arma::sum(P_clean,0).t();
+ arma::ivec curves_in_motifs_number=arma::sum(P_clean,0).t();
 
  // for each centroid take the shift of the curve associated to that centroid 
  const arma::imat & S_clean = probKMA_results["S_clean"];
@@ -112,19 +99,17 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  }
  
  // compute distances between pieces of curves
- std::vector<Rcpp::List> Y_in_motifs(Y_size);
+ arma::field<arma::mat> Y_in_motifs(Y_size,2);
  unsigned int l = 0;
  for (unsigned int i= 0; i < K; ++i){ // for each centroid
    const arma::uvec & curves_in_motif = curves_in_motifs[i];
    const arma::uvec & v_dom = V_dom[i];
    for(unsigned int j = 0; j < curves_in_motif.n_elem; ++j){ // for each curve assigned to that centroid
-     const Rcpp::List & y = Y[curves_in_motif[j]]; //select the shifted part of the curve
      const int s = S_clean_k[i][j];
-     Rcpp::List y_temp = Rcpp::List::create(Rcpp::_["y0"] = R_NilValue,Rcpp::_["y1"] = R_NilValue);
      const arma::uvec & index = arma::regspace<arma::uvec>(1,v_dom.n_elem - std::max(0,1-s)) + std::max(1,s) - 1;
      int index_size = index.n_elem;
      if (use0){
-       const arma::mat & y0 = Rcpp::as<arma::mat>(y["y0"]);
+       const arma::mat & y0 = Y(curves_in_motif[j],0);
        const unsigned int d = y0.n_cols;
        const unsigned int y_len = y0.n_rows;
        arma::mat y0_temp(std::max(0,1-s) + index_size,d);
@@ -133,10 +118,10 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
          | std::views::filter([&y_len,&v_dom, &index](int j){return (index[j] <= y_len && v_dom(j));});
        for(int j : filtered_j) // maybe to use .rows provided by armadillo 
          y0_temp.row(std::max(0,1-s) + j) =  y0.row(index[j] - 1);
-       y_temp["y0"] = y0_temp;
+       Y_in_motifs(l,0) = y0_temp;
      }
      if (use1) {
-       const arma::mat & y1 = Rcpp::as<arma::mat>(y["y1"]);
+       const arma::mat & y1 = Y(curves_in_motif[j],1);
        const unsigned int d = y1.n_cols;
        const unsigned int y_len = y1.n_rows;
        arma::mat y1_temp(std::max(0,1-s) + index.n_elem,d);
@@ -145,18 +130,16 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
          | std::views::filter([&y_len,&v_dom, &index](int j){return (index[j] <= y_len && v_dom(j));});
        for(int j : filtered_j)
          y1_temp.row(std::max(0,1-s) + j) =  y1.row(index[j] - 1);
-       y_temp["y1"] = y1_temp;
+       Y_in_motifs(l,1) = y1_temp;
      }
-     Y_in_motifs[l++] = y_temp;
+     l++;
    }
  }
 
  arma::uvec Y_motifs = util::repLem<arma::uvec>(arma::regspace<arma::uvec>(0,K-1),curves_in_motifs_number);
  const unsigned int Y_motifs_size = Y_motifs.size();
  
- unsigned int Y_in_motifs_size = Y_in_motifs.size();
- 
- arma::umat indeces_YY = util::combn2<arma::uword>(arma::regspace<arma::uvec>(0,Y_in_motifs_size-1)); //combn of indeces of Y_in_motifs
+ arma::umat indeces_YY = util::combn2<arma::uword>(arma::regspace<arma::uvec>(0,Y_size-1)); //combn of indeces of Y_in_motifs
  
  arma::ivec V_length_Y_motifs = util::repLem<arma::ivec>(V_length,curves_in_motifs_number);
  
@@ -167,10 +150,10 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  arma::imat YY_lengths = util::combn2<arma::sword>(V_length_Y_motifs);
  
  const int YY_length_size = YY_lengths.n_cols;
- const arma::ivec & YY_length_row0 = YY_lengths.row(0).t();
- const arma::ivec & YY_length_row1 = YY_lengths.row(1).t();
- const arma::uvec & swap = (YY_length_row0 < YY_length_row1);
- const arma::uvec & equal_length = (YY_length_row0 == YY_length_row1);
+ const arma::irowvec & YY_length_row0 = YY_lengths.row(0);
+ const arma::irowvec & YY_length_row1 = YY_lengths.row(1);
+ const arma::urowvec & swap = (YY_length_row0 < YY_length_row1);
+ const arma::urowvec & equal_length = (YY_length_row0 == YY_length_row1);
 
  auto filtered_j_swap = std::views::iota(0,YY_length_size) 
    | std::views::filter([&swap](int j){return swap(j);});
@@ -182,41 +165,42 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  arma::vec SD(YY_length_size);
  
  if(align){
-   
+   arma::vec min_diss_aligned;
+   bool equal_length_i;
+   #pragma omp parallel for firstprivate(equal_length_i,min_diss_aligned)
    for(int i = 0; i < YY_length_size; ++i){
-     
-     bool equal_length_i = equal_length(i);
-     
-     arma::vec min_diss_aligned = find_diss_aligned_rcpp(Y_in_motifs[indeces_YY(0,i)],    
-                                                                   Y_in_motifs[indeces_YY(1,i)],
-                                                                   w,
-                                                                   alpha,
-                                                                   equal_length_i,
-                                                                   d,
-                                                                   use0,
-                                                                   use1,
-                                                                   domain,
-                                                                   select_domain,
-                                                                   diss_d0_d1_L2); 
+     equal_length_i = equal_length(i);
+     min_diss_aligned = find_diss_aligned_rcpp(Y_in_motifs(indeces_YY(0,i),0),    
+                                               Y_in_motifs(indeces_YY(0,i),1),
+                                               Y_in_motifs(indeces_YY(1,i),0),
+                                               Y_in_motifs(indeces_YY(1,i),1),
+                                               w,
+                                               alpha,
+                                               equal_length_i,
+                                               d,
+                                               use0,
+                                               use1); 
                                                              
      SD(i) = min_diss_aligned(1);
   }
  }else{ 
    arma::imat c_Y_motifs_comb = util::combn2<arma::sword>(c_Y_motifs);  
+   arma::vec min_diss;
+   unsigned int cc_motifs_i;
+   #pragma omp parallel for firstprivate(cc_motifs_i,min_diss)
    for(int i = 0; i < YY_length_size; ++i){
-     const unsigned int cc_motifs_i = std::min(c_Y_motifs_comb(0,i),
-                                               c_Y_motifs_comb(1,i));
-     arma::vec min_diss = find_diss(Y_in_motifs[indeces_YY(0,i)],    
-                                    Y_in_motifs[indeces_YY(1,i)],
-                                    w,
-                                    alpha,
-                                    cc_motifs_i,
-                                    d,
-                                    use0,
-                                    use1,
-                                    domain,
-                                    select_domain,
-                                    diss_d0_d1_L2);
+     cc_motifs_i = std::min(c_Y_motifs_comb(0,i),
+                            c_Y_motifs_comb(1,i));
+     min_diss = find_diss_rcpp(Y_in_motifs(indeces_YY(0,i),0), 
+                               Y_in_motifs(indeces_YY(0,i),1),  
+                               Y_in_motifs(indeces_YY(1,i),0),
+                               Y_in_motifs(indeces_YY(1,i),1),
+                               w,
+                               alpha,
+                               cc_motifs_i,
+                               d,
+                               use0,
+                               use1);
      
      SD(i) = min_diss(1);
    }

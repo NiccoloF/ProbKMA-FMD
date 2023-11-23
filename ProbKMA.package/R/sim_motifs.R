@@ -40,5 +40,5 @@
 #' }
 #'
 #' @source \url(https://github.com/marziacremona/ProbKMA-FMD/tree/main/Functional%20motif%20discovery%20example)
-#'
+#' 
 "sim_motifs"
