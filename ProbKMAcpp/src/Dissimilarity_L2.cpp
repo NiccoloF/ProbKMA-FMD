@@ -1,10 +1,10 @@
 #include "Dissimilarity_L2.hpp"
 
-L2::L2():Dissimilarity(){};
+L2::L2(const arma::vec& w): Dissimilarity(),_w(w){};
 
 // sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y)
 double L2::distance(const arma::mat& y,
-                    const arma::mat& v)
+                    const arma::mat& v) const 
 {
     arma::mat diff = arma::square(y - v); //(y-v)^2
     
@@ -18,15 +18,21 @@ double L2::distance(const arma::mat& y,
         
     arma::urowvec length_dom(y.n_cols,arma::fill::value(n_rows)); //length of the domain
     
-    return sum((col_sum/length_dom)%w.t())/y.n_cols;
+    return sum((col_sum/length_dom)%_w.t())/y.n_cols;
 };
 
 
 
 double L2::compute(const arma::field<arma::mat>& Y_i,
-                   const arma::field<arma::mat>& V_i)
+                   const arma::field<arma::mat>& V_i) const
 {
-    this->distance(Y_i(0,0),V_i(0,0));
+    return this->distance(Y_i(0,0),V_i(0,0));
 }
 
+RCPP_MODULE(L2Module) {
+  Rcpp::class_<L2>("L2")
+  .constructor<arma::vec>()
+  .method("compute", &L2::compute)
+  .field("w",&L2::_w);
+}
 

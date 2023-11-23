@@ -16,8 +16,8 @@ public:
 
 private:
 
-  double distance(const arma::mat& y,
-                  const arma::mat& v) const = 0;
+  virtual double distance(const arma::mat& y,
+                          const arma::mat& v) const = 0;
 };
 
 

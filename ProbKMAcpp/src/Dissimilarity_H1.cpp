@@ -1,9 +1,9 @@
 #include "Dissimilarity_H1.hpp"
 
-H1::H1():Dissimilarity(){};
+H1::H1(const arma::vec& w,double alpha):Dissimilarity(),_w(w),_alpha(alpha){};
 
 double H1::distance(const arma::mat& y,
-                    const arma::mat& v)
+                    const arma::mat& v) const
 {
     arma::mat diff = arma::square(y - v); //(y-v)^2
     
@@ -17,12 +17,22 @@ double H1::distance(const arma::mat& y,
         
     arma::urowvec length_dom(y.n_cols,arma::fill::value(n_rows)); //length of the domain
     
-    return sum((col_sum/length_dom)%w.t())/y.n_cols;
+    return sum((col_sum/length_dom)%_w.t())/y.n_cols;
 };
 
 double H1::compute(const arma::field<arma::mat>& Y_i,
                    const arma::field<arma::mat>& V_i) const
 {
-    return (1-alpha) * this -> distance(Y_i(0,0),V_i(0,0)) + 
-            alpha * this -> distance(Y_i(0,1),V_i(0,1));
+    return (1-_alpha) * this -> distance(Y_i(0,0),V_i(0,0)) + 
+            _alpha * this -> distance(Y_i(0,1),V_i(0,1));
 }
+
+
+RCPP_MODULE(H1Module) {
+  Rcpp::class_<H1>("H1")
+  .constructor<arma::vec,double>()
+  .method("compute", &H1::compute)
+  .field("w",&H1::_w)
+  .field("alpha",&H1::_alpha);
+}
+
