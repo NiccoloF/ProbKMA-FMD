@@ -39,6 +39,6 @@
 #' occurrences) of the two motifs in each of the 20 curves}
 #' }
 #'
-#' @source \url(https://github.com/marziacremona/ProbKMA-FMD/tree/main/Functional%20motif%20discovery%20example)
-#'
-"sim_motifs"
+#' @name sim_motifs
+#' @usage data(sim_motifs)
+NULL
