@@ -476,15 +476,18 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                                  domain,
                                  select_domain,
                                  diss_d0_d1_L2)
+      S_new=SD[[1]]
+      D_new=SD[[2]]
+      rm(SD)
     } else {
       c_k=rep(c_k,each=length(Y))
       YV=expand.grid(Y,V_new)
-      SD=.mapply_custom(cl_probKMA,.find_min_diss,YV[,1],YV[,2],c_k,
-                        MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
+      SD=mapply_custom(cl_probKMA,find_min_diss,YV[,1],YV[,2],c_k,
+                      MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
+      S_new=matrix(SD[1,],ncol=K)
+      D_new=matrix(SD[2,],ncol=K)
+      rm(SD)
     }
-    S_new=SD[[1]]
-    D_new=SD[[2]]
-    rm(SD)
     end=proc.time()
     #message('  find shift: ',round((end-start)[3],2))
     
