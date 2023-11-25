@@ -3,7 +3,11 @@
 #include "RcppArmadillo.h"
 #include <ranges>
 #include <algorithm>
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
+
 #include <limits>
 #include "utilities.h"
 

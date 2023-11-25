@@ -1,7 +1,6 @@
 #include "find_min_diss.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp20)]]
 // [[Rcpp::plugins(openmp)]]
 
 
@@ -231,8 +230,9 @@ Rcpp::List find_shift_warp_min(const Rcpp::List & Y,
   arma::mat  D_new(Y_size,V_new_size);
   arma::field<arma::mat> Y_(util::conv_to_field(Y));
   arma::field<arma::mat> V_new_(util::conv_to_field(V_new));
-  
-  #pragma omp parallel for collapse(2) firstprivate(sd) 
+  #ifdef _OPENMP
+      #pragma omp parallel for collapse(2) firstprivate(sd)
+  #endif
   for (unsigned int i = 0; i < V_new_size; ++i)
     for (unsigned int j = 0; j < Y_size; ++j){ 
       sd = find_diss_rcpp(Y_(j,0),Y_(j,1),V_new_(i,0),V_new_(i,1),w,alpha,c_k(i),d,use0,use1); 

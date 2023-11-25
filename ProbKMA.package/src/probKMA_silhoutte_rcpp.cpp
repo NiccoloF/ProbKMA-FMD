@@ -2,7 +2,6 @@
 #include "silhoutte.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp20)]]
 // [[Rcpp::plugins(openmp)]]
 
 // [[Rcpp::export(.probKMA_silhouette_rcpp)]]
@@ -167,7 +166,9 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  if(align){
    arma::vec min_diss_aligned;
    bool equal_length_i;
-   #pragma omp parallel for firstprivate(equal_length_i,min_diss_aligned)
+   #ifdef _OPENMP
+      #pragma omp parallel for firstprivate(equal_length_i,min_diss_aligned)
+   #endif
    for(int i = 0; i < YY_length_size; ++i){
      equal_length_i = equal_length(i);
      min_diss_aligned = find_diss_aligned_rcpp(Y_in_motifs(indeces_YY(0,i),0),    
@@ -187,7 +188,9 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    arma::imat c_Y_motifs_comb = util::combn2<arma::sword>(c_Y_motifs);  
    arma::vec min_diss;
    unsigned int cc_motifs_i;
-   #pragma omp parallel for firstprivate(cc_motifs_i,min_diss)
+   #ifdef _OPENMP
+      #pragma omp parallel for firstprivate(cc_motifs_i,min_diss)
+   #endif
    for(int i = 0; i < YY_length_size; ++i){
      cc_motifs_i = std::min(c_Y_motifs_comb(0,i),
                             c_Y_motifs_comb(1,i));
