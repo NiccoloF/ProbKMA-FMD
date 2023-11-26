@@ -11,26 +11,19 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// test_dissimilarities_class
-double test_dissimilarities_class(const List& v, const List& y, const arma::vec& w, double alpha);
-RcppExport SEXP _ProbKMAcpp_test_dissimilarities_class(SEXP vSEXP, SEXP ySEXP, SEXP wSEXP, SEXP alphaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type v(vSEXP);
-    Rcpp::traits::input_parameter< const List& >::type y(ySEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type w(wSEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_dissimilarities_class(v, y, w, alpha));
-    return rcpp_result_gen;
-END_RCPP
-}
 
-RcppExport SEXP _rcpp_module_boot_ParametersModule();
+RcppExport SEXP _rcpp_module_boot_H1Module();
+RcppExport SEXP _rcpp_module_boot_L2Module();
+RcppExport SEXP _rcpp_module_boot_MotifH1Module();
+RcppExport SEXP _rcpp_module_boot_MotifL2Module();
+RcppExport SEXP _rcpp_module_boot_ProbKMAModule();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ProbKMAcpp_test_dissimilarities_class", (DL_FUNC) &_ProbKMAcpp_test_dissimilarities_class, 4},
-    {"_rcpp_module_boot_ParametersModule", (DL_FUNC) &_rcpp_module_boot_ParametersModule, 0},
+    {"_rcpp_module_boot_H1Module", (DL_FUNC) &_rcpp_module_boot_H1Module, 0},
+    {"_rcpp_module_boot_L2Module", (DL_FUNC) &_rcpp_module_boot_L2Module, 0},
+    {"_rcpp_module_boot_MotifH1Module", (DL_FUNC) &_rcpp_module_boot_MotifH1Module, 0},
+    {"_rcpp_module_boot_MotifL2Module", (DL_FUNC) &_rcpp_module_boot_MotifL2Module, 0},
+    {"_rcpp_module_boot_ProbKMAModule", (DL_FUNC) &_rcpp_module_boot_ProbKMAModule, 0},
     {NULL, NULL, 0}
 };
 

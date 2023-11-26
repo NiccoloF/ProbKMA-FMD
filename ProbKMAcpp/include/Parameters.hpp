@@ -1,32 +1,38 @@
 #ifndef PARAMETERS_HPP
 #define PARAMETERS_HPP
-#include <vector>
 #include <string>
-#include <Rcpp.h>
+#include "RcppArmadillo.h"
 
 
-class Parameters
-{
-public:
-  
-    Parameters() = default;
- 
-    void createParameters(unsigned int K,
-                          const std::vector<unsigned int>& c,
-                          const std::vector<unsigned int>& c_max,
-                          unsigned int iter_max,unsigned int quantile,
-                          const std::string& stopCriterion,double tol,
-                          unsigned int iter4elong,double tol4elong,
-                          double max_elong,unsigned int trials_elong,
-                          double deltaJK_elong,double max_gap,
-                          unsigned int iter4clean,double tol4clean,
-                          double quantile4clean,bool parallel);
+struct Parameters
+{ 
+    /*
+     *unsigned int K,
+     *const arma::ivec& c,
+     *const arma::ivec& c_max,
+     *unsigned int iter_max,
+     *unsigned int quantile,
+     *const std::string& stopCriterion,
+     *double tol,
+     *unsigned int iter4elong,
+     *double tol4elong,
+     *double max_elong,
+     *unsigned int trials_elong,
+     *double deltaJK_elong,
+     *double max_gap,
+     *unsigned int iter4clean,
+     *double tol4clean,
+     *double quantile4clean,
+     *bool parallel
+     */
     
-    void test(SEXP a);
-
+    Parameters() = delete;
+    Parameters(const Rcpp::List& params);
+    Parameters(const Parameters&) = default;
+    
     unsigned int _K;
-    std::vector<unsigned int> _c;
-    std::vector<unsigned int> _c_max;
+    arma::ivec _c;
+    arma::ivec _c_max;
     unsigned int _iter_max;
     unsigned int _quantile;
     std::string _stopCriterion;

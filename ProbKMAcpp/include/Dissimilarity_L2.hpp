@@ -12,6 +12,8 @@ class L2: public Dissimilarity
     virtual double compute(const arma::field<arma::mat>& Y_i,
                            const arma::field<arma::mat>& V_i) const override;
     
+    virtual ~L2() = default;
+    
     arma::vec _w;
 
     private:
@@ -20,5 +22,5 @@ class L2: public Dissimilarity
                             const arma::mat& v) const override;
       
 };
-
+  
 #endif // DISSIMILARITY_L2_HPP

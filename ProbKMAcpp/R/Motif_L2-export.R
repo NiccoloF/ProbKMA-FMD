@@ -29,8 +29,8 @@
 #' ben$GetName()
 #'
 #' ben$GetFavoriteNumbers()
-#' @name Parameters
-#' @export Parameters
+#' @name Motif_L2
+#' @export Motif_L2
 
 # ^^^^^^^^^^^^^^^^
 # Export the "Student" C++ class by explicitly requesting Student be
@@ -39,4 +39,4 @@
 
 
 # Load the Rcpp module exposed with RCPP_MODULE( ... ) macro.
-loadModule(module = "ParametersModule", TRUE)
+loadModule(module = "MotifL2Module", TRUE)

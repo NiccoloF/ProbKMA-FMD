@@ -1,4 +1,6 @@
 #include "Dissimilarity_L2.hpp"
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::plugins(cpp20)]]
 
 L2::L2(const arma::vec& w): Dissimilarity(),_w(w){};
 
@@ -28,6 +30,7 @@ double L2::compute(const arma::field<arma::mat>& Y_i,
 {
     return this->distance(Y_i(0,0),V_i(0,0));
 }
+
 
 RCPP_MODULE(L2Module) {
   Rcpp::class_<L2>("L2")

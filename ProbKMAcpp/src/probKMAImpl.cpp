@@ -6,27 +6,19 @@
 class ProbKMA::_probKMAImp
 {
 public:
-    _probKMAImp(const Rcpp::List& Y,const Rcpp::List& V,const arma::mat& P0,
-                const arma::mat& S0,SEXP parameters,
-                SEXP dissimilarity,SEXP motif): _P0(P0), _S0(S0)
+  
+    _probKMAImp(const Rcpp::List& Y,const Rcpp::List& V,const Rcpp::List& params,
+                Rcpp::NumericMatrix P0,Rcpp::NumericMatrix S0)
+                :_parameters(params),_P0(Rcpp::as<arma::mat>(P0)),_S0(Rcpp::as<arma::mat>(S0))
                 {
-                    set_parameters(parameters);
-                    set_distance(dissimilarity);
-                    set_motif(motif);
                     Initialize(Y,V);
                 }
-    
+
+   
     ~_probKMAImp() = default;
 
     // parameters for initialization
-    Parameters* _parameters;
- 
-    // different implementations of distance
-    Dissimilarity* _distance;
-   
-    // different implementations of compute_motif
-    Motif* _motif;
-
+    
     void Initialize(const Rcpp::List& Y,const Rcpp::List& V)
     {
         int Y_size = Y.size();
@@ -82,36 +74,26 @@ public:
         }
     } 
 
-    Rcpp::List probKMA_run() const
+    Rcpp::List probKMA_run(const SEXP& dissimilarity,const SEXP& motif) const
     {
-      
+      Rcpp::S4 dissimilairtyObj(dissimilarity);
+      Rcpp::S4 motifObj(motif);
+      Rcpp::Environment env_diss(dissimilairtyObj);
+      Rcpp::Environment env_motif(motifObj);
+      Rcpp::XPtr<Dissimilarity> xptr_diss( env_diss.get(".pointer") );
+      Rcpp::XPtr<MotifBase> xptr_motif( env_motif.get(".pointer") );
+      Dissimilarity* diss_ptr = static_cast<Dissimilarity*> (R_ExternalPtrAddr(xptr_diss));
+      MotifBase* motif_ptr = static_cast<MotifBase*> (R_ExternalPtrAddr(xptr_motif));
+      Rcpp::Rcout<<"Hello"<<std::endl;
         return Rcpp::List::create();
     }
 
-    void set_parameters(SEXP newParameters)
+    void set_parameters(Rcpp::List newParameters)
     {
-      Rcpp::S4 parametersObj(newParameters);
-      Rcpp::Environment env(parametersObj);
-      Rcpp::XPtr<Parameters> xptr( env.get(".pointer") );
-      _parameters = static_cast<Parameters*> (R_ExternalPtrAddr(xptr));
+      _parameters = Parameters(newParameters);
     }
     
-    void set_distance(SEXP newDistance)
-    {
-      Rcpp::S4 distanceObj(newDistance);
-      Rcpp::Environment env(distanceObj);
-      Rcpp::XPtr<Dissimilarity> xptr( env.get(".pointer") );
-      _distance = static_cast<Dissimilarity*> (R_ExternalPtrAddr(xptr));
-    }
-
-    void set_motif(SEXP newMotif)
-    {
-      Rcpp::S4 motifObj(newMotif);
-      Rcpp::Environment env(motifObj);
-      Rcpp::XPtr<Motif*> xptr( env.get(".pointer") );
-      _motif = static_cast<Motif*> (R_ExternalPtrAddr(xptr));
-    }
-
+    
     // return a R structure
     Rcpp::List toR() const  // da implementare in base ai dati che voglio restituire in R
     {
@@ -119,6 +101,7 @@ public:
     }
   
     // Functional Data
+    Parameters _parameters;
     arma::field<arma::mat> _Y;
     arma::field<arma::mat> _V;
     arma::mat _P0;
@@ -130,30 +113,39 @@ public:
 
 ///////// Implementation of funtions declared in the HEADER file ///////////////
 
-ProbKMA::ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,const arma::mat& P0,
-                 const arma::mat& S0,SEXP parameters,
-                 SEXP dissimilarity,SEXP motif):
-                 _probKMA(std::make_unique<_probKMAImp>(Y,V,P0,S0,parameters,
-                                                       dissimilarity,motif)) {}; 
+ProbKMA::ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
+                 const Rcpp::List& parameters,
+                 Rcpp::NumericMatrix P0,Rcpp::NumericMatrix S0):
+                 _probKMA(std::make_unique<_probKMAImp>(Y,V,parameters,P0,S0)) {}; 
 
 
-Rcpp::List ProbKMA::probKMA_run() const
+Rcpp::List ProbKMA::probKMA_run(const SEXP& dissimilarity,const SEXP& motif) const
 {
-   return _probKMA -> probKMA_run();
+   return _probKMA -> probKMA_run(dissimilarity,motif);
 }
 
-void ProbKMA::set_parameters(SEXP newParameters)
+void ProbKMA::set_parameters(Rcpp::List newParameters)
 {
     _probKMA -> set_parameters(newParameters);
 }
 
-void ProbKMA::set_distance(SEXP newDistance)
-{
-  _probKMA -> set_distance(newDistance);
+
+RCPP_EXPOSED_CLASS(ProbKMA);
+
+RCPP_MODULE(ProbKMAModule) {
+  Rcpp::class_<ProbKMA>("ProbKMA")
+  .constructor<Rcpp::List,Rcpp::List,
+               Rcpp::List,Rcpp::NumericMatrix,
+               Rcpp::NumericMatrix>()
+  .method("run", &ProbKMA::probKMA_run)
+  .method("set_parameters", &ProbKMA::set_parameters);
 }
 
-void ProbKMA::set_motif(SEXP newMotif)
-{
-    _probKMA -> set_motif(newMotif);
-}
-
+/*
+ * Rcpp::S4 parametersObj(newParameters);
+ Rcpp::XPtr<Parameters> x(newParameters);
+ Rcpp::Environment env(parametersObj);
+ Rcpp::XPtr<Parameters> xptr( env.get(".pointer") );
+ _parameters = static_cast<Parameters*> (R_ExternalPtrAddr(xptr));
+ * 
+ */

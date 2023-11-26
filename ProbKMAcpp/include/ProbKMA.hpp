@@ -9,6 +9,7 @@
 #include <ranges>
 #include <algorithm>
 #include <memory>
+#include <Rcpp.h>
 
 // Forward declaration
 class _probKMAImp;
@@ -16,18 +17,15 @@ class _probKMAImp;
 class ProbKMA
 {
  public:
-    ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,const arma::mat& P0,
-            const arma::mat& S0,SEXP parameters,
-            SEXP dissimilarity,SEXP motif);
+    ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,const Rcpp::List& parameters,
+            Rcpp::NumericMatrix P0,Rcpp::NumericMatrix S0);
     
-    ~ProbKMA() = default;
+    virtual ~ProbKMA() = default;
     
     // run probKMA's algorithm
-    Rcpp::List probKMA_run() const;
+    Rcpp::List probKMA_run(const SEXP& dissimilarity,const SEXP& motif) const;
 
-    void set_parameters(SEXP parameters);
-    void set_distance(SEXP pnewDistance);
-    void set_motif(SEXP pnewMotif);
+    void set_parameters(Rcpp::List parameters);
     
  private:
 
