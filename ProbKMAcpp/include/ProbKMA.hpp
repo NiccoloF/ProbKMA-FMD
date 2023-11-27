@@ -18,14 +18,14 @@ class ProbKMA
 {
  public:
     ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,const Rcpp::List& parameters,
-            Rcpp::NumericMatrix P0,Rcpp::NumericMatrix S0);
+            const arma::mat& P0,const arma::mat& S0);
     
     virtual ~ProbKMA() = default;
     
     // run probKMA's algorithm
     Rcpp::List probKMA_run(const SEXP& dissimilarity,const SEXP& motif) const;
 
-    void set_parameters(Rcpp::List parameters);
+    void set_parameters(const Rcpp::List& parameters);
     
  private:
 

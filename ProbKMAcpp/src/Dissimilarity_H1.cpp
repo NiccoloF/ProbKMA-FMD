@@ -31,7 +31,6 @@ double H1::compute(const arma::field<arma::mat>& Y_i,
 RCPP_MODULE(H1Module) {
   Rcpp::class_<H1>("H1")
   .constructor<arma::vec,double>()
-  .method("compute", &H1::compute)
   .field("w",&H1::_w)
   .field("alpha",&H1::_alpha);
 }

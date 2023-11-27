@@ -8,8 +8,8 @@ class ProbKMA::_probKMAImp
 public:
   
     _probKMAImp(const Rcpp::List& Y,const Rcpp::List& V,const Rcpp::List& params,
-                Rcpp::NumericMatrix P0,Rcpp::NumericMatrix S0)
-                :_parameters(params),_P0(Rcpp::as<arma::mat>(P0)),_S0(Rcpp::as<arma::mat>(S0))
+                const arma::mat& P0,const arma::mat& S0)
+                :_parameters(params),_P0(P0),_S0(S0)
                 {
                     Initialize(Y,V);
                 }
@@ -84,11 +84,12 @@ public:
       Rcpp::XPtr<MotifBase> xptr_motif( env_motif.get(".pointer") );
       Dissimilarity* diss_ptr = static_cast<Dissimilarity*> (R_ExternalPtrAddr(xptr_diss));
       MotifBase* motif_ptr = static_cast<MotifBase*> (R_ExternalPtrAddr(xptr_motif));
-      Rcpp::Rcout<<"Hello"<<std::endl;
+      
+      
         return Rcpp::List::create();
     }
 
-    void set_parameters(Rcpp::List newParameters)
+    void set_parameters(const Rcpp::List& newParameters)
     {
       _parameters = Parameters(newParameters);
     }
@@ -115,7 +116,7 @@ public:
 
 ProbKMA::ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
                  const Rcpp::List& parameters,
-                 Rcpp::NumericMatrix P0,Rcpp::NumericMatrix S0):
+                 const arma::mat& P0,const arma::mat& S0):
                  _probKMA(std::make_unique<_probKMAImp>(Y,V,parameters,P0,S0)) {}; 
 
 
@@ -124,7 +125,7 @@ Rcpp::List ProbKMA::probKMA_run(const SEXP& dissimilarity,const SEXP& motif) con
    return _probKMA -> probKMA_run(dissimilarity,motif);
 }
 
-void ProbKMA::set_parameters(Rcpp::List newParameters)
+void ProbKMA::set_parameters(const Rcpp::List& newParameters)
 {
     _probKMA -> set_parameters(newParameters);
 }
@@ -135,17 +136,8 @@ RCPP_EXPOSED_CLASS(ProbKMA);
 RCPP_MODULE(ProbKMAModule) {
   Rcpp::class_<ProbKMA>("ProbKMA")
   .constructor<Rcpp::List,Rcpp::List,
-               Rcpp::List,Rcpp::NumericMatrix,
-               Rcpp::NumericMatrix>()
+               Rcpp::List,arma::mat,
+              arma::mat>()
   .method("run", &ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters);
 }
-
-/*
- * Rcpp::S4 parametersObj(newParameters);
- Rcpp::XPtr<Parameters> x(newParameters);
- Rcpp::Environment env(parametersObj);
- Rcpp::XPtr<Parameters> xptr( env.get(".pointer") );
- _parameters = static_cast<Parameters*> (R_ExternalPtrAddr(xptr));
- * 
- */

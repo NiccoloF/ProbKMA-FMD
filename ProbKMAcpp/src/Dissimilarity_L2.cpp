@@ -35,7 +35,6 @@ double L2::compute(const arma::field<arma::mat>& Y_i,
 RCPP_MODULE(L2Module) {
   Rcpp::class_<L2>("L2")
   .constructor<arma::vec>()
-  .method("compute", &L2::compute)
   .field("w",&L2::_w);
 }
 
