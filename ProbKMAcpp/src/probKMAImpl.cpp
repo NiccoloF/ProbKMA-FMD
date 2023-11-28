@@ -81,9 +81,9 @@ public:
       Rcpp::Environment env_diss(dissimilairtyObj);
       Rcpp::Environment env_motif(motifObj);
       Rcpp::XPtr<Dissimilarity> xptr_diss( env_diss.get(".pointer") );
-      Rcpp::XPtr<MotifBase> xptr_motif( env_motif.get(".pointer") );
+      Rcpp::XPtr<MotifPure> xptr_motif( env_motif.get(".pointer") );
       Dissimilarity* diss_ptr = static_cast<Dissimilarity*> (R_ExternalPtrAddr(xptr_diss));
-      MotifBase* motif_ptr = static_cast<MotifBase*> (R_ExternalPtrAddr(xptr_motif));
+      MotifPure* motif_ptr = static_cast<MotifPure*> (R_ExternalPtrAddr(xptr_motif));
       
       
         return Rcpp::List::create();
@@ -137,7 +137,7 @@ RCPP_MODULE(ProbKMAModule) {
   Rcpp::class_<ProbKMA>("ProbKMA")
   .constructor<Rcpp::List,Rcpp::List,
                Rcpp::List,arma::mat,
-              arma::mat>()
+               arma::mat>()
   .method("run", &ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters);
 }

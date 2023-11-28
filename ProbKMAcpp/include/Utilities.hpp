@@ -34,8 +34,8 @@ namespace util
     return result;
   }
   
-  template <bool Use, typename MatType>
-  arma::urowvec domainHelper(const MatType& v) {
+  template <typename MatType>
+  arma::urowvec findDomain(const MatType& v) {
     arma::urowvec result(v.n_rows, arma::fill::zeros);
     for (arma::uword i = 0; i < v.n_rows; ++i) {
       const arma::uvec& finite_row = arma::find_finite(v.row(i));
@@ -43,16 +43,6 @@ namespace util
         result(i) = 1;
     }
     return result;
-  }
-  
-  template <bool Uses, typename MatType>
-  arma::urowvec findDomain(const MatType& v) {
-    
-    if constexpr (Uses) {
-      return domainHelper<true>(v);
-    } else {
-      return domainHelper<false>(v);
-    }
   }
 
 }

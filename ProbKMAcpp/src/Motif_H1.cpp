@@ -3,11 +3,12 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 
-arma::field<arma::mat> Motif_H1::compute_motif(const arma::uvec& v_dom,
-                                               const arma::vec& s_k,
-                                               const arma::vec& p_k,
-                                               const arma::field<arma::mat>& Y,
-                                               double m) const
+std::pair<arma::field<arma::mat>,arma::sword>
+  Motif_H1::compute_motif(const arma::uvec& v_dom,
+                          const arma::ivec& s_k,
+                          const arma::vec& p_k,
+                          const arma::field<arma::mat>& Y,
+                          double m) const
 {
   if(arma::accu(p_k) == 0) {
     
@@ -35,7 +36,6 @@ arma::field<arma::mat> Motif_H1::compute_motif(const arma::uvec& v_dom,
     auto filtered_j = std::views::iota(0,index_size) // filtering of the indexes
       | std::views::filter([&y_len,&index](int j){return (index[j] <= y_len);});
     
-    
     arma::mat y0(v_len,d); 
     
     y0.fill(arma::datum::nan);
@@ -45,7 +45,7 @@ arma::field<arma::mat> Motif_H1::compute_motif(const arma::uvec& v_dom,
     
     y0.shed_rows(arma::find(v_dom==0));
     
-    Y_inters_supp.row(i) = util::findDomain<true,arma::mat>(y0);
+    Y_inters_supp.row(i) = util::findDomain<arma::mat>(y0);
     
     y0.replace(arma::datum::nan,0);
     
@@ -60,7 +60,7 @@ arma::field<arma::mat> Motif_H1::compute_motif(const arma::uvec& v_dom,
     
     y1.shed_rows(arma::find(v_dom==0));
     
-    Y_inters_supp.row(i) = util::findDomain<false,arma::mat>(y1);
+    Y_inters_supp.row(i) = util::findDomain<arma::mat>(y1);
     
     y1.replace(arma::datum::nan,0);
     
@@ -80,7 +80,7 @@ arma::field<arma::mat> Motif_H1::compute_motif(const arma::uvec& v_dom,
                              v_len,p_k,d,m);
   
   
-  arma::uvec v_new_domain = arma::find(util::findDomain<true,arma::mat>(v_new(0,0)) == 1);
+  arma::uvec v_new_domain = arma::find(util::findDomain<arma::mat>(v_new(0,0)) == 1);
   arma::sword index_min = v_new_domain.min();
   arma::sword index_max = v_new_domain.max();
     
@@ -95,10 +95,8 @@ arma::field<arma::mat> Motif_H1::compute_motif(const arma::uvec& v_dom,
   // slight different to the R case in both case we return two elements in this case, see in elongate_motifs
 }  
 
-
-
 RCPP_MODULE(MotifH1Module) {
   Rcpp::class_<Motif_H1>("Motif_H1")
-  .constructor()
-  .method("compute", &Motif_H1::compute_motif);
+  .constructor();
+  //.method("compute_motif", &Motif_H1::compute_motif);
 }

@@ -10,13 +10,12 @@ public:
   
   virtual ~Motif_H1() = default;
   
-  virtual arma::field<arma::mat> compute_motif(const arma::uvec& v_dom,
-                                         const arma::vec& s_k,
-                                         const arma::vec& p_k,
-                                         const arma::field<arma::mat>& Y,
-                                         double m) const override;
-  
-
+  virtual std::pair<arma::field<arma::mat>,arma::sword>
+    compute_motif(const arma::uvec& v_dom,
+                  const arma::ivec& s_k,
+                  const arma::vec& p_k,
+                  const arma::field<arma::mat>& Y,
+                  double m) const override;
   
 };
 

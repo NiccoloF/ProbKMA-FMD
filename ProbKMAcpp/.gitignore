@@ -39,3 +39,6 @@ vignettes/*.pdf
 *.o
 
 *.tmp
+
+# shared library
+*.so
