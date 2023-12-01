@@ -5,16 +5,21 @@
 #include <numeric>
 #include <ranges>
 #include <algorithm>
+#include <variant>
 #include "Utilities.hpp"
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::plugins(cpp20)]]
 
 
 class MotifPure
 {
   public:
+    using indexField = std::pair<arma::field<arma::mat>,arma::sword>;
     
     MotifPure() = default;
     
-    virtual std::pair<arma::field<arma::mat>,arma::sword> 
+    virtual std::variant<indexField,arma::field<arma::mat>>
       compute_motif(const arma::uvec& v_dom,
                     const arma::ivec& s_k,
                     const arma::vec& p_k,

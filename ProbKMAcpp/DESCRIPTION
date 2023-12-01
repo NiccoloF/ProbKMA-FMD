@@ -3,7 +3,7 @@ Type: Package
 Title: Concise Summary of What the Package Does
 Version: 1.0
 Date: 2023-11-22
-Author: Your Name
+Author: Niccolò Feresini, Riccardo Lazzarini 
 Maintainer: Your Name <your@email.com>
 Description: More about what it does (maybe more than one line).
 License: GPL (>= 2)

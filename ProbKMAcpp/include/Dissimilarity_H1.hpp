@@ -9,8 +9,8 @@ class H1: public Dissimilarity
 
     H1(const arma::vec& w,double alpha);
 
-    virtual double compute(const arma::field<arma::mat>& Y_i,
-                           const arma::field<arma::mat>& V_i) const override;
+    virtual double computeDissimilarity(const arma::field<arma::mat>& Y_i,
+                                        const arma::field<arma::mat>& V_i) const override;
     
     virtual ~H1() = default;
     

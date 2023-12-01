@@ -20,8 +20,8 @@ double H1::distance(const arma::mat& y,
     return sum((col_sum/length_dom)%_w.t())/y.n_cols;
 };
 
-double H1::compute(const arma::field<arma::mat>& Y_i,
-                   const arma::field<arma::mat>& V_i) const
+double H1::computeDissimilarity(const arma::field<arma::mat>& Y_i,
+                                const arma::field<arma::mat>& V_i) const
 {
     return (1-_alpha) * this -> distance(Y_i(0,0),V_i(0,0)) + 
             _alpha * this -> distance(Y_i(0,1),V_i(0,1));

@@ -9,8 +9,8 @@ class L2: public Dissimilarity
 
     L2(const arma::vec& w);
 
-    virtual double compute(const arma::field<arma::mat>& Y_i,
-                           const arma::field<arma::mat>& V_i) const override;
+    virtual double computeDissimilarity(const arma::field<arma::mat>& Y_i,
+                                        const arma::field<arma::mat>& V_i) const override;
     
     virtual ~L2() = default;
     

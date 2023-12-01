@@ -1,6 +1,6 @@
 #include "Motif_L2.hpp"
 
-std::pair<arma::field<arma::mat>,arma::sword>
+std::variant<MotifPure::indexField,arma::field<arma::mat>>
   Motif_L2::compute_motif(const arma::uvec& v_dom,
                           const arma::ivec& s_k,
                           const arma::vec& p_k,
@@ -64,7 +64,7 @@ std::pair<arma::field<arma::mat>,arma::sword>
     if (index_min > 1) {
       return std::make_pair(v_new,index_min - 1);
     }
-    return std::make_pair(v_new,arma::datum::nan);
+    return v_new;
     // slight different to the R case in both case we return two elements in this case, see in elongate_motifs
  }
 

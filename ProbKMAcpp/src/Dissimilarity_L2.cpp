@@ -25,8 +25,8 @@ double L2::distance(const arma::mat& y,
 
 
 
-double L2::compute(const arma::field<arma::mat>& Y_i,
-                   const arma::field<arma::mat>& V_i) const
+double L2::computeDissimilarity(const arma::field<arma::mat>& Y_i,
+                                const arma::field<arma::mat>& V_i) const
 {
     return this->distance(Y_i(0,0),V_i(0,0));
 }

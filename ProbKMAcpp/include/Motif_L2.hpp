@@ -8,7 +8,7 @@ public:
   
   Motif_L2() = default;
   
-  virtual std::pair<arma::field<arma::mat>,arma::sword>
+  virtual std::variant<indexField,arma::field<arma::mat>>
     compute_motif(const arma::uvec& v_dom,
                   const arma::ivec& s_k,
                   const arma::vec& p_k,

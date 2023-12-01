@@ -2,12 +2,14 @@
 
  Parameters::Parameters(const Rcpp::List& params)
   {
+    _standardize = params["standardize"];
     _K = params["K"];
     _c = Rcpp::as<arma::ivec>(params["c"]);
     _c_max = Rcpp::as<arma::ivec>(params["c_max"]);
     _iter_max = params["iter_max"];
     _quantile = params["quantile"];
     _stopCriterion = Rcpp::as<std::string>(params["stopCriterion"]);
+    _m = params["m"];
     _tol = params["tol"];
     _iter4elong = params["iter4elong"];
     _tol4elong = params["tol4elong"];
@@ -18,7 +20,8 @@
     _iter4clean = params["iter4clean"];
     _tol4clean = params["tol4clean"];
     _quantile4clean = params["quantile4clean"];
-    _parallel = params["parallel"];
+    _return_options = params["return_options"];
+    _return_init = params["return_init"];
   }
 
 

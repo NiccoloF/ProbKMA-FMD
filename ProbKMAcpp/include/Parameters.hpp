@@ -7,6 +7,7 @@
 struct Parameters
 { 
     /*
+     *bool standardize;
      *unsigned int K,
      *const arma::ivec& c,
      *const arma::ivec& c_max,
@@ -29,13 +30,16 @@ struct Parameters
     Parameters() = delete;
     Parameters(const Rcpp::List& params);
     Parameters(const Parameters&) = default;
+    ~Parameters() = default;
     
+    bool _standardize;
     unsigned int _K;
     arma::ivec _c;
     arma::ivec _c_max;
     unsigned int _iter_max;
     unsigned int _quantile;
     std::string _stopCriterion;
+    double _m;
     double _tol;
     unsigned int _iter4elong;
     double _tol4elong;
@@ -46,7 +50,8 @@ struct Parameters
     unsigned int _iter4clean;
     double _tol4clean;
     double _quantile4clean;
-    bool _parallel;
+    bool _return_options;
+    bool _return_init;
 };
 
 #endif // PARAMETERS_HPP
