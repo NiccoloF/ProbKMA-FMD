@@ -3,26 +3,26 @@
 #include "RcppArmadillo.h"
 #include <ranges>
 #include <algorithm>
+#include <variant>
 #include <omp.h>
 #include "utilities.h"
 #include "compute_jk.h"
 
-void elongation_rcpp(Rcpp::List & V_new, 
-                           Rcpp::List & V_dom,  
-                           Rcpp::List & S_k, 
-                           const arma::vec & p_k, 
-                           const arma::ivec& len_elong_k, 
-                           const arma::uvec& keep_k,  
-                           double c, 
-                           const Rcpp::Function& domain,
-                           const Rcpp::Function& compute_motif,
-                           const Rcpp::Function & select_domain,
-                           const Rcpp::Function& diss_d0_d1_L2,
-                           bool use0, bool use1,
-                           const arma::vec& w, 
-                           double alpha, double max_gap,  
-                           const Rcpp::List& Y, int m, double deltaJk_elong,
-                           const unsigned int index);
+void elongation_rcpp(arma::field<arma::mat> & V_new, 
+                     std::vector<arma::uvec> & V_dom,  
+                     arma::imat & S_k, 
+                     const arma::vec & p_k, 
+                     const arma::ivec& len_elong_k, 
+                     const arma::uvec& keep_k,  
+                     double c, 
+                     bool use0,
+                     bool use1,
+                     const arma::vec& w, 
+                     double alpha, double max_gap,  
+                     const arma::field<arma::mat> Y, 
+                     int m, 
+                     double deltaJk_elong,
+                     const unsigned int index);
 
 void elongate_motifs(Rcpp::List & V_new,
                      Rcpp::List & V_dom,
@@ -41,11 +41,7 @@ void elongate_motifs(Rcpp::List & V_new,
                      int trials_elong,
                      const arma::mat & D,
                      unsigned int K,
-                     double max_gap,
-                     const Rcpp::Function & compute_motif,
-                     const Rcpp::Function & domain,
-                     const Rcpp::Function & select_domain,
-                     const Rcpp::Function & diss_d0_d1_L2);
+                     double max_gap);
 
 
 #endif //ELONGATE_MOTIFS_HPP

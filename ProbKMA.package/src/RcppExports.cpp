@@ -12,32 +12,29 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // compute_Jk_rcpp
-double compute_Jk_rcpp(const Rcpp::List& v, const arma::ivec& s_k, const arma::vec& p_k, const Rcpp::List& Y, double alpha, const arma::vec& w, int m, bool use0, bool use1, const Rcpp::Function& domain, const Rcpp::Function& select_domain, const Rcpp::Function& diss_d0_d1_L2, Rcpp::Nullable<int> c_k, Rcpp::Nullable<Rcpp::LogicalVector> keep_k);
-RcppExport SEXP _ProbKMA_package_compute_Jk_rcpp(SEXP vSEXP, SEXP s_kSEXP, SEXP p_kSEXP, SEXP YSEXP, SEXP alphaSEXP, SEXP wSEXP, SEXP mSEXP, SEXP use0SEXP, SEXP use1SEXP, SEXP domainSEXP, SEXP select_domainSEXP, SEXP diss_d0_d1_L2SEXP, SEXP c_kSEXP, SEXP keep_kSEXP) {
+double compute_Jk_rcpp(const arma::field<arma::mat>& v, const arma::ivec& s_k, const arma::vec& p_k, const arma::field<arma::mat>& Y, double alpha, const arma::vec& w, int m, bool use0, bool use1, double c_k, arma::vec keep_k);
+RcppExport SEXP _ProbKMA_package_compute_Jk_rcpp(SEXP vSEXP, SEXP s_kSEXP, SEXP p_kSEXP, SEXP YSEXP, SEXP alphaSEXP, SEXP wSEXP, SEXP mSEXP, SEXP use0SEXP, SEXP use1SEXP, SEXP c_kSEXP, SEXP keep_kSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type v(vSEXP);
+    Rcpp::traits::input_parameter< const arma::field<arma::mat>& >::type v(vSEXP);
     Rcpp::traits::input_parameter< const arma::ivec& >::type s_k(s_kSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type p_k(p_kSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const arma::field<arma::mat>& >::type Y(YSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type w(wSEXP);
     Rcpp::traits::input_parameter< int >::type m(mSEXP);
     Rcpp::traits::input_parameter< bool >::type use0(use0SEXP);
     Rcpp::traits::input_parameter< bool >::type use1(use1SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type domain(domainSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type select_domain(select_domainSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type diss_d0_d1_L2(diss_d0_d1_L2SEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type c_k(c_kSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::LogicalVector> >::type keep_k(keep_kSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_Jk_rcpp(v, s_k, p_k, Y, alpha, w, m, use0, use1, domain, select_domain, diss_d0_d1_L2, c_k, keep_k));
+    Rcpp::traits::input_parameter< double >::type c_k(c_kSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type keep_k(keep_kSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_Jk_rcpp(v, s_k, p_k, Y, alpha, w, m, use0, use1, c_k, keep_k));
     return rcpp_result_gen;
 END_RCPP
 }
 // elongate_motifs
-void elongate_motifs(Rcpp::List& V_new, Rcpp::List& V_dom, Rcpp::List& S_k, const Rcpp::List& P_k, const Rcpp::List& Y, const arma::vec& w, int m, bool use0, bool use1, double alpha, const arma::ivec& c, const arma::ivec& c_max, double max_elong, double deltaJk_elong, int trials_elong, const arma::mat& D, unsigned int K, double max_gap, const Rcpp::Function& compute_motif, const Rcpp::Function& domain, const Rcpp::Function& select_domain, const Rcpp::Function& diss_d0_d1_L2);
-RcppExport SEXP _ProbKMA_package_elongate_motifs(SEXP V_newSEXP, SEXP V_domSEXP, SEXP S_kSEXP, SEXP P_kSEXP, SEXP YSEXP, SEXP wSEXP, SEXP mSEXP, SEXP use0SEXP, SEXP use1SEXP, SEXP alphaSEXP, SEXP cSEXP, SEXP c_maxSEXP, SEXP max_elongSEXP, SEXP deltaJk_elongSEXP, SEXP trials_elongSEXP, SEXP DSEXP, SEXP KSEXP, SEXP max_gapSEXP, SEXP compute_motifSEXP, SEXP domainSEXP, SEXP select_domainSEXP, SEXP diss_d0_d1_L2SEXP) {
+void elongate_motifs(Rcpp::List& V_new, Rcpp::List& V_dom, Rcpp::List& S_k, const Rcpp::List& P_k, const Rcpp::List& Y, const arma::vec& w, int m, bool use0, bool use1, double alpha, const arma::ivec& c, const arma::ivec& c_max, double max_elong, double deltaJk_elong, int trials_elong, const arma::mat& D, unsigned int K, double max_gap);
+RcppExport SEXP _ProbKMA_package_elongate_motifs(SEXP V_newSEXP, SEXP V_domSEXP, SEXP S_kSEXP, SEXP P_kSEXP, SEXP YSEXP, SEXP wSEXP, SEXP mSEXP, SEXP use0SEXP, SEXP use1SEXP, SEXP alphaSEXP, SEXP cSEXP, SEXP c_maxSEXP, SEXP max_elongSEXP, SEXP deltaJk_elongSEXP, SEXP trials_elongSEXP, SEXP DSEXP, SEXP KSEXP, SEXP max_gapSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List& >::type V_new(V_newSEXP);
@@ -58,11 +55,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type K(KSEXP);
     Rcpp::traits::input_parameter< double >::type max_gap(max_gapSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type compute_motif(compute_motifSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type domain(domainSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type select_domain(select_domainSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type diss_d0_d1_L2(diss_d0_d1_L2SEXP);
-    elongate_motifs(V_new, V_dom, S_k, P_k, Y, w, m, use0, use1, alpha, c, c_max, max_elong, deltaJk_elong, trials_elong, D, K, max_gap, compute_motif, domain, select_domain, diss_d0_d1_L2);
+    elongate_motifs(V_new, V_dom, S_k, P_k, Y, w, m, use0, use1, alpha, c, c_max, max_elong, deltaJk_elong, trials_elong, D, K, max_gap);
     return R_NilValue;
 END_RCPP
 }
@@ -176,8 +169,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ProbKMA_package_compute_Jk_rcpp", (DL_FUNC) &_ProbKMA_package_compute_Jk_rcpp, 14},
-    {"_ProbKMA_package_elongate_motifs", (DL_FUNC) &_ProbKMA_package_elongate_motifs, 22},
+    {"_ProbKMA_package_compute_Jk_rcpp", (DL_FUNC) &_ProbKMA_package_compute_Jk_rcpp, 11},
+    {"_ProbKMA_package_elongate_motifs", (DL_FUNC) &_ProbKMA_package_elongate_motifs, 18},
     {"_ProbKMA_package_find_diss_rcpp", (DL_FUNC) &_ProbKMA_package_find_diss_rcpp, 10},
     {"_ProbKMA_package_find_shift_warp_min", (DL_FUNC) &_ProbKMA_package_find_shift_warp_min, 10},
     {"_ProbKMA_package_find_occurrences_cpp", (DL_FUNC) &_ProbKMA_package_find_occurrences_cpp, 11},

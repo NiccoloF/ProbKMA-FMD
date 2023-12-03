@@ -458,8 +458,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       
       .elongate_motifs(V_new,V_dom,S_k,P_k,Y,w,m,use0,
                       use1,alpha,c,c_max,max_elong, deltaJk_elong,
-                      trials_elong,D,K,max_gap,compute_motif,domain,
-                      select_domain,diss_d0_d1_L2)
+                      trials_elong,D,K,max_gap)
       
       S=matrix(unlist(S_k),ncol=K)
     }

@@ -107,7 +107,7 @@ namespace util
     return result;
   }
 
-  arma::field<arma::mat> conv_to_field(const Rcpp::List & Y);
+  arma::field<arma::mat> conv_to_field(const Rcpp::List & Y,bool use0, bool use1);
   
 }
 

@@ -26,18 +26,29 @@ arma::uvec domain_rcpp(const arma::mat & v0,
   }
 }
 
-std::vector<arma::mat> select_domain_rcpp(const arma::mat & v0,
+arma::urowvec domain_rcpp_base(const arma::mat & v)
+{
+    arma::urowvec result(v.n_rows,arma::fill::zeros);
+    for (arma::uword i=0; i < v.n_rows; ++i){
+      const arma::uvec & finite_row = arma::find_finite(v.row(i));
+      if(finite_row.n_elem)
+        result(i) = 1;
+    }
+    return result;
+}
+
+arma::field<arma::mat> select_domain_rcpp(const arma::mat & v0,
                                           const arma::mat & v1,
                                           const arma::uvec &v_dom,
                                           bool use0,
                                           bool use1){ 
   arma::uvec dom = arma::find(v_dom==1);
-  std::vector<arma::mat> v(2);
+  arma::field<arma::mat> v(1,2);
   if(use0) {
-    v[0] = v0.rows(dom);
+    v(0,0) = v0.rows(dom);
   }
   if(use1) {
-    v[1] = v1.rows(dom);
+    v(0,1) = v1.rows(dom);
   }
   return v;
 }
@@ -68,6 +79,11 @@ double diss_d0_d1_L2_rcpp(const arma::mat & y0,
                           const arma::vec& w,
                           double alpha)
 {
+  if (alpha == 0)
+    return distance(y0,v0,w);
+  if (alpha == 1)
+    return distance(y1,v1,w);
+
   return (1 - alpha)*distance(y0,v0,w) + alpha*distance(y1,v1,w);
 }
 
@@ -137,7 +153,7 @@ arma::vec find_diss_rcpp(const arma::mat &y0,
   
   for (unsigned int i = 0; i < s_rep_size; i++) {
     if (valid(i)) {
-      double dist = diss_d0_d1_L2_rcpp(y_rep[i][0], y_rep[i][1],v_new[0],v_new[1], w, alpha);
+      double dist = diss_d0_d1_L2_rcpp(y_rep[i][0], y_rep[i][1],v_new(0,0),v_new(0,1), w, alpha);
       if (dist < min_d){
         min_d = dist;
         min_s = s_rep[i];
@@ -160,7 +176,7 @@ arma::vec find_diss_aligned_rcpp(const arma::mat &y0,
                                  bool use1)
   {
     arma::uvec v_dom = domain_rcpp(v0,v1,use0);
-    std::vector<arma::mat> v_new = select_domain_rcpp(v0,v1,v_dom,use0,use1);
+    auto v_new = select_domain_rcpp(v0,v1,v_dom,use0,use1);
     int v_len = v_dom.size();
     int y_len = y0.n_rows;
     arma::ivec s_rep;
@@ -201,7 +217,7 @@ arma::vec find_diss_aligned_rcpp(const arma::mat &y0,
     int min_s = 0;
     
     for (unsigned int i = 0; i < s_rep_size; i++) {
-      double dist = diss_d0_d1_L2_rcpp(y_rep[i][0],y_rep[i][1], v_new[0],v_new[1], w, alpha);
+      double dist = diss_d0_d1_L2_rcpp(y_rep[i][0],y_rep[i][1], v_new(0,0),v_new(0,1), w, alpha);
       if (dist < min_d){
         min_d = dist;
         min_s = s_rep(i);
@@ -228,8 +244,9 @@ Rcpp::List find_shift_warp_min(const Rcpp::List & Y,
   arma::vec sd(2);
   arma::imat S_new(Y_size,V_new_size);
   arma::mat  D_new(Y_size,V_new_size);
-  arma::field<arma::mat> Y_(util::conv_to_field(Y));
-  arma::field<arma::mat> V_new_(util::conv_to_field(V_new));
+  arma::field<arma::mat> Y_(util::conv_to_field(Y,use0,use1));
+  arma::field<arma::mat> V_new_(util::conv_to_field(V_new,use0,use1));
+
   #ifdef _OPENMP
       #pragma omp parallel for collapse(2) firstprivate(sd)
   #endif
