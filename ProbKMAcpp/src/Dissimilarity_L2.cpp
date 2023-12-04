@@ -1,4 +1,4 @@
-#include "Dissimilarity_L2.hpp"
+#include "Dissimilarity.hpp"
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 

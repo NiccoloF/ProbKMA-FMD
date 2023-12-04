@@ -1,4 +1,4 @@
-#include "Motif_L2.hpp"
+#include "Motif.hpp"
 
 std::variant<MotifPure::indexField,arma::field<arma::mat>>
   Motif_L2::compute_motif(const arma::uvec& v_dom,

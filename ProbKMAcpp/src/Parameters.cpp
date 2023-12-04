@@ -10,6 +10,8 @@
     _quantile = params["quantile"];
     _stopCriterion = Rcpp::as<std::string>(params["stopCriterion"]);
     _m = params["m"];
+    _w = Rcpp::as<arma::vec>(params["w"]);
+    _alpha = params["alpha"];
     _tol = params["tol"];
     _iter4elong = params["iter4elong"];
     _tol4elong = params["tol4elong"];

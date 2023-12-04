@@ -1,4 +1,196 @@
-.initialChecks <- function(Y0,Y1,P0,S0,params,diss,alpha,w){
+
+standardize = TRUE
+diss = 'd0_d1_L2' 
+alpha = 0.5
+max_gap = 0 
+trials_elong = 200
+c_max = 53
+K = 2
+c = 40 
+standardize=FALSE
+c=c
+c_max=c_max
+N = 43
+P0= matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)
+S0= matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)
+diss=diss
+alpha=alpha
+w=c(0.5,0.5)
+m=2
+iter_max=100
+stop_criterion='max'
+quantile=0.25
+tol=1e-8
+iter4elong=10
+tol4elong=100
+max_elong=0.5
+trials_elong=10
+deltaJk_elong=0.05
+max_gap=max_gap
+iter4clean=50
+tol4clean=1e-4
+quantile4clean=1/K
+return_options=TRUE
+return_init=TRUE
+
+
+load("../TempForRcpp/Y_data.Rdata")
+
+
+params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_max,
+               quantile = quantile,stopCriterion = stop_criterion,tol = tol,
+               iter4elong = iter4elong,tol4elong = tol4elong,max_elong = max_elong,
+               trials_elong = trials_elong,
+               deltaJK_elong = deltaJk_elong,max_gap = max_gap,iter4clean = iter4clean,
+               tol4clean = tol4clean,
+               quantile4clean = quantile4clean,return_options = return_options,
+               return_init = return_init,m = m,w = w,alpha = alpha)
+
+#library(ProbKMAcpp)
+Y0_f <- function(Y_i)
+{
+  return(Y_i$y0)
+}
+Y1_f <- function(Y_i)
+{
+  return(Y_i$y1)
+}
+
+
+Y0 <- lapply(Y,Y0_f)
+Y1 <- lapply(Y,Y1_f)
+
+a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss,alpha,w)
+params <- a$Parameters
+data <- a$FuncData
+
+prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
+dissimilarity <- new(ProbKMAcpp::H1,w,alpha)
+motif <-new(ProbKMAcpp::Motif_H1) 
+b <- prok$probKMA_run()
+
+
+l2 = new(L2, c(2,2))
+#y <- Y[[2]]
+#y <- list(y$y0[1:40],y$y1[1:40])
+#v <- Y[[2]]
+#v <- list(v$y0[41:80],v$y1[41:80])
+#l2$compute(y,v)
+# fare test della dichiarazione di ProbKma
+V <- list(list(matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2),matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)),list(matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2),matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)))
+mot <- new(Motif_L2,2)
+prok = new(ProbKMA,Y,V,params,P0,S0)
+prok$set_parameters(params)
+prok$run(l2,mot)
+
+
+######## TEST UP TO ELONGATE MOTIF ####################
+
+prok <- new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0)
+dissim <- new(ProbKMAcpp::H1,a$Extra$w,a$Extra$alpha)
+mot <-new(ProbKMAcpp::Motif_H1) 
+
+b <- prok$probKMA_run(dissim,mot)
+
+
+.domain <- function(v,use0){
+  if(use0){
+    rowSums(!is.na(v[[1]]))!=0
+  }else{
+    rowSums(!is.na(v[[2]]))!=0
+  }
+}
+
+.compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1){
+  # Compute the new motif v_new.
+  # v_dom: TRUE for x in supp(v).
+  # s_k: shift vector for motif k.
+  # p_k: membership vector for motif k.
+  # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x), matrices with d columns, for d-dimensional curves.
+  
+  .domain <- function(v,use0){
+    if(use0){
+      rowSums(!is.na(v[[1]]))!=0
+    }else{
+      rowSums(!is.na(v[[2]]))!=0
+    }
+  }
+  .select_domain <- function(v,v_dom,use0,use1){
+    if(use0)
+      v[[1]]=as.matrix(v[[1]][v_dom,])
+    if(use1)
+      v[[2]]=as.matrix(v[[2]][v_dom,])
+    return(v)
+  }
+  .compute_v_new <- function(Y_inters_k,Y_inters_supp,v_dom,v_len,p_k,d,m){
+    v_new=matrix(NA,nrow=v_len,ncol=d)
+    if(length(Y_inters_k)==1){
+      v_new[v_dom,]=Y_inters_k[[1]]
+      return(v_new)
+    }
+    Y_inters_supp=Reduce(rbind,Y_inters_supp)
+    coeff_k=p_k[p_k>0]^m/(rowSums(Y_inters_supp)) # NB: divide for the length of the interval, not for the squared length!
+    coeff_x=colSums(Y_inters_supp*coeff_k)
+    coeff_x[colSums(Y_inters_supp)==0]=NA
+    v_new[v_dom,]=Reduce('+',mapply('*',Y_inters_k,coeff_k,SIMPLIFY=FALSE))/coeff_x
+    return(v_new)
+  }
+  
+  if(sum(p_k)==0){
+    stop('Motif with no members! Degenerate cluster!')
+  }
+  v_len=length(v_dom)
+  d=unlist(lapply(Y[[1]],ncol))[1] # dimension of curves
+  Y_inters_k=mapply(function(y,s_k_i,d,use0,use1){
+    y_len=unlist(lapply(y,nrow))[1]
+    y_inters_k=list(y0=NULL,y1=NULL)
+    index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+    browser()
+    if(use0)
+      y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y0[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    if(use1)
+      y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y1[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    return(.select_domain(y_inters_k,v_dom,use0,use1))
+  },Y[p_k>0],s_k[p_k>0],MoreArgs=list(d,use0,use1),SIMPLIFY=FALSE)
+  Y_inters_supp=lapply(Y_inters_k,.domain,use0)
+  Y_inters_k=mapply(function(y_inters_k,y_inters_supp,use0,use1){
+    if(use0)
+      y_inters_k$y0[!y_inters_supp]=0
+    if(use1)
+      y_inters_k$y1[!y_inters_supp]=0
+    return(y_inters_k)},
+    Y_inters_k,Y_inters_supp,SIMPLIFY=FALSE,MoreArgs=list(use0,use1))
+  v_new=list(v0=NULL,v1=NULL)
+  if(use0)
+    v_new$v0=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y0),
+                            Y_inters_supp,v_dom,v_len,p_k,d,m)
+  if(use1)
+    v_new$v1=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y1),
+                            Y_inters_supp,v_dom,v_len,p_k,d,m)
+  # check if there are NA at the corners (it can happen after cleaning), and remove it
+  range_v_new=range(which(.domain(v_new,use0)))
+  v_dom_new=rep(FALSE,v_len)
+  v_dom_new[(range_v_new[1]):(range_v_new[2])]=TRUE
+  v_new=.select_domain(v_new,v_dom_new,use0,use1)
+  if(range_v_new[1]>1){
+    return(c(v_new,list(shift=range_v_new[1]-1)))
+  }
+  return(v_new)
+}
+
+probKMA_prof <- function(Y0=Y0,Y1=Y1,standardize=standardize,K=K,c=c,c_max=c_max,
+                         diss=diss,alpha=alpha,w=w,m=m,
+                         iter_max=iter_max,stop_criterion=stop_criterion,
+                         quantile=quantile,tol=tol,
+                         iter4elong=iter4elong,tol4elong=tol4elong,max_elong=max_elong,
+                         trials_elong=trials_elong,deltaJk_elong=deltaJk_elong,max_gap=max_gap,
+                         iter4clean=iter4clean,tol4clean=tol4clean,
+                         quantile4clean=quantile4clean,
+                         return_options=TRUE,return_init=TRUE,P0=NULL,S0=NULL){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
   #     list of N matrices with d columns, for d-dimensional curves y_i(x),
@@ -13,8 +205,8 @@
   # K: number of motifs.
   # c: minimum motif lengths. Can be an integer (or a vector of K integers).
   # c_max: maximum motif lengths. Can be an integer (or a vector of K integers).
-  # P0: initial membership matrix, with N row and K column (if NA matrix, a random P0 is choosen).
-  # S0: initial shift warping matrix, with N row and K column (if NA, a random S0 is choosen).
+  # P0: initial membership matrix, with N row and K column (if NULL, a random P0 is choosen).
+  # S0: initial shift warping matrix, with N row and K column (if NULL, a random S0 is choosen).
   # diss: dissimilarity. Possible choices are 'd0_L2', 'd1_L2', 'd0_d1_L2'. 
   # alpha: when diss='d0_d1_L2', weight coefficient between d0_L2 and d1_L2 (alpha=0 means d0_L2, alpha=1 means d1_L2).
   # w: vector of weights for the dissimilarity index in the different dimensions (w>0).
@@ -37,28 +229,7 @@
   # quantile4clean: dissimilarity quantile to be used in motif cleaning.
   # return_options: if TRUE, the options K,c,diss,w,m are returned by the function.
   # return_init: if TRUE, P0 and S0 are returned by the function.
-  
-  ### Unpacking #############################################################################
-  standardize = params$standardize
-  K = params$K
-  c = params$c
-  c_max = params$c_max
-  iter_max = params$iter_max
-  quantile = params$quantile
-  stop_criterion = params$stopCriterion
-  m = params$m
-  tol = params$tol
-  iter4elong = params$iter4elong
-  tol4elong = params$tol4elong
-  max_elong = params$max_elong
-  trials_elong = params$trials_elong
-  deltaJk_elong = params$deltaJK_elong
-  max_gap = params$max_gap
-  iter4clean = params$iter4clean
-  tol4clean = params$tol4clean
-  quantile4clean = params$quantile4clean
-  return_options = params$return_options
-  return_init = params$return_init
+  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially. 
   
   ### check input ####################################################################################
   start=proc.time()
@@ -327,7 +498,9 @@
     stop('tol4clean should be a positive number.')
   if((!is.numeric(quantile4clean))||(length(quantile4clean)!=1)||(N*K*quantile4clean<K)||(quantile4clean>1))
     stop('quantile4clean not valid.')
- 
+  end=proc.time()
+  #message('check input: ',round((end-start)[3],2))
+  
   ### initialize #############################################################################################
   start=proc.time()
   if(is.null(P0)){
@@ -368,31 +541,67 @@
                v$v1=matrix(0,nrow=c_k,ncol=d)
              return(v)
            },d)
-
-  Y = list("Y0" = Y0,"Y1" = Y1)
-  
-  V0_f <- function(Y_i)
-  {
-    return(Y_i$v0)
+  end=proc.time()
+  #message('initialize: ',round((end-start)[3],2))
+  browser()
+  ### iterate #############################################################################################
+  iter=0
+  J_iter=c()
+  BC_dist_iter=c()
+  BC_dist=+Inf
+  while((iter<iter_max)&(BC_dist>tol)){
+    iter=iter+1
+    #message('iter ',iter)
+    
+    ##### clean motifs ###################################################################################
+    start=proc.time()
+    P_old=P
+    if((iter>1)&&(!(iter%%iter4clean))&&(BC_dist<tol4clean)){
+      keep=D<quantile(D,quantile4clean)
+      empty_k=which(colSums(keep)==0)
+      if(length(empty_k)>0){
+        for(k in empty_k)
+          keep[which.min(D[,k]),k]=TRUE
+      }
+      P[keep]=1
+      P[!keep]=0
+    }
+    end=proc.time()
+    #message('  clean: ',round((end-start)[3],2))
+    
+    ##### compute motifs ###################################################################################
+    start=proc.time()
+    S_k=split(S,rep(seq_len(K),each=N))
+    P_k=split(P,rep(seq_len(K),each=N))
+    V_dom=lapply(V,.domain,use0)
+    browser()
+    V_new=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+    changed_s=which(unlist(lapply(V_new,length))>2)
+    for(k in changed_s){
+      S[,k]=S[,k]+V_new[[k]]$shift
+      V_new[[k]]=V_new[[k]][c('v0','v1')]
+    }
+    S_k=split(S,rep(seq_len(K),each=N))
+    V_dom=lapply(V_new,.domain,use0)
+    return(list("S_k"=S_k,"P_k"=P_k,"V_dom"=V_dom))
   }
-  V1_f <- function(Y_i)
-  {
-    return(Y_i$v1)
-  }
-  
-  V <- list("V0"=lapply(V,V0_f),"V1"=lapply(V,V1_f))
-  
-  return(list("FuncData" = list("Y"=Y,"V"=V,"P0"=P0,"S0"=S0),
-              "Parameters" = list("standardize"=standardize,"K"=K,"c"=c,"c_max"=c_max,
-                                  "iter_max"=iter_max,"quantile"=quantile,
-                                  "stopCriterion"=stop_criterion,"m"=m,"w"=w,
-                                  "alpha"=alpha,"tol"=tol,
-                                  "iter4elong"=iter4elong,"tol4elong"=tol4elong,
-                                  "max_elong"=max_elong,"trials_elong"=trials_elong,
-                                  "deltaJK_elong"=deltaJk_elong,"max_gap"=max_gap,
-                                  "iter4clean"=iter4clean,"tol4clean"=tol4clean,
-                                  "quantile4clean"=quantile4clean,
-                                  "return_options"=return_options,
-                                  "return_init"=return_init) ) )
 }
+
+use0 <- TRUE
+use1 <- TRUE
+prof <- probKMA_prof(Y0,Y1,standardize,K,c,c_max,
+                     diss,alpha,w,m,
+                     iter_max,stop_criterion,
+                     quantile,tol,
+                     iter4elong,tol4elong,max_elong,
+                     trials_elong,deltaJk_elong,max_gap,
+                     iter4clean,tol4clean,
+                     quantile4clean,
+                     return_options=TRUE,return_init=TRUE,P0=NULL,S0=NULL)
+
+
+
+
+
+
 

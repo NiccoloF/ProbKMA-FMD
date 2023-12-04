@@ -28,12 +28,13 @@ class ProbKMA
     // V: a list containing two list -> V0 and V1
     ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
             const Rcpp::List& parameters,
-            const matrix& P0,const imatrix& S0);
+            const matrix& P0,const imatrix& S0,
+            const std::string& diss);
    
     virtual ~ProbKMA() = default;
     
     // run probKMA's algorithm
-    Rcpp::List probKMA_run(const SEXP& dissimilarity,const SEXP& motif) const;
+    Rcpp::List probKMA_run() const;
 
     void set_parameters(const Rcpp::List& parameters);
     

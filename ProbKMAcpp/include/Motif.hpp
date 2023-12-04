@@ -18,7 +18,7 @@ class MotifPure
     using indexField = std::pair<arma::field<arma::mat>,arma::sword>;
     
     MotifPure() = default;
-    
+  
     virtual std::variant<indexField,arma::field<arma::mat>>
       compute_motif(const arma::uvec& v_dom,
                     const arma::ivec& s_k,
@@ -38,6 +38,41 @@ class MotifPure
                             arma::uword d,
                             arma::uword m) const;
   
+};
+
+
+class Motif_L2 final: public MotifPure
+{
+public:
+  
+  Motif_L2() = default;
+  
+  virtual std::variant<indexField,arma::field<arma::mat>>
+    compute_motif(const arma::uvec& v_dom,
+                  const arma::ivec& s_k,
+                  const arma::vec& p_k,
+                  const arma::field<arma::mat>& Y,
+                  double m) const override;
+  
+  virtual ~Motif_L2() = default;
+  
+};
+
+class Motif_H1 final: public MotifPure
+{
+public:
+  
+  Motif_H1() = default;
+  
+  virtual ~Motif_H1() = default;
+  
+  virtual std::variant<indexField,arma::field<arma::mat>>
+    compute_motif(const arma::uvec& v_dom,
+                  const arma::ivec& s_k,
+                  const arma::vec& p_k,
+                  const arma::field<arma::mat>& Y,
+                  double m) const override;
+
 };
 
 #endif // MOTIF_HPP

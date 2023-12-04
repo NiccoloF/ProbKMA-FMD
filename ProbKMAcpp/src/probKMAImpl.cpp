@@ -1,4 +1,5 @@
 #include "ProbKMA.hpp"
+#include "Factory.hpp"
 #include <forward_list>
 #include <limits>
 
@@ -12,19 +13,34 @@ public:
   
     _probKMAImp(const Rcpp::List& Y,const Rcpp::List& V,
                 const Rcpp::List& parameters,
-                const matrix& P0,const imatrix& S0):
+                const matrix& P0,const imatrix& S0,
+                const std::string& diss):
                 _parameters(parameters),_P0(P0),_S0(S0)
                {  
-          
                     // Initialize c++ Data structure
                     Initialize(Y,V);
+                    
+                    // Create Dissimilarity factory
+                    util::SharedFactory<Dissimilarity> dissfac;
+                    dissfac.FactoryRegister<L2>("L2",_parameters._w);
+                    dissfac.FactoryRegister<H1>("H1",_parameters._w,_parameters._alpha);
+                    
+                    //Create Motif factory
+                    util::SharedFactory<MotifPure> motfac;
+                    motfac.FactoryRegister<Motif_L2>("L2");
+                    motfac.FactoryRegister<Motif_H1>("H1");
+                    
+                    //check whether diss is valid
+                    _motfac = motfac.instantiate(diss); // copy elision
+                    _dissfac = dissfac.instantiate(diss);
+                    if(not(_motfac and _dissfac))
+                      Rcpp::Rcerr<<"Invalid dissimilarity: Choose between L2,H1"<<std::endl;
                 }
 
     ~_probKMAImp() = default;
 
     void Initialize(const Rcpp::List& Y,const Rcpp::List& V)
     {
-  
         // Convert Rcpp Data Structure(List) into Armadillo data Structure(field)
         if(!Rf_isNull(Y[0]) and !Rf_isNull(Y[1]))
         {
@@ -83,17 +99,8 @@ public:
         }
     } 
 
-    Rcpp::List probKMA_run(const SEXP& dissimilarity,const SEXP& motif) 
+    Rcpp::List probKMA_run() 
     {
-      Rcpp::S4 dissimilairtyObj(dissimilarity);
-      Rcpp::S4 motifObj(motif);
-      Rcpp::Environment env_diss(dissimilairtyObj);
-      Rcpp::Environment env_motif(motifObj);
-      Rcpp::XPtr<Dissimilarity> xptr_diss( env_diss.get(".pointer") );
-      Rcpp::XPtr<MotifPure> xptr_motif( env_motif.get(".pointer") );
-      Dissimilarity* diss_ptr = static_cast<Dissimilarity*> (R_ExternalPtrAddr(xptr_diss));
-      MotifPure* motif_ptr = static_cast<MotifPure*> (R_ExternalPtrAddr(xptr_motif));
-      
       /// Iterate ////////////////////////////////////
       std::size_t iter = 0;
       std::forward_list<double> J_iter;
@@ -103,10 +110,11 @@ public:
       const vector quantile4clean(_parameters._quantile4clean); // Necessary to compute quantile
       matrix D;
       umatrix keep;
+      Rcpp::Rcout<<"Hello0"<<std::endl;
       std::size_t _n_rows_V = _V.n_rows;
       std::vector<uvector> V_dom(_n_rows_V);
       arma::field<arma::mat> V_new(_n_rows_V,2);
-      
+      Rcpp::Rcout<<"Hello1"<<std::endl;
       while(iter < iter_max and BC_dist > _parameters._tol)
       {
         iter++;
@@ -126,13 +134,20 @@ public:
           _P0.zeros();
           _P0.elem(arma::find(keep)).fill(1); // set one where values of keep are true
         }
-      
+        Rcpp::Rcout<<"Hello2"<<std::endl;
         for(int i = 0;i < _n_rows_V;++i)
         {
+          Rcpp::Rcout<<"Hello10"<<std::endl;
+          Rcpp::Rcout<<"V_size = "<<_V(i,0).size()<<std::endl;
           const uvector& V_dom_temp = util::findDomain<matrix>(_V(i,0));
           // capire se ha senso dichiararlo fuori
-          const auto V_new_variant = motif_ptr->compute_motif(V_dom_temp,_S0.col(i),
-                                                              _P0.col(i),_Y,_parameters._m);
+          Rcpp::Rcout<<"Hello11"<<std::endl;
+          Rcpp::Rcout<<"V_dom_temp_size"<<V_dom_temp.size()<<std::endl;
+          const auto V_new_variant = _motfac->compute_motif(V_dom_temp,_S0.col(i),
+                                                            _P0.col(i),_Y,
+                                                            _parameters._m);
+          
+          Rcpp::Rcout<<"Hello12"<<std::endl;
           if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
           {
             const arma::sword& index = ptr_1->second;
@@ -141,13 +156,14 @@ public:
           }
           else
           {
+            Rcpp::Rcout<<"Hello4"<<std::endl;
             V_new.row(i) = *(std::get_if<arma::field<arma::mat>>(&V_new_variant));
           }
           V_dom[i] = util::findDomain<matrix>(V_new(i,0));
         }
         
       }
-      
+      Rcpp::Rcout<<"Hello5"<<std::endl;
       return Rcpp::List::create(Rcpp::Named("P0")=_P0,Rcpp::Named("S0")=_S0,
                                 Rcpp::Named("V_dom")=V_dom);
     }
@@ -165,12 +181,20 @@ public:
     }
   
     // Functional Data
-    Parameters _parameters;
     arma::field<matrix> _Y;
     arma::field<matrix> _V;
+    
+    //Motif and dissimilarity
+    std::unique_ptr<MotifPure> _motfac;
+    std::unique_ptr<Dissimilarity> _dissfac;
+    
+    //Parameters
+    Parameters _parameters;
+    
+    // Membership and shifting matrix
     matrix _P0;
     imatrix _S0;
-  
+    
 };
 
 
@@ -179,13 +203,14 @@ public:
 
 ProbKMA::ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
                  const Rcpp::List& parameters,
-                 const matrix& P0,const imatrix& S0):
-                 _probKMA(std::make_unique<_probKMAImp>(Y,V,parameters,P0,S0)) {}; 
+                 const matrix& P0,const imatrix& S0,
+                 const std::string& diss):
+                 _probKMA(std::make_unique<_probKMAImp>(Y,V,parameters,P0,S0,diss)) {}; 
 
 
-Rcpp::List ProbKMA::probKMA_run(const SEXP& dissimilarity,const SEXP& motif) const
+Rcpp::List ProbKMA::probKMA_run() const
 {
-   return _probKMA -> probKMA_run(dissimilarity,motif);
+   return _probKMA -> probKMA_run();
 }
 
 void ProbKMA::set_parameters(const Rcpp::List& newParameters)
@@ -198,7 +223,7 @@ Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
                          const Rcpp::NumericMatrix& P0,
                          const Rcpp::NumericMatrix& S0,
                          const Rcpp::List& params,
-                         const Rcpp::String diss,
+                         const Rcpp::String& diss,
                          const double alpha,
                          const Rcpp::NumericVector& w)
 {
@@ -226,7 +251,7 @@ RCPP_EXPOSED_CLASS(ProbKMA);
 RCPP_MODULE(ProbKMAModule) {
   Rcpp::class_<ProbKMA>("ProbKMA")
   .constructor<Rcpp::List,Rcpp::List,Rcpp::List,
-               ProbKMA::matrix,ProbKMA::imatrix>()
+               ProbKMA::matrix,ProbKMA::imatrix,std::string>()
   .method("probKMA_run",&ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters);
 }

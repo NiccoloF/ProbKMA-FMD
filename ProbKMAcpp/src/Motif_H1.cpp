@@ -1,4 +1,4 @@
-#include "Motif_H1.hpp"
+#include "Motif.hpp"
 
 std::variant<MotifPure::indexField,arma::field<arma::mat>>
   Motif_H1::compute_motif(const arma::uvec& v_dom,
@@ -8,7 +8,6 @@ std::variant<MotifPure::indexField,arma::field<arma::mat>>
                           double m) const
 {
   if(arma::accu(p_k) == 0) {
-    
     Rcpp::stop("Motif with no members! Degenerate cluster!");
   }
   
@@ -52,7 +51,7 @@ std::variant<MotifPure::indexField,arma::field<arma::mat>>
     
     y1.fill(arma::datum::nan);
     
-    for(int j : filtered_j) // se questi sono consecutivi c'� modo migliore di agire
+    for(int j : filtered_j) // se questi sono consecutivi c'è modo migliore di agire
       y1.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),1).row(index(j) - 1); 
     
     y1.shed_rows(arma::find(v_dom==0));
@@ -76,7 +75,8 @@ std::variant<MotifPure::indexField,arma::field<arma::mat>>
                              Y_inters_supp,v_dom,
                              v_len,p_k,d,m);
   
-  
+  Rcpp::Rcout<<"v_new00"<<v_new(0,0).size()<<std::endl;
+  Rcpp::Rcout<<"v_new01"<<v_new(0,1).size()<<std::endl;
   arma::uvec v_new_domain = arma::find(util::findDomain<arma::mat>(v_new(0,0)) == 1);
   arma::sword index_min = v_new_domain.min();
   arma::sword index_max = v_new_domain.max();

@@ -1,4 +1,4 @@
-#include "Dissimilarity_H1.hpp"
+#include "Dissimilarity.hpp"
 
 H1::H1(const arma::vec& w,double alpha):Dissimilarity(),_w(w),_alpha(alpha){};
 

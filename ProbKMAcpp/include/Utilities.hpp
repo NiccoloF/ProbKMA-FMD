@@ -37,9 +37,10 @@ namespace util
   template <typename MatType>
   arma::uvec findDomain(const MatType& v) {
     arma::uvec result(v.n_rows, arma::fill::zeros);
+    Rcpp::Rcout<<"result_size = "<<result.size()<<std::endl;
     for (arma::uword i = 0; i < v.n_rows; ++i) {
       const arma::uvec& finite_row = arma::find_finite(v.row(i));
-      if (finite_row.n_elem)
+      if(finite_row.n_elem)
         result(i) = 1;
     }
     return result;

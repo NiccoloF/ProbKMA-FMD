@@ -40,6 +40,8 @@ struct Parameters
     unsigned int _quantile;
     std::string _stopCriterion;
     double _m;
+    arma::vec _w;
+    double _alpha;
     double _tol;
     unsigned int _iter4elong;
     double _tol4elong;

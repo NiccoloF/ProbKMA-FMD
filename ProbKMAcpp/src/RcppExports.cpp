@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // initialChecks
-Rcpp::List initialChecks(const Rcpp::List& Y0, const Rcpp::List& Y1, const Rcpp::NumericMatrix& P0, const Rcpp::NumericMatrix& S0, const Rcpp::List& params, const Rcpp::String diss, const double alpha, const Rcpp::NumericVector& w);
+Rcpp::List initialChecks(const Rcpp::List& Y0, const Rcpp::List& Y1, const Rcpp::NumericMatrix& P0, const Rcpp::NumericMatrix& S0, const Rcpp::List& params, const Rcpp::String& diss, const double alpha, const Rcpp::NumericVector& w);
 RcppExport SEXP _ProbKMAcpp_initialChecks(SEXP Y0SEXP, SEXP Y1SEXP, SEXP P0SEXP, SEXP S0SEXP, SEXP paramsSEXP, SEXP dissSEXP, SEXP alphaSEXP, SEXP wSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -22,7 +22,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type P0(P0SEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type S0(S0SEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type params(paramsSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::String >::type diss(dissSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::String& >::type diss(dissSEXP);
     Rcpp::traits::input_parameter< const double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type w(wSEXP);
     rcpp_result_gen = Rcpp::wrap(initialChecks(Y0, Y1, P0, S0, params, diss, alpha, w));
