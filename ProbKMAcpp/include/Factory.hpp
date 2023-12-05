@@ -13,19 +13,19 @@ namespace util{
  {
    public :
      
-     using registry_map = std::unordered_map<std::string,std::function<std::unique_ptr<B>()>>;
+     using registry_map = std::unordered_map<std::string_view,std::function<std::unique_ptr<B>()>>;
      
      registry_map map;
      
      // use this to instantiate the proper Derived class
-     std::unique_ptr<B> instantiate (const std::string& name)
+     std::unique_ptr<B> instantiate (std::string_view name)
        {
          auto it = map.find(name);
          return it == map.end () ? nullptr : (it->second)();
          }
     
     template <typename D, typename... Args>
-    void FactoryRegister(const std::string& name, Args&&... args) {
+    void FactoryRegister(std::string_view name, Args&&... args) {
       map[name] = [args = std::forward_as_tuple(std::forward<Args>(args)...)]() mutable 
         {
           return std::apply([](auto&&... a) 

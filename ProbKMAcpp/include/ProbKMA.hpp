@@ -5,11 +5,13 @@
 #include "Parameters.hpp"
 #include "Dissimilarity.hpp"
 #include "Motif.hpp"
+#include "TypeTraits.hpp"
 #include <vector>
 #include <ranges>
 #include <algorithm>
 #include <memory>
 #include <Rcpp.h>
+
 
 // Forward declaration
 class _probKMAImp;
@@ -17,18 +19,12 @@ class _probKMAImp;
 class ProbKMA
 {
  public:
-    using matrix = arma::mat;
-    using imatrix = arma::imat;
-    using umatrix = arma::umat;
-    using vector = arma::vec;
-    using ivector = arma::ivec;
-    using uvector = arma::uvec;
-  
+    
     // Y: a list containing two list -> Y0 and Y1
     // V: a list containing two list -> V0 and V1
     ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
             const Rcpp::List& parameters,
-            const matrix& P0,const imatrix& S0,
+            const KMA::matrix& P0,const KMA::imatrix& S0,
             const std::string& diss);
    
     virtual ~ProbKMA() = default;

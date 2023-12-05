@@ -1,6 +1,7 @@
 #ifndef MOTIF_HPP
 #define MOTIF_HPP
 #include "RcppArmadillo.h"
+#include "TypeTraits.hpp"
 #include <Rcpp.h>
 #include <numeric>
 #include <ranges>
@@ -15,26 +16,26 @@
 class MotifPure
 {
   public:
-    using indexField = std::pair<arma::field<arma::mat>,arma::sword>;
+    using indexField = std::pair<KMA::Mfield,arma::sword>;
     
     MotifPure() = default;
   
-    virtual std::variant<indexField,arma::field<arma::mat>>
-      compute_motif(const arma::uvec& v_dom,
-                    const arma::ivec& s_k,
-                    const arma::vec& p_k,
-                    const arma::field<arma::mat>& Y,
+    virtual std::variant<indexField,KMA::Mfield>
+      compute_motif(const arma::urowvec& v_dom,
+                    const KMA::ivector& s_k,
+                    const KMA::vector& p_k,
+                    const KMA::Mfield& Y,
                     double m) const = 0;
                           
     virtual ~MotifPure() = default;
     
   protected:
     
-    arma::mat compute_v_new(const arma::field<arma::mat> & Y_inters_k,
-                            const arma::umat & Y_inters_supp,
-                            const arma::uvec & v_dom,
+    KMA::matrix compute_v_new(const KMA::Mfield& Y_inters_k,
+                            const KMA::umatrix& Y_inters_supp,
+                            const arma::urowvec & v_dom,
                             arma::uword v_len,
-                            const arma::vec & p_k,
+                            const KMA::vector & p_k,
                             arma::uword d,
                             arma::uword m) const;
   
@@ -47,11 +48,11 @@ public:
   
   Motif_L2() = default;
   
-  virtual std::variant<indexField,arma::field<arma::mat>>
-    compute_motif(const arma::uvec& v_dom,
-                  const arma::ivec& s_k,
-                  const arma::vec& p_k,
-                  const arma::field<arma::mat>& Y,
+  virtual std::variant<indexField,KMA::Mfield>
+    compute_motif(const arma::urowvec& v_dom,
+                  const KMA::ivector& s_k,
+                  const KMA::vector& p_k,
+                  const KMA::Mfield& Y,
                   double m) const override;
   
   virtual ~Motif_L2() = default;
@@ -66,11 +67,11 @@ public:
   
   virtual ~Motif_H1() = default;
   
-  virtual std::variant<indexField,arma::field<arma::mat>>
-    compute_motif(const arma::uvec& v_dom,
-                  const arma::ivec& s_k,
-                  const arma::vec& p_k,
-                  const arma::field<arma::mat>& Y,
+  virtual std::variant<indexField,KMA::Mfield>
+    compute_motif(const arma::urowvec& v_dom,
+                  const KMA::ivector& s_k,
+                  const KMA::vector& p_k,
+                  const KMA::Mfield& Y,
                   double m) const override;
 
 };

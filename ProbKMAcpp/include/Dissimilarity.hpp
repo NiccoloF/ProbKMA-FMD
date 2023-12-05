@@ -1,5 +1,6 @@
 #ifndef DISSIMILARITY_HPP
 #define DISSIMILARITY_HPP
+#include "TypeTraits.hpp"
 #include "RcppArmadillo.h"
 #include <Rcpp.h>
 
@@ -13,56 +14,56 @@ public:
   virtual ~Dissimilarity() = default;
   
   // compute dissimilarity 
-  // C'è da controllare che una subview di field possa essere convertita dirretamente in field
-  virtual double computeDissimilarity(const arma::field<arma::mat>& Y_i,
-                                      const arma::field<arma::mat>& V_i) const = 0; // to be declared as const
+  virtual double computeDissimilarity(const KMA::Mfield& Y_i,
+                                      const KMA::Mfield& V_i) const = 0; 
   
-private:
+protected:
 
-  virtual double distance(const arma::mat& y,
-                          const arma::mat& v) const = 0;
+  virtual double distance(const KMA::matrix& y,
+                          const KMA::matrix& v) const = 0;
 };
 
-
-class L2 final: public Dissimilarity
+class SobolDiss : public Dissimilarity
 {
 public:
   
-  L2(const arma::vec& w);
+    SobolDiss(const KMA::vector& w);
+    
+protected:
   
-  virtual double computeDissimilarity(const arma::field<arma::mat>& Y_i,
-                                      const arma::field<arma::mat>& V_i) const override;
+    virtual double distance(const KMA::matrix& y,
+                            const KMA::matrix& v) const override;
   
+    KMA::vector _w;
+    
+};
+
+
+class L2 final: public SobolDiss
+{
+public:
+  
+  L2(const KMA::vector& w);
   virtual ~L2() = default;
   
-  arma::vec _w;
-
-private:
-  
-  virtual double distance(const arma::mat& y,
-                          const arma::mat& v) const override;
+  virtual double computeDissimilarity(const KMA::Mfield& Y_i,
+                                      const KMA::Mfield& V_i) const override;
   
 };
 
-class H1 final: public Dissimilarity
+class H1 final: public SobolDiss
 {
 public:
   
-  H1(const arma::vec& w,double alpha);
-  
-  virtual double computeDissimilarity(const arma::field<arma::mat>& Y_i,
-                                      const arma::field<arma::mat>& V_i) const override;
-  
+  H1(const KMA::vector& w,double alpha);
   virtual ~H1() = default;
   
-  arma::vec _w;
+  virtual double computeDissimilarity(const KMA::Mfield& Y_i,
+                                      const KMA::Mfield& V_i) const override;
+  
+  
   double _alpha;
 
-private:
-  
-  virtual double distance(const arma::mat& y,
-                          const arma::mat& v) const override ;
-  
 };
 
 

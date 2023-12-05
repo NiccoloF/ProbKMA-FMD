@@ -39,6 +39,7 @@ vignettes/*.pdf
 *.o
 
 *.tmp
+../TempForRcpp/*
 
 # shared library
 *.so

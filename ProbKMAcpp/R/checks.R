@@ -369,7 +369,14 @@
              return(v)
            },d)
 
-  Y = list("Y0" = Y0,"Y1" = Y1)
+  Y0_f <- function(Y_i)
+  {
+    return(Y_i$y0)
+  }
+  Y1_f <- function(Y_i)
+  {
+    return(Y_i$y1)
+  }
   
   V0_f <- function(Y_i)
   {
@@ -380,6 +387,7 @@
     return(Y_i$v1)
   }
   
+  Y <- list("Y0" = lapply(Y,Y0_f),"Y1" = lapply(Y,Y1_f))
   V <- list("V0"=lapply(V,V0_f),"V1"=lapply(V,V1_f))
   
   return(list("FuncData" = list("Y"=Y,"V"=V,"P0"=P0,"S0"=S0),

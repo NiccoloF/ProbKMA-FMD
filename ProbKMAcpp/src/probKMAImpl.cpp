@@ -2,6 +2,7 @@
 #include "Factory.hpp"
 #include <forward_list>
 #include <limits>
+#include <string_view>
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
@@ -13,12 +14,12 @@ public:
   
     _probKMAImp(const Rcpp::List& Y,const Rcpp::List& V,
                 const Rcpp::List& parameters,
-                const matrix& P0,const imatrix& S0,
-                const std::string& diss):
+                const KMA::matrix& P0,const KMA::imatrix& S0,
+                const std::string_view diss):
                 _parameters(parameters),_P0(P0),_S0(S0)
                {  
                     // Initialize c++ Data structure
-                    Initialize(Y,V);
+                    Initialize(Y,V,diss);
                     
                     // Create Dissimilarity factory
                     util::SharedFactory<Dissimilarity> dissfac;
@@ -39,66 +40,66 @@ public:
 
     ~_probKMAImp() = default;
 
-    void Initialize(const Rcpp::List& Y,const Rcpp::List& V)
+    void Initialize(const Rcpp::List& Y,const Rcpp::List& V,std::string_view diss)
     {
-        // Convert Rcpp Data Structure(List) into Armadillo data Structure(field)
-        if(!Rf_isNull(Y[0]) and !Rf_isNull(Y[1]))
-        {
-            const Rcpp::List& Y0 = Y[0];
-            const Rcpp::List& Y1 = Y[1];
-            const Rcpp::List& V0 = V[0];
-            const Rcpp::List& V1 = V[1];
-            std::size_t Y_size = Y0.size();
-            std::size_t V_size = V0.size();
-            _Y.set_size(Y_size,2);
-            _V.set_size(V_size,2);
-            for(int i = 0; i < Y_size; i++)
-            {
-                _Y(i,0) = Rcpp::as<matrix>(Y0[i]);
-                _Y(i,1) = Rcpp::as<matrix>(Y1[i]);
-            }
-            for(int i = 0; i < V_size; i++)
-            {
-                _V(i,0) = Rcpp::as<matrix>(V0[i]);
-                _V(i,1) = Rcpp::as<matrix>(V1[i]); 
-            }
+      // Convert Rcpp Data Structure(List) into Armadillo data Structure(field)
+      const Rcpp::List& Y0 = Y[0];
+      const Rcpp::List& Y1 = Y[1];
+      const Rcpp::List& V0 = V[0];
+      const Rcpp::List& V1 = V[1];
+      
+      if (diss == "H1") {
+        handleCaseH1(Y0, Y1, V0, V1);
+      } else if (diss == "L2") {
+        handleCaseL2(Y0, Y1, V0, V1);
+      }
+    }
+      
+      // Funzione di supporto per il caso "H1"
+      void handleCaseH1(const Rcpp::List& Y0, const Rcpp::List& Y1,
+                        const Rcpp::List& V0, const Rcpp::List& V1) {
+        std::size_t Y_size = Y0.size();
+        std::size_t V_size = V0.size();
+        _Y.set_size(Y_size, 2);
+        _V.set_size(V_size, 2);
+        
+        for (int i = 0; i < Y_size; i++) {
+          _Y(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
+          _Y(i, 1) = Rcpp::as<KMA::matrix>(Y1[i]);
         }
-        else if(!Rf_isNull(Y[0]))
-        {
-            const Rcpp::List& Y0 = Y[0];
-            const Rcpp::List& V0 = V[0];
-            std::size_t Y_size = Y0.size();
-            std::size_t V_size = V0.size();
-            _Y.set_size(Y_size,1);
-            _V.set_size(V_size,1);
-            for(int i = 0; i < Y_size; i++)
-            {
-                _Y(i,0) = Rcpp::as<matrix>(Y0[i]);
-            }
-            for(int i = 0; i < V_size; i++)
-            {
-                _V(i,0) = Rcpp::as<matrix>(V0[i]);
-            }
+        
+        for (int i = 0; i < V_size; i++) {
+          _V(i, 0) = Rcpp::as<KMA::matrix>(V0[i]);
+          _V(i, 1) = Rcpp::as<KMA::matrix>(V1[i]);
         }
-        else
-        {
-            const Rcpp::List& Y1 = Y[1];
-            const Rcpp::List& V1 = V[1];
-            std::size_t Y_size = Y1.size();
-            std::size_t V_size = V1.size();
-            _Y.set_size(Y_size,1);
-            _V.set_size(V_size,1);
-            for(int i = 0; i < Y_size; i++)
-            {
-                _Y(i,0) = Rcpp::as<matrix>(Y1[i]);
-            }
-            for(int i = 0; i < V_size; i++)
-            {
-                _V(i,0) = Rcpp::as<matrix>(V1[i]);
-            }
+      }
+      
+      // Funzione di supporto per il caso "L2"
+      void handleCaseL2(const Rcpp::List& Y0, const Rcpp::List& Y1,
+                        const Rcpp::List& V0, const Rcpp::List& V1) {
+        if (!Rf_isNull(Y0[0])) {
+          handleNonNullY(Y0, V0);
+        } else {
+          handleNonNullY(Y1, V1);
         }
-    } 
-
+      }
+      
+      // Funzione di supporto per il caso "L2" quando Y[0] non è nullo
+      void handleNonNullY(const Rcpp::List& Y, const Rcpp::List& V) {
+        std::size_t Y_size = Y.size();
+        std::size_t V_size = V.size();
+        _Y.set_size(Y_size, 1);
+        _V.set_size(V_size, 1);
+        
+        for (int i = 0; i < Y_size; i++) {
+          _Y(i, 0) = Rcpp::as<KMA::matrix>(Y[i]);
+        }
+        
+        for (int i = 0; i < V_size; i++) {
+          _V(i, 0) = Rcpp::as<KMA::matrix>(V[i]);
+        }
+      }
+    
     Rcpp::List probKMA_run() 
     {
       /// Iterate ////////////////////////////////////
@@ -107,47 +108,40 @@ public:
       std::forward_list<double> BC_dist_iter;
       auto BC_dist = std::numeric_limits<double>::infinity();
       const unsigned int& iter_max = _parameters._iter_max;
-      const vector quantile4clean(_parameters._quantile4clean); // Necessary to compute quantile
-      matrix D;
-      umatrix keep;
-      Rcpp::Rcout<<"Hello0"<<std::endl;
+      const KMA::vector quantile4clean(_parameters._quantile4clean); // convert to vector to compute quantile
+      KMA::matrix D;
+      KMA::umatrix keep;
       std::size_t _n_rows_V = _V.n_rows;
-      std::vector<uvector> V_dom(_n_rows_V);
-      arma::field<arma::mat> V_new(_n_rows_V,2);
-      Rcpp::Rcout<<"Hello1"<<std::endl;
+      std::vector<arma::urowvec> V_dom(_n_rows_V);
+      KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
+
       while(iter < iter_max and BC_dist > _parameters._tol)
       {
         iter++;
         ///// clean motifs //////////////////////////
-        const auto P_old = _P0;
+        const KMA::matrix P_old = _P0;
         const unsigned int& iter4clean = _parameters._iter4clean;
         const double& tol4clean = _parameters._tol4clean;
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
           keep = D < arma::quantile(D,quantile4clean);
-          const uvector empty_k = arma::find(arma::sum(keep,0));
+          const KMA::uvector empty_k = arma::find(arma::sum(keep,0));
           if(!empty_k.empty())
           {
-            arma::uvec index_min = arma::index_min(D,0);
+            KMA::uvector index_min = arma::index_min(D,0);
             keep(empty_k(index_min),index_min).fill(1);
           }
           _P0.zeros();
           _P0.elem(arma::find(keep)).fill(1); // set one where values of keep are true
         }
-        Rcpp::Rcout<<"Hello2"<<std::endl;
         for(int i = 0;i < _n_rows_V;++i)
         {
-          Rcpp::Rcout<<"Hello10"<<std::endl;
-          Rcpp::Rcout<<"V_size = "<<_V(i,0).size()<<std::endl;
-          const uvector& V_dom_temp = util::findDomain<matrix>(_V(i,0));
+          const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
           // capire se ha senso dichiararlo fuori
-          Rcpp::Rcout<<"Hello11"<<std::endl;
-          Rcpp::Rcout<<"V_dom_temp_size"<<V_dom_temp.size()<<std::endl;
           const auto V_new_variant = _motfac->compute_motif(V_dom_temp,_S0.col(i),
                                                             _P0.col(i),_Y,
                                                             _parameters._m);
           
-          Rcpp::Rcout<<"Hello12"<<std::endl;
           if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
           {
             const arma::sword& index = ptr_1->second;
@@ -156,16 +150,14 @@ public:
           }
           else
           {
-            Rcpp::Rcout<<"Hello4"<<std::endl;
-            V_new.row(i) = *(std::get_if<arma::field<arma::mat>>(&V_new_variant));
+            V_new.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
           }
-          V_dom[i] = util::findDomain<matrix>(V_new(i,0));
+          V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
         }
-        
+        return Rcpp::List::create(Rcpp::Named("P0")=_P0,Rcpp::Named("S0")=_S0,
+                                  Rcpp::Named("V_dom")=V_dom); 
       }
-      Rcpp::Rcout<<"Hello5"<<std::endl;
-      return Rcpp::List::create(Rcpp::Named("P0")=_P0,Rcpp::Named("S0")=_S0,
-                                Rcpp::Named("V_dom")=V_dom);
+      return Rcpp::List::create();
     }
   
     void set_parameters(const Rcpp::List& newParameters)
@@ -181,8 +173,8 @@ public:
     }
   
     // Functional Data
-    arma::field<matrix> _Y;
-    arma::field<matrix> _V;
+    KMA::Mfield _Y;
+    KMA::Mfield _V;
     
     //Motif and dissimilarity
     std::unique_ptr<MotifPure> _motfac;
@@ -192,8 +184,8 @@ public:
     Parameters _parameters;
     
     // Membership and shifting matrix
-    matrix _P0;
-    imatrix _S0;
+    KMA::matrix _P0;
+    KMA::imatrix _S0;
     
 };
 
@@ -203,7 +195,7 @@ public:
 
 ProbKMA::ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
                  const Rcpp::List& parameters,
-                 const matrix& P0,const imatrix& S0,
+                 const KMA::matrix& P0,const KMA::imatrix& S0,
                  const std::string& diss):
                  _probKMA(std::make_unique<_probKMAImp>(Y,V,parameters,P0,S0,diss)) {}; 
 
@@ -251,7 +243,7 @@ RCPP_EXPOSED_CLASS(ProbKMA);
 RCPP_MODULE(ProbKMAModule) {
   Rcpp::class_<ProbKMA>("ProbKMA")
   .constructor<Rcpp::List,Rcpp::List,Rcpp::List,
-               ProbKMA::matrix,ProbKMA::imatrix,std::string>()
+               KMA::matrix,KMA::imatrix,std::string>()
   .method("probKMA_run",&ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters);
 }

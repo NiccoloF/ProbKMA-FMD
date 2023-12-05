@@ -1,7 +1,7 @@
 
 standardize = TRUE
-diss = 'd0_d1_L2' 
-alpha = 0.5
+diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
+alpha = 0.5 #                 0.0    0.5     0.0
 max_gap = 0 
 trials_elong = 200
 c_max = 53
@@ -64,33 +64,16 @@ a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss,alpha,w)
 params <- a$Parameters
 data <- a$FuncData
 
-prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
-dissimilarity <- new(ProbKMAcpp::H1,w,alpha)
-motif <-new(ProbKMAcpp::Motif_H1) 
+prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
 b <- prok$probKMA_run()
 
-
-l2 = new(L2, c(2,2))
-#y <- Y[[2]]
-#y <- list(y$y0[1:40],y$y1[1:40])
-#v <- Y[[2]]
-#v <- list(v$y0[41:80],v$y1[41:80])
-#l2$compute(y,v)
-# fare test della dichiarazione di ProbKma
-V <- list(list(matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2),matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)),list(matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2),matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)))
-mot <- new(Motif_L2,2)
-prok = new(ProbKMA,Y,V,params,P0,S0)
-prok$set_parameters(params)
-prok$run(l2,mot)
 
 
 ######## TEST UP TO ELONGATE MOTIF ####################
 
 prok <- new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0)
-dissim <- new(ProbKMAcpp::H1,a$Extra$w,a$Extra$alpha)
-mot <-new(ProbKMAcpp::Motif_H1) 
 
-b <- prok$probKMA_run(dissim,mot)
+b <- prok$probKMA_run()
 
 
 .domain <- function(v,use0){

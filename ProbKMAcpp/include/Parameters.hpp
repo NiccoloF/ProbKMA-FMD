@@ -28,9 +28,8 @@ struct Parameters
      */
     
     Parameters() = delete;
-    Parameters(const Rcpp::List& params);
     Parameters(const Parameters&) = default;
-    ~Parameters() = default;
+    Parameters(const Rcpp::List& params);
     
     bool _standardize;
     unsigned int _K;
