@@ -64,12 +64,6 @@ std::variant<MotifPure::indexField,KMA::Mfield>
     // slight different to the R case in both case we return two elements in this case, see in elongate_motifs
  }
 
-
-RCPP_MODULE(MotifL2Module) {
-  Rcpp::class_<Motif_L2>("Motif_L2")
-  .constructor();
-  //.method("compute_motif", &Motif_L2::compute_motif);
-}
     
     
     
