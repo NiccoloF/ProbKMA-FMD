@@ -79,12 +79,12 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
   if(!is.null(cluster_candidate_motifs_results$hclust_res)){
     par(mfrow=c(1,1))
     dendr=as.dendrogram(cluster_candidate_motifs_results$hclust_res,hang=1)
-    labels_cex(dendr)=0.8
+    dendextend::labels_cex(dendr)=0.8
     plot(dendr,ylab='Distance motif-motif',main='Dendrogram of motifs')
     abline(h=2*R_all,col='black',lwd=2)
     text(x=1,y=2*R_all,labels=expression('2R'[all]),pos=3,offset=0.5)
     if(n_hclust>1)
-      rect.dendrogram(dendr,k=n_hclust)
+      dendextend::rect.dendrogram(dendr,k=n_hclust)
   }
   
   # re-compute or check group-specific radius Rm, and plot

@@ -83,15 +83,15 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
       Y_inters_k=mapply(function(y,s_k_i,v_dom){
         v_len=length(v_dom)
         Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
-        return(Y_inters_k)},
-        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        return(Y_inters_k)},  # c('curve','shift','diss')
+        motifs_search_results$Y0[v_occurrences[,1]],v_occurrences[,2],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
       layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
       lapply(seq_len(d),
              function(j){
                par(mar=c(3,4,4,2)+0.1)
                y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
                y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+               matplot(y_plot,type='l',col=v_occurrences[,1]+1,lwd=round(-4/R_motif*v_occurrences[,3]+5,2),
                        lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
                points(v[,j],type='l',col='black',lwd=7,lty=1)
                par(mar=c(0,0,0,0))
@@ -106,20 +106,20 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
           v_len=length(v_dom)
           Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
           return(Y_inters_k)},
-        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        motifs_search_results$Y0[v_occurrences[,1]],v_occurrences[,2],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
       Y1_inters_k=mapply(
         function(y,s_k_i,v_dom){
           v_len=length(v_dom)
           Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
           return(Y_inters_k)},
-        motifs_search_results$Y1[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        motifs_search_results$Y1[v_occurrences[,1]],v_occurrences[,2],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
       layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
       lapply(seq_len(d),
              function(j){
                par(mar=c(3,4,4,2)+0.1)
                y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
                y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+               matplot(y_plot,type='l',col=v_occurrences[,1]+1,lwd=round(-4/R_motif*v_occurrences[,3]+5,2),
                        lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
                points(v0[,j],type='l',col='black',lwd=7,lty=1)
                par(mar=c(0,0,0,0))
@@ -131,7 +131,7 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
                par(mar=c(3,4,4,2)+0.1)
                y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
                y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+               matplot(y_plot,type='l',col=v_occurrences[,1]+1,lwd=round(-4/R_motif*v_occurrences[,3]+5,2),
                        lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j],' derivative'))
                points(v1[,j],type='l',col='black',lwd=7,lty=1)
                par(mar=c(0,0,0,0))
@@ -145,7 +145,7 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
   if(plot_curves){
     if(is.null(motifs_search_results$Y1[[1]])){
       mapply(function(y0,i){
-        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,1]==i,2])
         motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
         s_i=unlist(s_i)
         Y_inters_k=mapply(function(v_dom,s_i_k,y){
@@ -173,7 +173,7 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
         return()},motifs_search_results$Y0,seq_len(N))
     }else{
       mapply(function(y0,y1,i){
-        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,1]==i,2])
         motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
         s_i=unlist(s_i)
         Y0_inters_k=mapply(function(v_dom,s_i_k,y){
