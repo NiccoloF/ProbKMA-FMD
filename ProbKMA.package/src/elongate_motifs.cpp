@@ -301,21 +301,22 @@ void elongate_motifs(Rcpp::List & V_new,
      
      // fill the domains of the motifs with gaps and recompute the motifs with the filled domains
      // and compute the perf.indexes before and after the filling
+     #ifdef _OPENMP
+      #pragma omp parallel for 
+     #endif
      for (unsigned int i = 0; i < with_gaps_size; ++i){
-     
+
        V_dom_filled[i] = arma::uvec(V_dom_[with_gaps(i)].n_elem,arma::fill::ones);
        const auto & variant_motif = compute_motif_rcpp(V_dom_filled[i],  // errore
-                                                        S_k_.col(with_gaps(i)),
-                                                        P_k_.col(with_gaps(i)),
-                                                        Y_,
-                                                        m,
-                                                        use0,
-                                                        use1);
+                                                       S_k_.col(with_gaps(i)),
+                                                       P_k_.col(with_gaps(i)),
+                                                       Y_,
+                                                       m,
+                                                       use0,
+                                                       use1);
        V_filled.row(i) = *(std::get_if<arma::field<arma::mat>>(&variant_motif));
-     }
-     
-     for (unsigned int i=0; i < with_gaps_size; ++i){
-      Jk_before(i) = compute_Jk_rcpp(V_new_.row(with_gaps(i)), // va adattato
+    
+       Jk_before(i) = compute_Jk_rcpp(V_new_.row(with_gaps(i)), 
                                       S_k_.col(with_gaps(i)),
                                       P_k_.col(with_gaps(i)),
                                       Y_,
@@ -327,7 +328,7 @@ void elongate_motifs(Rcpp::List & V_new,
                                       arma::datum::nan,
                                       arma::vec(arma::datum::nan));
       
-      Jk_after(i) = compute_Jk_rcpp(V_filled.row(i), // va adattato
+       Jk_after(i) = compute_Jk_rcpp(V_filled.row(i), 
                                     S_k_.col(with_gaps(i)),
                                     P_k_.col(with_gaps(i)),
                                     Y_,
@@ -338,8 +339,9 @@ void elongate_motifs(Rcpp::List & V_new,
                                     use1,
                                     arma::datum::nan,
                                     arma::vec(arma::datum::nan));
-     }
-     // if filling the domain improves the perf. index over a certain threshold replace the domain and the motifs with the filled one
+    }
+
+    // if filling the domain improves the perf. index over a certain threshold replace the domain and the motifs with the filled one
     const arma::uvec& fill = arma::find((Jk_after-Jk_before)/Jk_before < deltaJk_elong);
      for(unsigned int i=0; i < fill.size(); ++i){
        V_dom_[with_gaps(i)] = V_dom_filled[i];
@@ -379,6 +381,9 @@ void elongate_motifs(Rcpp::List & V_new,
    keep(min_col_k_D, k) = true;
    } 
    
+   #ifdef _OPENMP
+      #pragma omp parallel for 
+   #endif
    for (unsigned int i = 0; i < V_dom_size; ++i){
       elongation_rcpp(V_new_, 
                       V_dom_, 
