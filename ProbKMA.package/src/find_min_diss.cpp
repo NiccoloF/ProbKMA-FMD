@@ -103,43 +103,39 @@ arma::vec find_diss_rcpp(const arma::mat &y0,
   int y_len = y0.n_rows;
   arma::ivec s_rep = arma::regspace<arma::ivec>(1 - (v_len - c_k), y_len - v_len + 1 + (v_len - c_k));
   const unsigned int s_rep_size = s_rep.size();
-  std::vector<std::vector<arma::mat>> y_rep(s_rep_size);
+  arma::field<arma::mat> y_rep(s_rep_size,2);
   
   const int index_size = v_len;
   auto index_range = std::views::iota(0,index_size);
+  arma::uvec indeces_dom = arma::find(v_dom==0);
   for (unsigned int i = 0; i < s_rep_size; ++i) {
     arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
-    std::vector<arma::mat> y_rep_i(2);
     auto j_true = index_range
       | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len));}); // verificare il v_dom
     if (use0) {
-      arma::mat new_y0(index_size, d); // maybe here che can directly allocate a dimension equal to the std::min(index_size,v_dom)
-      new_y0.fill(arma::datum::nan);
-      std::for_each(j_true.begin(),j_true.end(),[&new_y0,&y0,&index](int j){new_y0.row(j) = y0.row(index[j] - 1);});
-      new_y0.shed_rows(arma::find(v_dom==0));
-      y_rep_i[0] = new_y0;
+      y_rep(i,0).resize(index_size, d);
+      y_rep(i,0).fill(arma::datum::nan);
+      std::for_each(j_true.begin(),j_true.end(),[&y_rep,&y0,&index,&i](int j){y_rep(i,0).row(j) = y0.row(index[j] - 1);});
+      y_rep(i,0).shed_rows(indeces_dom);
     }
     if (use1) {
-      arma::mat new_y1(index_size, d);
-      new_y1.fill(arma::datum::nan);
-      std::for_each(j_true.begin(),j_true.end(),[&new_y1,&y1,&index](int j){new_y1.row(j) = y1.row(index[j] - 1);});
-      new_y1.shed_rows(arma::find(v_dom==0));
-      y_rep_i[1] = new_y1;
+      y_rep(i,1).resize(index_size, d);
+      y_rep(i,1).fill(arma::datum::nan);
+      std::for_each(j_true.begin(),j_true.end(),[&y_rep,&y1,&index,&i](int j){y_rep(i,1).row(j) = y1.row(index[j] - 1);});
+      y_rep(i,1).shed_rows(indeces_dom);
     }
-    y_rep[i] = y_rep_i;
   }
   
   arma::ivec length_inter(s_rep_size);
   arma::uvec non_na_indices;
   for (unsigned int i = 0; i < s_rep_size; ++i){
-    const auto & y_rep_i = y_rep[i];
     if (use0) {
-      non_na_indices = find_nan(y_rep_i[0].col(0));
-      length_inter(i) = y_rep_i[0].col(0).n_elem - non_na_indices.n_elem;
+      non_na_indices = arma::find_nan(y_rep(i,0).col(0));
+      length_inter(i) = y_rep(i,0).col(0).n_elem - non_na_indices.n_elem;
     }
     else {
-      non_na_indices = find_nan(y_rep_i[1].col(0));
-      length_inter(i) = y_rep_i[1].col(0).n_elem - non_na_indices.n_elem;  
+      non_na_indices = arma::find_nan(y_rep(i,1).col(0));
+      length_inter(i) = y_rep(i,1).col(0).n_elem - non_na_indices.n_elem;  
     }
   }
   
@@ -153,7 +149,7 @@ arma::vec find_diss_rcpp(const arma::mat &y0,
   
   for (unsigned int i = 0; i < s_rep_size; i++) {
     if (valid(i)) {
-      double dist = diss_d0_d1_L2_rcpp(y_rep[i][0], y_rep[i][1],v_new(0,0),v_new(0,1), w, alpha);
+      double dist = diss_d0_d1_L2_rcpp(y_rep(i,0), y_rep(i,1),v_new(0,0),v_new(0,1), w, alpha);
       if (dist < min_d){
         min_d = dist;
         min_s = s_rep[i];
@@ -185,39 +181,34 @@ arma::vec find_diss_aligned_rcpp(const arma::mat &y0,
     } else {
       s_rep = arma::regspace<arma::ivec>(1, y_len - v_len + 1);
     }
-
     const unsigned int s_rep_size = s_rep.size();
-    std::vector<std::vector<arma::mat>> y_rep(s_rep_size);
-    
+    arma::field<arma::mat> y_rep(s_rep_size,2);
     const int index_size = v_len;
     auto index_range = std::views::iota(0,index_size);
+    arma::uvec indeces_dom = arma::find(v_dom==0);
     for (unsigned int i = 0; i < s_rep_size; ++i) {
       arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
-      std::vector<arma::mat> y_rep_i(2);
       auto j_true = index_range
       | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len));});
       if (use0) {
-        arma::mat new_y0(index_size, d);
-        new_y0.fill(arma::datum::nan);
-        std::for_each(j_true.begin(),j_true.end(),[&new_y0,&y0,&index](int j){new_y0.row(j) = y0.row(index[j] - 1);});
-        new_y0.shed_rows(arma::find(v_dom==0));
-        y_rep_i[0] = new_y0;
+        y_rep(i,0).resize(index_size, d);
+        y_rep(i,0).fill(arma::datum::nan);
+        std::for_each(j_true.begin(),j_true.end(),[&y_rep,&y0,&index,&i](int j){y_rep(i,0).row(j) = y0.row(index[j] - 1);});
+        y_rep(i,0).shed_rows(indeces_dom);
       }
       if (use1) {
-        arma::mat new_y1(index_size, d);
-        new_y1.fill(arma::datum::nan);
-        std::for_each(j_true.begin(),j_true.end(),[&new_y1,&y1,&index](int j){new_y1.row(j) = y1.row(index[j] - 1);});
-        new_y1.shed_rows(arma::find(v_dom==0));
-        y_rep_i[1] = new_y1;
+        y_rep(i,1).resize(index_size, d);
+        y_rep(i,1).fill(arma::datum::nan);
+        std::for_each(j_true.begin(),j_true.end(),[&y_rep,&y1,&index,&i](int j){y_rep(i,1).row(j) = y1.row(index[j] - 1);});
+        y_rep(i,1).shed_rows(indeces_dom);
       }
-      y_rep[i] = y_rep_i;
     }
     
     double min_d = std::numeric_limits<double>::max();
     int min_s = 0;
     
     for (unsigned int i = 0; i < s_rep_size; i++) {
-      double dist = diss_d0_d1_L2_rcpp(y_rep[i][0],y_rep[i][1], v_new(0,0),v_new(0,1), w, alpha);
+      double dist = diss_d0_d1_L2_rcpp(y_rep(i,0),y_rep(i,1), v_new(0,0),v_new(0,1), w, alpha);
       if (dist < min_d){
         min_d = dist;
         min_s = s_rep(i);
