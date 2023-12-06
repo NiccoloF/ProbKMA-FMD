@@ -71,11 +71,14 @@ double compute_Jk_rcpp(const arma::field<arma::mat> & v,
   { 
     arma::uvec keep_k_= arma::conv_to<arma::uvec>::from(keep_k);
     arma::ivec supp_inters_length(arma::accu(keep_k_));
+
+    unsigned int k = 0;
     for (arma::uword i = 0; i < Y_size; ++i){
       if (keep_k_(i)){
-        supp_inters_length(i)= arma::accu(domain_rcpp(Y_inters_k(i,0),Y_inters_k(i,1),use0));
+        supp_inters_length(k++)= arma::accu(domain_rcpp(Y_inters_k(i,0),Y_inters_k(i,1),use0));
       }
     }
+
     arma::uvec check_lengths = supp_inters_length < static_cast<int>(c_k);
     if (arma::accu(check_lengths) > 0){
       return NA_REAL;
@@ -86,7 +89,6 @@ double compute_Jk_rcpp(const arma::field<arma::mat> & v,
   for (arma::uword i = 0; i < Y_size; ++i){
     dist(i) = diss_d0_d1_L2_rcpp(Y_inters_k(i,0),Y_inters_k(i,1), v_new(0,0),v_new(0,1), w, alpha);
   }
-  
   arma::vec result = dist % pow(p_k,m);
   return arma::accu(result.elem(arma::find_finite(result)));
 }

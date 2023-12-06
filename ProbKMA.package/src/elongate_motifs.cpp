@@ -2,8 +2,6 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 
-using std::pair<arma::field<arma::mat>,arma::sword> = indexField; // TODO namespace
-
 arma::mat compute_v_new_rcpp(const arma::field<arma::mat> & Y_inters_k,
                              const arma::umat & Y_inters_supp,
                              const arma::uvec & v_dom,
@@ -33,13 +31,13 @@ arma::mat compute_v_new_rcpp(const arma::field<arma::mat> & Y_inters_k,
  
 }
   
-std::variant<indexField, arma::field<arma::mat>> compute_motif_rcpp(const arma::uvec & v_dom,
-                                                                    const arma::ivec & s_k,
-                                                                    const arma::vec & p_k,
-                                                                    const arma::field<arma::mat> & Y,
-                                                                    arma::uword m,
-                                                                    bool use0,
-                                                                    bool use1)
+std::variant<std::pair<arma::field<arma::mat>,arma::sword>, arma::field<arma::mat>> compute_motif_rcpp(const arma::uvec & v_dom,
+                                                                                                      const arma::ivec & s_k,
+                                                                                                      const arma::vec & p_k,
+                                                                                                      const arma::field<arma::mat> & Y,
+                                                                                                      arma::uword m,
+                                                                                                      bool use0,
+                                                                                                      bool use1)
 {
   if(arma::accu(p_k) == 0) {
     Rcpp::stop("Motif with no members! Degenerate cluster!");
@@ -127,7 +125,7 @@ void elongation_rcpp(arma::field<arma::mat> & V_new,
                      const unsigned int index) 
 {
   if(len_elong_k.empty()) return;
-  
+
   const arma::field<arma::mat> & v_new_k = V_new.row(index);
   const arma::uvec & v_dom_k = V_dom[index];
   const arma::ivec & s_k = S_k.col(index);
@@ -181,7 +179,7 @@ void elongation_rcpp(arma::field<arma::mat> & V_new,
   for (int i = 0; i < v_elong_left_right_size; i++) {
     const auto & pair_motif_shift = compute_motif_rcpp(v_dom_elong_left_right[i+1], s_k_elong_left_right[i], p_k, Y, m, use0, use1);
     if (std::holds_alternative<arma::field<arma::mat>>(pair_motif_shift)){
-      v_elong_left_right.row(i) = std::get<arma::field<arma::mat>>(pair_motif_shift); // errore
+      v_elong_left_right.row(i) = *(std::get_if<arma::field<arma::mat>>(&pair_motif_shift)); // errore
       not_start_with_NA(i) = 1;
     }
   }
@@ -201,18 +199,18 @@ void elongation_rcpp(arma::field<arma::mat> & V_new,
   v_elong_left_right = filtered_v_elong;
   
   s_k_elong_left_right = std::vector<arma::ivec>(filtered_s_k.begin(),filtered_s_k.end());
-  
+  const unsigned int s_k_elong_left_right_size = s_k_elong_left_right.size();
   // compute performance index before elongation
-  double Jk_before = compute_Jk_rcpp(v_new_k, s_k, p_k, Y, alpha, w, m, use0, use1, arma::datun::nan, arma::vec(arma::datum::nan));
+  double Jk_before = compute_Jk_rcpp(v_new_k, s_k, p_k, Y, alpha, w, m, use0, use1, arma::datum::nan, arma::vec(arma::datum::nan));
   
   // compute performance indexes for all possible elongations
-  arma::vec c_k_after(v_elong_left_right_size);
-  arma::vec Jk_after(v_elong_left_right_size);
+  arma::vec c_k_after(s_k_elong_left_right_size);
+  arma::vec Jk_after(s_k_elong_left_right_size);
   
-  for (arma::uword i = 0; i < v_elong_left_right_size; i++) {
+  for (arma::uword i = 0; i < s_k_elong_left_right_size; i++) {
     int c_i =  std::max(floor(domain_rcpp(v_elong_left_right(i,0),v_elong_left_right(i,1), use0).n_elem*(1 - max_gap)),c); 
     c_k_after[i] = c_i;
-    Jk_after[i] = compute_Jk_rcpp(v_elong_left_right.row(i), s_k_elong_left_right[i], p_k, Y, alpha, w, m,use0 , use1,std::static_cast<double>(c_i), keep_k);
+    Jk_after[i] = compute_Jk_rcpp(v_elong_left_right.row(i), s_k_elong_left_right[i], p_k, Y, alpha, w, m,use0,use1, static_cast<double>(c_i), arma::conv_to<arma::vec>::from(keep_k));
   }
   
   // find the best elongation in terms of perf. index
@@ -221,7 +219,7 @@ void elongation_rcpp(arma::field<arma::mat> & V_new,
   
   // check that the min really exists
   bool elongate = false;
-  if (best_elong < v_elong_left_right_size)
+  if (best_elong < diff_perc.size())
     elongate = diff_perc(best_elong) < deltaJk_elong;
   
   // evaluate if elongate or not
@@ -306,13 +304,14 @@ void elongate_motifs(Rcpp::List & V_new,
      for (unsigned int i = 0; i < with_gaps_size; ++i){
      
        V_dom_filled[i] = arma::uvec(V_dom_[with_gaps(i)].n_elem,arma::fill::ones);
-       V_filled.row(i) = std::get<arma::field<arma::mat>>(compute_motif_rcpp(V_dom_filled[i],  // errore
-                                                                              S_k_.col(with_gaps(i)),
-                                                                              P_k_.col(with_gaps(i)),
-                                                                              Y_,
-                                                                              m,
-                                                                              use0,
-                                                                              use1));
+       const auto & variant_motif = compute_motif_rcpp(V_dom_filled[i],  // errore
+                                                        S_k_.col(with_gaps(i)),
+                                                        P_k_.col(with_gaps(i)),
+                                                        Y_,
+                                                        m,
+                                                        use0,
+                                                        use1);
+       V_filled.row(i) = *(std::get_if<arma::field<arma::mat>>(&variant_motif));
      }
      
      for (unsigned int i=0; i < with_gaps_size; ++i){
