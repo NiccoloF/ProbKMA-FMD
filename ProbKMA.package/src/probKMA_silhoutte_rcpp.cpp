@@ -62,7 +62,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
   arma::ivec V_length(K);
   
   // V_dom for each centroid contains an uvec with 0 if all the elements of the row of the centroid are NA
-  // #TODO: testare con domini bucati
+  // @TODO: testare con domini bucati
   for(unsigned int i = 0; i < K; ++i){
     const arma::mat & v = motifs[i];
     arma::uvec v_dom_k(v.n_rows);
@@ -83,7 +83,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    curves_in_motifs[k] = P_clean_1;
  }
  
- // @TODO: understand what it does
+ // @TODO: understand what it does, it doesn't seem necessary 
  // if(!is.null(ncol(curves_in_motifs))) this if condition makes no sense since curves_in_motifs is a list
  //   curves_in_motifs=split(curves_in_motifs,rep(seq_len(ncol(curves_in_motifs)),each=nrow(curves_in_motifs))) 
  

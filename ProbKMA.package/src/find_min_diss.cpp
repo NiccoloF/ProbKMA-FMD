@@ -111,15 +111,15 @@ arma::vec find_diss_rcpp(const arma::mat &y0,
   for (unsigned int i = 0; i < s_rep_size; ++i) {
     arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
     auto j_true = index_range
-      | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len));}); // verificare il v_dom
-    if (use0) {
-      y_rep(i,0).resize(index_size, d);
+      | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len)) ;}); 
+    if (use0) { // @TODO : possibile miglioramento
+      y_rep(i,0).set_size(index_size, d);
       y_rep(i,0).fill(arma::datum::nan);
       std::for_each(j_true.begin(),j_true.end(),[&y_rep,&y0,&index,&i](int j){y_rep(i,0).row(j) = y0.row(index[j] - 1);});
-      y_rep(i,0).shed_rows(indeces_dom);
+      y_rep(i,0).shed_rows(indeces_dom); 
     }
     if (use1) {
-      y_rep(i,1).resize(index_size, d);
+      y_rep(i,1).set_size(index_size, d);
       y_rep(i,1).fill(arma::datum::nan);
       std::for_each(j_true.begin(),j_true.end(),[&y_rep,&y1,&index,&i](int j){y_rep(i,1).row(j) = y1.row(index[j] - 1);});
       y_rep(i,1).shed_rows(indeces_dom);
