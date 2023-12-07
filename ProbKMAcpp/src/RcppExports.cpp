@@ -30,14 +30,10 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP _rcpp_module_boot_MotifH1Module();
-RcppExport SEXP _rcpp_module_boot_MotifL2Module();
 RcppExport SEXP _rcpp_module_boot_ProbKMAModule();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ProbKMAcpp_initialChecks", (DL_FUNC) &_ProbKMAcpp_initialChecks, 8},
-    {"_rcpp_module_boot_MotifH1Module", (DL_FUNC) &_rcpp_module_boot_MotifH1Module, 0},
-    {"_rcpp_module_boot_MotifL2Module", (DL_FUNC) &_rcpp_module_boot_MotifL2Module, 0},
     {"_rcpp_module_boot_ProbKMAModule", (DL_FUNC) &_rcpp_module_boot_ProbKMAModule, 0},
     {NULL, NULL, 0}
 };

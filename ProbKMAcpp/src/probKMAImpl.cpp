@@ -61,7 +61,7 @@ public:
         std::size_t Y_size = Y0.size();
         std::size_t V_size = V0.size();
         _Y.set_size(Y_size, 2);
-        _V.set_size(V_size, 2);
+        _V.set_size(V_size,2);
         
         for (int i = 0; i < Y_size; i++) {
           _Y(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
@@ -138,7 +138,7 @@ public:
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
           // capire se ha senso dichiararlo fuori
-          const auto V_new_variant = _motfac->compute_motif(V_dom_temp,_S0.col(i),
+          const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,_S0.col(i),
                                                             _P0.col(i),_Y,
                                                             _parameters._m);
           
@@ -177,8 +177,8 @@ public:
     KMA::Mfield _V;
     
     //Motif and dissimilarity
-    std::unique_ptr<MotifPure> _motfac;
-    std::unique_ptr<Dissimilarity> _dissfac;
+    std::shared_ptr<MotifPure> _motfac;
+    std::shared_ptr<Dissimilarity> _dissfac;
     
     //Parameters
     Parameters _parameters;

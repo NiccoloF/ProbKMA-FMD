@@ -1,12 +1,12 @@
 #include "Motif.hpp"
 
-KMA::matrix MotifPure::compute_v_new(const KMA::Mfield& Y_inters_k,
-                                   const KMA::umatrix & Y_inters_supp,
-                                   const arma::urowvec & v_dom,
-                                   arma::uword v_len,
-                                   const KMA::vector & p_k,
-                                   arma::uword d,
-                                   arma::uword m) const
+KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
+                                      const KMA::umatrix & Y_inters_supp,
+                                      const arma::urowvec & v_dom,
+                                      arma::uword v_len,
+                                      const KMA::vector & p_k,
+                                      arma::uword d,
+                                      arma::uword m) const
 {
   KMA::matrix v_new(v_len,d,arma::fill::zeros);
   if (Y_inters_k.n_rows == 1){
@@ -25,3 +25,8 @@ KMA::matrix MotifPure::compute_v_new(const KMA::Mfield& Y_inters_k,
   v_new.rows(arma::find(v_dom==0)).fill(arma::datum::nan);
   return v_new;
 }
+
+
+
+
+

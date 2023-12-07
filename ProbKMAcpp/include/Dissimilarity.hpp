@@ -61,7 +61,6 @@ public:
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;
   
-  
   double _alpha;
 
 };

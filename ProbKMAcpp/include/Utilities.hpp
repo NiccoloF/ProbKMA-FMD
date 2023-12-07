@@ -2,38 +2,33 @@
 #define __UTILITIES_HPP__
 #include "RcppArmadillo.h"
 #include "TypeTraits.hpp"
+#include <vector>
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 
 namespace util
 {
-
-  template <typename MatType, bool Use>
-  auto selectDomainHelper(const MatType& mat_v, const KMA::uvector& dom) {
-    if constexpr (Use) {
-      return mat_v.rows(dom);
-    } else {
-      return MatType();  // Return an empty matrix if not used
+  template<bool use1>
+  KMA::Mfield selectDomain(const arma::uvec& v_dom,const KMA::Mfield& V)
+  { 
+    arma::uvec dom = arma::find(v_dom==1);
+    if constexpr(use1)
+    {
+      KMA::Mfield v(1,2);
+      v(0,0) = V(0,0).rows(dom);
+      v(0,1) = V(0,1).rows(dom);
+      return v;
     }
+    else
+    {
+      KMA::Mfield v(1,1);
+      v(0,0) = V(0,0).rows(dom);
+      return v;
+    }
+  
   }
   
-  // restituire direttamente Mfield
-  template <typename... MatTypes, bool... Uses>
-  KMA::Mfield selectDomain(const KMA::uvector& dom, const MatTypes&... mat_v) {
-    static_assert(sizeof...(MatTypes) == sizeof...(Uses), "Error: Mismatch in the number of matrices and use flags.");
-    
-    KMA::Mfield result(sizeof...(MatTypes));
-    
-    auto processMatrix = [&dom](const auto& mat_v, bool use) {
-      return selectDomainHelper<decltype(mat_v), use>(mat_v, dom);
-    };
-    
-    size_t index = 0;
-    ((result(index++) = processMatrix(mat_v, Uses)), ...);
-    
-    return result;
-  }
   
   // returns a rowvector 
   template <typename MatType>
@@ -46,7 +41,20 @@ namespace util
     }
     return result;
   }
-
+  
+  
+  inline std::vector<arma::ivec> repeat_elements(const KMA::imatrix& A,const KMA::ivector & times) {
+    arma::uword times_size = times.n_elem;
+    std::vector<KMA::ivector> result((times_size*(times_size+1))/2 - 1);
+    std::size_t i = 0;
+    for(arma::uword j = 0;j < times_size;++j)
+    {
+      const KMA::imatrix& B = arma::repmat(A.col(j),1,times[j]);
+      B.each_col([&result,&i](const KMA::ivector& v){result[i++] = v;});
+    }
+    return result;
+  }
+  
 }
   
 

@@ -7,7 +7,11 @@
 #include <ranges>
 #include <algorithm>
 #include <variant>
+#include <memory>
 #include "Utilities.hpp"
+#include "Parameters.hpp"
+#include "PerformanceIndex.hpp"
+#include "Dissimilarity.hpp"
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
@@ -21,28 +25,58 @@ class MotifPure
     MotifPure() = default;
   
     virtual std::variant<indexField,KMA::Mfield>
-      compute_motif(const arma::urowvec& v_dom,
-                    const KMA::ivector& s_k,
-                    const KMA::vector& p_k,
-                    const KMA::Mfield& Y,
-                    double m) const = 0;
+    compute_motif(const arma::urowvec& v_dom,
+                  const KMA::ivector& s_k,
+                  const KMA::vector& p_k,
+                  const KMA::Mfield& Y,
+                  double m) const = 0;
                           
     virtual ~MotifPure() = default;
     
-  protected:
-    
-    KMA::matrix compute_v_new(const KMA::Mfield& Y_inters_k,
+};
+
+class MotifSobol: public MotifPure
+{
+public:
+  
+  MotifSobol() = default;
+  
+protected:
+  
+  KMA::matrix compute_v_new(const KMA::Mfield& Y_inters_k,
                             const KMA::umatrix& Y_inters_supp,
                             const arma::urowvec & v_dom,
                             arma::uword v_len,
                             const KMA::vector & p_k,
                             arma::uword d,
                             arma::uword m) const;
+  // Use1 = True --> H1
+  template<bool use1>
+  std::variant<indexField,KMA::Mfield> 
+  compute_motif_helper(const arma::urowvec& v_dom,
+                       const KMA::ivector& s_k,
+                       const KMA::vector& p_k,
+                       const KMA::Mfield& Y,
+                       double m) const;
+  
+  template<bool use1>
+  void elongation(KMA::Mfield& V_new, 
+                  std::vector<KMA::uvector> & V_dom,  
+                  KMA::imatrix & S_k, 
+                  const arma::vec & p_k, 
+                  const arma::ivec& len_elong_k, 
+                  const arma::uvec& keep_k,
+                  double c,
+                  const KMA::Mfield Y, 
+                  const unsigned int index,
+                  const Parameters& param,
+                  const std::shared_ptr<PerformanceIndexAB>& performance,
+                  const std::shared_ptr<Dissimilarity>& diss) const;
   
 };
 
 
-class Motif_L2 final: public MotifPure
+class Motif_L2 final: public MotifSobol
 {
 public:
   
@@ -59,7 +93,7 @@ public:
   
 };
 
-class Motif_H1 final: public MotifPure
+class Motif_H1 final: public MotifSobol
 {
 public:
   
@@ -73,8 +107,10 @@ public:
                   const KMA::vector& p_k,
                   const KMA::Mfield& Y,
                   double m) const override;
-
+  
 };
+
+#include "Motif.ipp"
 
 #endif // MOTIF_HPP
 
