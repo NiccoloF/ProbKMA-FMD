@@ -11,4 +11,11 @@ double L2::computeDissimilarity(const KMA::Mfield& Y_i,
     return this->distance(Y_i(0,0),V_i(0,0));
 }
 
+KMA::vector L2::find_diss(const KMA::Mfield Y,
+                          const KMA::Mfield V,
+                          const KMA::vector& w, 
+                          double alpha, unsigned int c_k) const
+{
+  return find_diss_helper<false>(Y,V,w,alpha,c_k);
+}
 

@@ -30,6 +30,16 @@ class MotifPure
                   const KMA::vector& p_k,
                   const KMA::Mfield& Y,
                   double m) const = 0;
+    
+    virtual
+    void elongate_motifs(KMA::Mfield& V_new,
+                         std::vector<arma::urowvec>& V_dom,
+                         KMA::imatrix& S_k,const KMA::matrix& P_k,
+                         const KMA::Mfield& Y,const KMA::matrix& D,
+                         const Parameters& param,
+                         const std::shared_ptr<PerformanceIndexAB>& perf,
+                         const std::shared_ptr<Dissimilarity>& diss) const = 0;
+    
                           
     virtual ~MotifPure() = default;
     
@@ -60,8 +70,17 @@ protected:
                        double m) const;
   
   template<bool use1>
+  void elongate_motifs_helper(KMA::Mfield& V_new,
+                              std::vector<arma::urowvec>& V_dom,
+                              KMA::imatrix& S_k,const KMA::matrix& P_k,
+                              const KMA::Mfield& Y,const KMA::matrix& D,
+                              const Parameters& param,
+                              const std::shared_ptr<PerformanceIndexAB>& perf,
+                              const std::shared_ptr<Dissimilarity>& diss) const;
+  
+  template<bool use1>
   void elongation(KMA::Mfield& V_new, 
-                  std::vector<KMA::uvector> & V_dom,  
+                  std::vector<arma::urowvec> & V_dom,  
                   KMA::imatrix & S_k, 
                   const arma::vec & p_k, 
                   const arma::ivec& len_elong_k, 
@@ -76,11 +95,11 @@ protected:
 };
 
 
-class Motif_L2 final: public MotifSobol
+class MotifL2 final: public MotifSobol
 {
 public:
   
-  Motif_L2() = default;
+  MotifL2() = default;
   
   virtual std::variant<indexField,KMA::Mfield>
     compute_motif(const arma::urowvec& v_dom,
@@ -89,17 +108,26 @@ public:
                   const KMA::Mfield& Y,
                   double m) const override;
   
-  virtual ~Motif_L2() = default;
+  virtual
+  void elongate_motifs(KMA::Mfield& V_new,
+                       std::vector<arma::urowvec>& V_dom,
+                       KMA::imatrix& S_k,const KMA::matrix& P_k,
+                       const KMA::Mfield& Y,const KMA::matrix& D,
+                       const Parameters& param,
+                       const std::shared_ptr<PerformanceIndexAB>& perf,
+                       const std::shared_ptr<Dissimilarity>& diss) const override;
+  
+  virtual ~MotifL2() = default;
   
 };
 
-class Motif_H1 final: public MotifSobol
+class MotifH1 final: public MotifSobol
 {
 public:
   
-  Motif_H1() = default;
+  MotifH1() = default;
   
-  virtual ~Motif_H1() = default;
+  virtual ~MotifH1() = default;
   
   virtual std::variant<indexField,KMA::Mfield>
     compute_motif(const arma::urowvec& v_dom,
@@ -107,6 +135,15 @@ public:
                   const KMA::vector& p_k,
                   const KMA::Mfield& Y,
                   double m) const override;
+  
+  virtual
+  void elongate_motifs(KMA::Mfield& V_new,
+                       std::vector<arma::urowvec>& V_dom,
+                       KMA::imatrix& S_k,const KMA::matrix& P_k,
+                       const KMA::Mfield& Y,const KMA::matrix& D,
+                       const Parameters& param,
+                       const std::shared_ptr<PerformanceIndexAB>& perf,
+                       const std::shared_ptr<Dissimilarity>& diss) const override;
   
 };
 

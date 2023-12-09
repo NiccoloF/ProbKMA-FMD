@@ -7,6 +7,9 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 
+// @TODO
+// DARE CONSISTENZA A SET PARAMETERS PERCHE SE CAMBIO I PARAMETRI IN PROBKMA DEVONO
+// ANCHE CAMBIARE IN MOTIFH1 ecc
 
 class ProbKMA::_probKMAImp
 {
@@ -28,13 +31,19 @@ public:
                     
                     //Create Motif factory
                     util::SharedFactory<MotifPure> motfac;
-                    motfac.FactoryRegister<Motif_L2>("L2");
-                    motfac.FactoryRegister<Motif_H1>("H1");
+                    motfac.FactoryRegister<MotifL2>("L2");
+                    motfac.FactoryRegister<MotifH1>("H1");
+                    
+                    //Create Performance factory
+                    util::SharedFactory<PerformanceIndexAB> perfac;
+                    perfac.FactoryRegister<PerformanceL2>("L2");
+                    perfac.FactoryRegister<PerformanceH1>("H1");
                     
                     //check whether diss is valid
                     _motfac = motfac.instantiate(diss); // copy elision
-                    _dissfac = dissfac.instantiate(diss);
-                    if(not(_motfac and _dissfac))
+                    _dissfac = dissfac.instantiate(diss); // copy elision
+                    _perfac = perfac.instantiate(diss); // copy elision
+                    if(not(_motfac and _dissfac and _perfac))
                       Rcpp::Rcerr<<"Invalid dissimilarity: Choose between L2,H1"<<std::endl;
                 }
 
@@ -112,6 +121,7 @@ public:
       KMA::matrix D;
       KMA::umatrix keep;
       std::size_t _n_rows_V = _V.n_rows;
+      std::size_t _n_rows_Y = _Y.n_rows;
       std::vector<arma::urowvec> V_dom(_n_rows_V);
       KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
 
@@ -154,6 +164,36 @@ public:
           }
           V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
         }
+        
+        if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
+        {
+          _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
+                                     _Y,D, _parameters,
+                                     _perfac,_dissfac);
+        }
+        
+////// find shift warping minimizing dissimilarities /////////////
+        KMA::vector sd(2);
+        arma::imat S_new(_n_rows_Y,_n_rows_V);
+        arma::mat  D_new(_n_rows_Y,_n_rows_V);
+        
+        KMA::ivector c_k(_n_rows_V);
+        const auto transform_function = [this](const KMA::matrix& V_new0) 
+        {return std::floor(V_new0.n_cols * this->_parameters._max_gap);};
+        const KMA::Mfield& V_new0 = V_new.col(0);
+        std::transform(V_new0.begin(),V_new0.end(),c_k.begin(),transform_function);
+        c_k.elem(c_k < _parameters._c) = _parameters._c;
+        
+#ifdef _OPENMP
+#pragma omp parallel for collapse(2) firstprivate(sd)
+#endif
+        for (unsigned int i = 0; i < _n_rows_V; ++i)
+          for (unsigned int j = 0; j < _n_rows_Y; ++j){ 
+            sd = _dissfac->find_diss(_Y,V_new,_parameters._w,_parameters._alpha,
+                                     c_k(i)); 
+            S_new(j,i) = sd(0);
+            D_new(j,i) = sd(1);
+          }
         return Rcpp::List::create(Rcpp::Named("P0")=_P0,Rcpp::Named("S0")=_S0,
                                   Rcpp::Named("V_dom")=V_dom); 
       }
@@ -179,6 +219,7 @@ public:
     //Motif and dissimilarity
     std::shared_ptr<MotifPure> _motfac;
     std::shared_ptr<Dissimilarity> _dissfac;
+    std::shared_ptr<PerformanceIndexAB> _perfac;
     
     //Parameters
     Parameters _parameters;

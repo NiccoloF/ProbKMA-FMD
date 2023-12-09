@@ -3,6 +3,11 @@
 #include "TypeTraits.hpp"
 #include "RcppArmadillo.h"
 #include <Rcpp.h>
+#include <Utilities.hpp>
+#include <ranges>
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::plugins(cpp20)]]
 
 // Abstract class for dissimilarities
 class Dissimilarity
@@ -16,6 +21,12 @@ public:
   // compute dissimilarity 
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const = 0; 
+  
+// Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
+  virtual KMA::vector find_diss(const KMA::Mfield Y,
+                                const KMA::Mfield V,
+                                const KMA::vector& w, 
+                                double alpha, unsigned int c_k) const = 0;
   
 protected:
 
@@ -34,10 +45,17 @@ protected:
     virtual double distance(const KMA::matrix& y,
                             const KMA::matrix& v) const override;
   
+    template<bool use1>
+    KMA::vector find_diss_helper(const KMA::Mfield Y,
+                                 const KMA::Mfield V,
+                                 const KMA::vector& w, 
+                                 double alpha, unsigned int c_k) const;
+  
     KMA::vector _w;
     
 };
 
+#include "Dissimilarity.ipp"
 
 class L2 final: public SobolDiss
 {
@@ -48,6 +66,11 @@ public:
   
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;
+  
+  virtual KMA::vector find_diss(const KMA::Mfield Y,
+                                const KMA::Mfield V,
+                                const KMA::vector& w, 
+                                double alpha, unsigned int c_k) const override;
   
 };
 
@@ -60,6 +83,11 @@ public:
   
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;
+  
+  virtual KMA::vector find_diss(const KMA::Mfield Y,
+                                const KMA::Mfield V,
+                                const KMA::vector& w, 
+                                double alpha, unsigned int c_k) const override;
   
   double _alpha;
 

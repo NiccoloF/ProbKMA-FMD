@@ -21,13 +21,8 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   
   KMA::uvector p_k_pos = arma::find(p_k > 0); //we will consider only the curves assigned to motif k
   
-  KMA::Mfield Y_inters_k(p_k_pos.n_elem,1); //list of shifted curves
-  // If H1
-  if constexpr(use1)
-  {
-    Y_inters_k.set_size(p_k_pos.n_elem,2);
-  }
-  
+  KMA::Mfield Y_inters_k(p_k_pos.n_elem,Y.n_cols); //list of shifted curves
+ 
   KMA::umatrix Y_inters_supp(p_k_pos.n_elem,v_dom.n_elem); // for each shifted curve contains an uvec with the domain
   
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
@@ -74,10 +69,9 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
     }
   }
   
-  KMA::Mfield v_new(1,1);
+  KMA::Mfield v_new(1,Y.n_cols);
   
   if constexpr (use1) {
-    v_new.set_size(1,2); // resize
     v_new(0,1) = compute_v_new(Y_inters_k.col(1),
                                Y_inters_supp,
                                v_dom,v_len,p_k,d,m);
@@ -106,8 +100,8 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
 
 template<bool use1>
 void MotifSobol::elongation(KMA::Mfield& V_new, 
-                            std::vector<KMA::uvector> & V_dom,  
-                            KMA::imatrix & S_k, 
+                            std::vector<arma::urowvec> & V_dom,  
+                            KMA::imatrix& S_k, 
                             const arma::vec & p_k, 
                             const arma::ivec& len_elong_k, 
                             const arma::uvec& keep_k,
@@ -169,11 +163,8 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   // create the list containing all the possible v_dom_k elongated using compute_motif
   const int v_elong_left_right_size = s_k_elong_left_right.size();
   arma::uvec not_start_with_NA(v_elong_left_right_size,arma::fill::zeros);
-  KMA::Mfield v_elong_left_right(v_elong_left_right_size,1);
-  if constexpr(use1)
-  {
-    v_elong_left_right.set_size(v_elong_left_right_size,2);
-  }
+  KMA::Mfield v_elong_left_right(v_elong_left_right_size,Y.n_cols);
+ 
   for (int i = 0; i < v_elong_left_right_size; i++) {
     const auto & pair_motif_shift = compute_motif_helper<use1>(v_dom_elong_left_right[i+1], s_k_elong_left_right[i], p_k, Y, param._m);
     if (std::holds_alternative<KMA::Mfield>(pair_motif_shift)){
@@ -185,11 +176,7 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   auto not_NA_index = std::views::iota(0,v_elong_left_right_size) 
     | std::views::filter([&not_start_with_NA](int index_j){return(not_start_with_NA(index_j));});
   
-  arma::field<arma::mat> filtered_v_elong(arma::accu(not_start_with_NA),1);
-  if constexpr(use1)
-  {
-    v_elong_left_right.set_size(arma::accu(not_start_with_NA),2);
-  }
+  KMA::Mfield filtered_v_elong(arma::accu(not_start_with_NA),Y.n_cols);
   
   int i = 0;
   for(const auto & index : not_NA_index){
@@ -240,6 +227,118 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   } else {
     return;
   }               
+}
+
+template<bool use1>
+void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
+                                        std::vector<arma::urowvec>& V_dom,
+                                        KMA::imatrix& S_k,const KMA::matrix& P_k,
+                                        const KMA::Mfield& Y,const KMA::matrix& D,
+                                        const Parameters& param,
+                                        const std::shared_ptr<PerformanceIndexAB>& perf,
+                                        const std::shared_ptr<Dissimilarity>& diss) const
+{
+  std::size_t V_dom_size = V_dom.size();
+    
+    arma::ivec len_dom(V_dom_size);
+    arma::uvec bool_gaps(V_dom_size);
+    for(unsigned int i = 0; i < V_dom_size; ++i){
+      len_dom(i) = V_dom[i].size();
+      bool_gaps(i) = (arma::accu(V_dom[i]) < len_dom(i));
+    }
+    
+    arma::uvec with_gaps = arma::find(bool_gaps == 1);
+    unsigned int with_gaps_size = with_gaps.size();
+    
+    // @TODO: check this part for domains with NaN
+    if (with_gaps_size != 0){
+      
+      KMA::Mfield V_filled(with_gaps_size,Y.n_cols);
+      
+      std::vector<KMA::uvector> V_dom_filled(with_gaps_size);
+      
+      arma::vec Jk_before(with_gaps_size);
+      
+      arma::vec Jk_after(with_gaps_size);
+      
+      // fill the domains of the motifs with gaps and recompute the motifs with the filled domains
+      // and compute the perf.indexes before and after the filling
+#ifdef _OPENMP
+#pragma omp parallel for 
+#endif
+      for (unsigned int i = 0; i < with_gaps_size; ++i){
+        
+        V_dom_filled[i] = arma::uvec(V_dom[with_gaps(i)].n_elem,arma::fill::ones);
+        const auto & variant_motif = compute_motif_helper<use1>(V_dom_filled[i],  // errore
+                                                                S_k.col(with_gaps(i)),
+                                                                P_k.col(with_gaps(i)),
+                                                                Y,param._m);
+        V_filled.row(i) = *(std::get_if<KMA::Mfield>(&variant_motif)); // Possibile errore se ritorna Nullptr
+        
+        Jk_before(i) = perf->compute_Jk(V_new.row(with_gaps(i)), 
+                                        S_k.col(with_gaps(i)),
+                                        P_k.col(with_gaps(i)),
+                                        Y,param._w,param._m,
+                                        arma::datum::nan,arma::vec(arma::datum::nan),
+                                        diss);
+        
+        Jk_after(i) = perf->compute_Jk(V_filled.row(i), 
+                                       S_k.col(with_gaps(i)),
+                                       P_k.col(with_gaps(i)),
+                                       Y,param._w,param._m,
+                                       arma::datum::nan,arma::vec(arma::datum::nan),
+                                       diss);
+      }
+      
+      // if filling the domain improves the perf. index over a certain threshold replace the domain and the motifs with the filled one
+      const arma::uvec& fill = arma::find((Jk_after-Jk_before)/Jk_before < param._deltaJK_elong);
+      for(unsigned int i=0; i < fill.size(); ++i){
+        V_dom[with_gaps(i)] = V_dom_filled[i];
+        V_new.row(with_gaps(i)) = V_filled.row(i);
+      }
+      
+    }
+    
+    std::vector<arma::ivec> len_elong(V_dom_size);
+    for (unsigned int i = 0; i < V_dom_size; ++i){
+      const int len_max_elong_i = std::min<int>(std::floor(len_dom[i]*param._max_elong),
+                                                param._c_max[i] - len_dom[i]);
+      if (len_max_elong_i == 0){
+        len_elong[i] = KMA::ivector{};
+      } 
+      else{
+        len_elong[i] =  (len_max_elong_i <= param._trials_elong) ? 
+        arma::regspace<arma::ivec>(1, len_max_elong_i): 
+        round(arma::linspace<arma::ivec>(1, len_max_elong_i, param._trials_elong));
+      }
+    }
+    
+    // vector of probabilities for the quantile function , to be checked this part
+    arma::vec prob(1,arma::fill::value(0.25));
+    // compute the quantile of the distance matrix
+    arma::vec quantile = arma::quantile(vectorise(D), prob);
+    // keep will be a matrix whose value i,j will be D(i,j) < quantile(0)
+    arma::umat keep = D < quantile(0);
+    // col-wise sum of the matrix keep
+    const arma::uvec& col_sum_keep = (sum(keep, 0)).t();
+    // vector of bool = true iff col_sum_keep[i]==0
+    const arma::uvec& col_sum_keep_zero = (col_sum_keep==0);
+    // empty_k stores the indexes of the col that have col_sum_keep = 0 
+    const arma::uvec& empty_k = find(col_sum_keep_zero);
+    
+    for (auto k : empty_k){
+      const unsigned int min_col_k_D = index_min(D.col(k));
+      keep(min_col_k_D, k) = true;
+    } 
+    
+#ifdef _OPENMP
+#pragma omp parallel for 
+#endif
+    for (unsigned int i = 0; i < V_dom_size; ++i){
+      elongation<use1>(V_new,V_dom,S_k,P_k.col(i),
+                       len_elong[i],keep.col(i),param._c[i],
+                       Y,i,param,perf,diss);
+    }
 }
 
 

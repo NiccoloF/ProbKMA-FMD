@@ -13,19 +13,17 @@ namespace util
   KMA::Mfield selectDomain(const arma::uvec& v_dom,const KMA::Mfield& V)
   { 
     arma::uvec dom = arma::find(v_dom==1);
+    KMA::Mfield v(1,V.n_cols);
     if constexpr(use1)
     {
-      KMA::Mfield v(1,2);
       v(0,0) = V(0,0).rows(dom);
       v(0,1) = V(0,1).rows(dom);
-      return v;
     }
     else
     {
-      KMA::Mfield v(1,1);
       v(0,0) = V(0,0).rows(dom);
-      return v;
     }
+    return v;
   
   }
   
