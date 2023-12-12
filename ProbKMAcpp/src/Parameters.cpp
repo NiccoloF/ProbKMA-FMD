@@ -8,6 +8,7 @@
     _c_max = Rcpp::as<arma::ivec>(params["c_max"]);
     _iter_max = params["iter_max"];
     _quantile = params["quantile"];
+    _prob = params["prob"];
     _stopCriterion = Rcpp::as<std::string>(params["stopCriterion"]);
     _m = params["m"];
     _w = Rcpp::as<arma::vec>(params["w"]);
@@ -23,7 +24,6 @@
     _tol4clean = params["tol4clean"];
     _quantile4clean = params["quantile4clean"];
     _return_options = params["return_options"];
-    _return_init = params["return_init"];
   }
 
 

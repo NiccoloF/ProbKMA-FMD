@@ -37,6 +37,7 @@ struct Parameters
     arma::ivec _c_max;
     unsigned int _iter_max;
     unsigned int _quantile;
+    double _prob;
     std::string _stopCriterion;
     double _m;
     arma::vec _w;
@@ -52,7 +53,6 @@ struct Parameters
     double _tol4clean;
     double _quantile4clean;
     bool _return_options;
-    bool _return_init;
 };
 
 #endif // PARAMETERS_HPP

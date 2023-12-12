@@ -118,11 +118,8 @@ public:
       KMA::vector J_iter(iter_max,arma::fill::zeros);
       KMA::vector BC_dist_iter(iter_max,arma::fill::zeros);
       auto BC_dist = std::numeric_limits<double>::infinity();
-      const unsigned int& iter_max = _parameters._iter_max;
       const KMA::vector quantile4clean(_parameters._quantile4clean); // convert to vector to compute quantile
       KMA::matrix D;
-      KMA::matrix P;
-      KMA::matrix S;
       KMA::umatrix keep;
       std::size_t _n_rows_V = _V.n_rows;
       std::size_t _n_rows_Y = _Y.n_rows;
@@ -178,8 +175,8 @@ public:
         
         ////// find shift warping minimizing dissimilarities /////////////
         KMA::vector sd(2);
-        arma::imat S_new(_n_rows_Y,_n_rows_V);
-        arma::mat  D_new(_n_rows_Y,_n_rows_V);
+        KMA::imatrix S_new(_n_rows_Y,_n_rows_V);
+        KMA::matrix  D_new(_n_rows_Y,_n_rows_V);
         KMA::ivector c_k(_n_rows_V);
         const auto transform_function = [this](const KMA::matrix& V_new0) 
         {return std::floor(V_new0.n_rows * (1 - this->_parameters._max_gap));};
@@ -199,25 +196,25 @@ public:
           }
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
-        arma::mat P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
-        arma::umat D0 = (D_new == 0);
-        const arma::uvec & mult_assign = arma::find(arma::sum(D0,1) > 1);
+        KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
+        KMA::umatrix D0 = (D_new == 0);
+        const KMA::uvector & mult_assign = arma::find(arma::sum(D0,1) > 1);
         for (arma::sword i : mult_assign) {
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Curve has dissimilarity 0 from two different motifs. Using only one of them..."); 
-          const arma::uvec & indexes = arma::find(D0.row(i) == 1);
-          D0.row(i).fill(arma::fill::zeros);
+          const KMA::uvector & indexes = arma::find(D0.row(i) == 1);
+          D0.row(i).zeros();
           D0(i,indexes(arma::randi(arma::distr_param(0, indexes.n_elem - 1)))) = 1;
         }
-        const arma::uvec & D0_index = arma::find(arma::sum(D0,1) == 1);
+        const KMA::uvector & D0_index = arma::find(arma::sum(D0,1) == 1);
         for(arma::sword i : D0_index) {
-          const arma::uvec & col = arma::find(D0.row(i)==1);
+          const KMA::uvector & col = arma::find(D0.row(i)==1);
           P_new(i,col(0)) = 1;
         }
-        const arma::uvec & not_D0_index = arma::find(arma::sum(D0,1) !=1);
-        const arma::mat & Dm = arma::pow(D_new.rows(not_D0_index),1/(m-1));
+        const KMA::uvector & not_D0_index = arma::find(arma::sum(D0,1) !=1);
+        const KMA::matrix & Dm = arma::pow(D_new.rows(not_D0_index),1/(_parameters._m-1));
         P_new.rows(not_D0_index) = 1 / (Dm % arma::repmat(arma::sum(1/Dm,1),1,Dm.n_cols));
-        const arma::uvec & deg_indexes = arma::find(arma::sum(P_new,0)==0);
+        const KMA::uvector & deg_indexes = arma::find(arma::sum(P_new,0)==0);
         for (arma::sword k : deg_indexes) {
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Motif is degenerate (zero membership). Selecting a new center..."); 
@@ -226,7 +223,7 @@ public:
 
         // evaluate objective functions
         // Riccardo: new part, just written 
-        arma::mat temp_DP = D_new % (arma::pow(P_new, m));
+        KMA::matrix temp_DP = D_new % (arma::pow(P_new,_parameters._m));
         temp_DP.replace(arma::datum::nan,0);
         J_iter(iter) = arma::accu(temp_DP);
       
@@ -235,25 +232,28 @@ public:
         // Riccardo: maybe to be written as auxiliary function
         // @TODO: ask to professor why RowSums in her code
         const arma::rowvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P_new),0));
-        const string & criterion = _parameters._stopCriterion:
+        std::string_view criterion = _parameters._stopCriterion;
         if (criterion == "max")
           BC_dist = arma::max(BC_dist_k);
         else if (criterion == "mean")
           BC_dist = arma::mean(BC_dist_k);
         else if (criterion == "quantile")
-          // non riesco a capire quel "prob" del codice della prof in questa riga
-          // BC_dist = arma::quantile(BC_dist_k, ...)
+          BC_dist = arma::conv_to<arma::vec>::from
+                    (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
+  
+         
         BC_dist_iter(iter) = BC_dist;
 
         // update 
         _V = V_new;
-        P = P_new; // members of the class?
-        S = S_new; // members of the class?
-        D = D_new; // members of the class?
+        _P0 = P_new; 
+        _S0 = S_new;
+        D = D_new; 
       }
-
+/////  prepare output //////////////////////////////////
       return Rcpp::List::create();
     }
+
   
     void set_parameters(const Rcpp::List& newParameters)
     {
