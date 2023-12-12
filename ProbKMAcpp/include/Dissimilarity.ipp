@@ -9,7 +9,7 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       // Convert domain and select_domain
       unsigned int d = Y(0,0).n_cols;
       arma::urowvec v_dom = util::findDomain(V(0,0));
-      const KMA::Mfield& v_new = util::selectDomain<use1>(v_dom,V);
+      const KMA::Mfield& v_new = util::selectDomain<use1,arma::urowvec>(v_dom,V);
       int v_len = v_dom.size();
       int y_len = Y(0,0).n_rows;
       arma::ivec s_rep = arma::regspace<arma::ivec>(1 - (v_len - c_k), y_len - v_len + 1 + (v_len - c_k));

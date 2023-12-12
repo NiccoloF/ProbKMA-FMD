@@ -176,10 +176,9 @@ public:
         KMA::vector sd(2);
         arma::imat S_new(_n_rows_Y,_n_rows_V);
         arma::mat  D_new(_n_rows_Y,_n_rows_V);
-        
         KMA::ivector c_k(_n_rows_V);
         const auto transform_function = [this](const KMA::matrix& V_new0) 
-        {return std::floor(V_new0.n_cols * this->_parameters._max_gap);};
+        {return std::floor(V_new0.n_rows * (1 - this->_parameters._max_gap));};
         const KMA::Mfield& V_new0 = V_new.col(0);
         std::transform(V_new0.begin(),V_new0.end(),c_k.begin(),transform_function);
         c_k.elem(c_k < _parameters._c) = _parameters._c;
@@ -189,7 +188,7 @@ public:
 #endif
         for (unsigned int i = 0; i < _n_rows_V; ++i)
           for (unsigned int j = 0; j < _n_rows_Y; ++j){ 
-            sd = _dissfac->find_diss(_Y,V_new,_parameters._w,_parameters._alpha,
+            sd = _dissfac->find_diss(_Y.row(j),V_new.row(i),_parameters._w,_parameters._alpha,
                                      c_k(i)); 
             S_new(j,i) = sd(0);
             D_new(j,i) = sd(1);
