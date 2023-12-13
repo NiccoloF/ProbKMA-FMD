@@ -344,7 +344,7 @@ public:
     }
     
     
-    // return a R structure, V, _P0, _S0 già presenti <- convertire tutte le cose da convertire V, V_clean
+    // return Rcpp::List with all the outputs of probKMA 
     Rcpp::List toR(const KMA::Mfield & V_clean,
                    const KMA::matrix & P_clean,
                    const KMA::imatrix & S_clean,
