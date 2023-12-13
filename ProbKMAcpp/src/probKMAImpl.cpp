@@ -7,9 +7,7 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 
-// @TODO
-// DARE CONSISTENZA A SET PARAMETERS PERCHE SE CAMBIO I PARAMETRI IN PROBKMA DEVONO
-// ANCHE CAMBIARE IN MOTIFH1 ecc
+// @TODO: dare consistenza a set parameters, perchè se cambio i parametri in probKma devo anche cambiarli in MotifH1 ecc
 
 class ProbKMA::_probKMAImp
 {
@@ -194,6 +192,7 @@ public:
             S_new(j,i) = sd(0);
             D_new(j,i) = sd(1);
           }
+
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
         KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
@@ -228,9 +227,7 @@ public:
         J_iter(iter) = arma::accu(temp_DP);
       
         // compute Bhattacharyya distance between P_old and P_new
-        // Riccardo: new part, just written 
-        // Riccardo: maybe to be written as auxiliary function
-        // @TODO: ask to professor why RowSums in her code
+        // @TODO: ask to professor why RowSums in her code and not ColSums
         const arma::rowvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P_new),0));
         std::string_view criterion = _parameters._stopCriterion;
         if (criterion == "max")
@@ -241,7 +238,6 @@ public:
           BC_dist = arma::conv_to<arma::vec>::from
                     (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
   
-         
         BC_dist_iter(iter) = BC_dist;
 
         // update 
@@ -250,8 +246,95 @@ public:
         _S0 = S_new;
         D = D_new; 
       }
-/////  prepare output //////////////////////////////////
-      return Rcpp::List::create();
+
+      /////  prepare output //////////////////////////////////
+      KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);
+      KMA::imatrix S_clean(_S0);
+      KMA::matrix D_clean;
+      // Riccardo comment: la prof non fa nessun controllo in questa parte su quali delle due strutture viene restituita, perchè?
+      // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
+      for(arma::uword k=0; k < _n_rows_V; ++k){
+        const auto & pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
+                                                              _P0.col(k), _Y,
+                                                              _parameters._m);
+        _V.row(k) = *(std::get_if<arma::field<arma::mat>>(&pair_motif_shift));
+      } 
+      KMA::umatrix keep = D < arma::quantile(D,quantile4clean);
+      KMA::uvector empty_k = arma::find(arma::sum(keep,0) == 0);
+      for (arma::sword k: empty_k)
+        keep(arma::index_min(D.col(k)),k) = 1;
+      P_clean(arma::find(keep)) = 1;
+      KMA::Mfield V_clean(_V.n_cols,_n_rows_V); // come impostare la size giusta di V_clean? usando _V.n_cols?
+      std::map<arma::sword,arma::sword> shift_s;
+      for(arma::uword k=0; k < _n_rows_V; ++k){
+        const auto & new_motif =  _motfac->compute_motif(V_dom[k], _S0.col(k),
+                                                         P_clean.col(k), _Y,
+                                                         _parameters._m);
+        if (auto ptr = std::get_if<arma::field<arma::mat>>(&new_motif)){
+          V_clean.col(k) = *ptr;
+        } else {
+          const auto & pair_motif_shift = *(std::get_if<std::pair<arma::field<arma::mat>,arma::sword>>(&new_motif));
+          V_clean.col(k) = pair_motif_shift.first;
+          shift_s.insert(std::make_pair(k, pair_motif_shift.second));
+        }
+      }
+      for(auto it = shift_s.begin();it != shift_s.cend(); ++it){
+        S_clean.col(it->first) += it->second;
+      }
+
+      std::vector<KMA::uvector> V_dom_new(K); // questi vector di urowvec -> field<urowvec> per consistenza?
+      for(arma::uword k=0; k < _n_rows_V ; ++k){
+        V_dom_new[k] = util::findDomain<KMA::matrix>(_V(k,0));
+      }
+      // compute dissimilarities from cleaned motifs
+      // Riccardo comment: da rivedere con molta cura: COMPUTATIONAL COST + TEMPLATE VERSION per use0,use1 + dichiarare fuori?
+      const arma::uword d = Y(0,0).n_cols;
+      arma::uword index_row;
+      arma::uword index_size;
+      arma::mat y0;
+      arma::mat y1;
+      arma::field<arma::mat> y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
+      for(arma::uword k=0; k < _n_rows_V; ++k){
+        const auto & s_k = S.col(k);
+        const auto & v_dom = V_dom[k];
+        const int v_len = v_dom.size();
+        KMA::Mfield v_clean = V_clean.col(k);
+        const KMA::uvector & indeces_dom = arma::find(v_dom==0);
+        for (arma::uword i=0; i < _n_rows_Y; ++i){
+          const int s = s_k(i);
+          KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(1,s));
+          index_size = index.size();
+          v_clean(0,k).shed_rows(indeces_dom);
+          const arma::uword y_len = Y(i,0).n_rows;
+          y0.set_size(index_size + std::max(1,s),d);
+          y0.fill(arma::datum::nan);
+          for(unsigned int j = 0; j < index_size; ++j) {
+            if (index[j]  <= y_len){
+              index_row = std::max(0, 1-s) + j;
+              y0.row(index_row) =  Y(i,0).row(index[j] - 1);
+            }
+          }
+          y0.shed_rows(indeces_dom);
+          y(0,0) = y0;
+          if (use1){
+            v_clean(1,k).shed_rows(indeces_dom);
+            const arma::uword y_len = Y(i,1).n_rows;
+            y1.set_size(index_size + std::max(1,s),d);
+            y1.fill(arma::datum::nan);
+            for(unsigned int j = 0; j < index_size; ++j) {
+              if (index[j]  <= y_len){
+                index_row = std::max(0, 1-s) + j;
+                y1.row(index_row) =  Y(i,1).row(index[j] - 1);
+              }
+            }
+            y1.shed_rows(indeces_dom);
+            y(0,1) = y1;
+          }
+        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.col(i)); 
+        }
+      }
+
+      return toR(V_clean,P_clean,S_clean,D,D_clean,J_iter,BC_dist_iter,iter);
     }
 
   
@@ -261,10 +344,80 @@ public:
     }
     
     
-    // return a R structure
-    Rcpp::List toR() const  // da implementare in base ai dati che voglio restituire in R
-    {
-        return Rcpp::List::create();
+    // return a R structure, V, _P0, _S0 già presenti <- convertire tutte le cose da convertire V, V_clean
+    Rcpp::List toR(const KMA::Mfield & V_clean,
+                   const KMA::matrix & P_clean,
+                   const KMA::imatrix & S_clean,
+                   const KMA::matrix & D,
+                   const KMA::matrix & D_clean,
+                   const KMA::vector & J_iter,
+                   const KMA::vector & BC_dist_iter
+                   std::size_t iter) const  // da implementare in base ai dati che voglio restituire in R
+    {   
+        // conv to Rcpp::List of V0,V1,V0_clean,V1_clean
+        Rcpp::List V0(_V.n_rows);
+        Rcpp::List V1(_V.n_rows);
+        Rcpp::List V0_clean(_V.n_rows);
+        Rcpp::List V1_clean(_V.n_rows);
+        // Riccardo comment: devo capire in qualche modo come distinguere caso solo derivate o solo curve
+        // Riccardo comment: una soluzione potrebbe essere salvarsi std::string_view diss che viene passata al constructor
+        // Riccardo comment: per ora fillo solo V0 in entrambi casi ma @TODO: distinguere quando fare fill di V0 oppure fill di V1
+        arma::uword use1 = _V.n_cols == 2? 1 : 0;
+        for (arma::uword k = 0; k < _V.n_rows; ++k){
+          V0[k] = _V(k,0);
+          V0_clean = V_clean(0,k);
+          if (use1) {
+            V1[k] = _V(k,1);
+            V1_clean = V_clean(1,k);
+          }
+        } 
+        const arma::uword 
+        if (!(_parameters._return_options)){
+          return Rcpp::List::create(Rcpp::Named("V0") = V0,
+                                    Rcpp::Named("V1") = V1,
+                                    Rcpp::Named("V0_clean") = V0_clean,
+                                    Rcpp::Named("V1_clean") = V1_clean,
+                                    Rcpp::Named("P0") = _P0,
+                                    Rcpp::Named("P_clean") = P_clean,
+                                    Rcpp::Named("S0") = _S0,
+                                    Rcpp::Named("S_clean") = S_clean,
+                                    Rcpp::Named("D") = D,
+                                    Rcpp::Named("D_clean") = D_clean,
+                                    Rcpp::Named("iter") = iter,
+                                    Rcpp::Named("J_iter") = J_iter,
+                                    Rcpp::Named("BC_dist_iter") = BC_dist_iter);
+        } else {
+          return Rcpp::List::create(Rcpp::Named("V0") = V0,
+                                    Rcpp::Named("V1") = V1,
+                                    Rcpp::Named("V0_clean") = V0_clean,
+                                    Rcpp::Named("V1_clean") = V1_clean,
+                                    Rcpp::Named("P0") = _P0,
+                                    Rcpp::Named("P_clean") = P_clean,
+                                    Rcpp::Named("S0") = _S0,
+                                    Rcpp::Named("S_clean") = S_clean,
+                                    Rcpp::Named("D") = D,
+                                    Rcpp::Named("D_clean") = D_clean,
+                                    Rcpp::Named("iter") = iter,
+                                    Rcpp::Named("J_iter") = J_iter,
+                                    Rcpp::Named("BC_dist_iter") = BC_dist_iter,
+                                    Rcpp::Named("standardize") = _parameters._standardize,
+                                    Rcpp::Named("K") = _parameters._K,
+                                    Rcpp::Named("c") = _parameters._c,
+                                    Rcpp::Named("c_max") = _parameters._c_max,
+                                    Rcpp::Named("iter_max") = _parameters._iter_max,
+                                    Rcpp::Named("quantile") = _parameters._quantile,
+                                    Rcpp::Named("tol") = _parameters._tol,
+                                    Rcpp::Named("stop_criterion") = _parameters._stopCriterion,
+                                    Rcpp::Named("m") = _parameters._m,
+                                    Rcpp::Named("iter4elong") = _parameters._iter4elong,
+                                    Rcpp::Named("tol4elong") = _parameters._tol4elong,
+                                    Rcpp::Named("max_elong") = _parameters._max_elong,
+                                    Rcpp::Named("trials_elong") = _parameters._trials_elong,
+                                    Rcpp::Named("deltaJk_elong") = _parameters.__deltaJK_elong,
+                                    Rcpp::Named("max_gap") = _parameters._max_gap,
+                                    Rcpp::Named("iter4clean") = _parameters._iter4clean,
+                                    Rcpp::Named("tol4clean") = _parameters._tol4clean);
+        }
     }
   
     // Functional Data
