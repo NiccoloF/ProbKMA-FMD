@@ -250,7 +250,7 @@ public:
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);
       KMA::imatrix S_clean(_S0);
-      KMA::matrix D_clean;
+      KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
       // Riccardo comment: la prof non fa nessun controllo in questa parte su quali delle due strutture viene restituita, perchè?
       // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
       for(arma::uword k=0; k < _n_rows_V; ++k){
@@ -291,9 +291,9 @@ public:
       const arma::uword d = Y(0,0).n_cols;
       arma::uword index_row;
       arma::uword index_size;
-      arma::mat y0;
-      arma::mat y1;
-      arma::field<arma::mat> y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
+      KMA::matrix y0;
+      KMA::matrix y1;
+      KMA::Mfield y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
       for(arma::uword k=0; k < _n_rows_V; ++k){
         const auto & s_k = S.col(k);
         const auto & v_dom = V_dom[k];
@@ -352,7 +352,7 @@ public:
                    const KMA::matrix & D_clean,
                    const KMA::vector & J_iter,
                    const KMA::vector & BC_dist_iter
-                   std::size_t iter) const  // da implementare in base ai dati che voglio restituire in R
+                   std::size_t iter) const  
     {   
         // conv to Rcpp::List of V0,V1,V0_clean,V1_clean
         Rcpp::List V0(_V.n_rows);
@@ -371,7 +371,6 @@ public:
             V1_clean = V_clean(1,k);
           }
         } 
-        const arma::uword 
         if (!(_parameters._return_options)){
           return Rcpp::List::create(Rcpp::Named("V0") = V0,
                                     Rcpp::Named("V1") = V1,
