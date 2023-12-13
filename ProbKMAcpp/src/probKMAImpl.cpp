@@ -85,8 +85,10 @@ public:
       void handleCaseL2(const Rcpp::List& Y0, const Rcpp::List& Y1,
                         const Rcpp::List& V0, const Rcpp::List& V1) {
         if (!Rf_isNull(Y0[0])) {
+          isY1 = false;
           handleNonNullY(Y0, V0);
         } else {
+          isY0 = false;
           handleNonNullY(Y1, V1);
         }
       }
@@ -121,9 +123,10 @@ public:
       KMA::umatrix keep;
       std::size_t _n_rows_V = _V.n_rows;
       std::size_t _n_rows_Y = _Y.n_rows;
+      std::size_t _n_cols_Y = _Y.n_cols;
       std::vector<arma::urowvec> V_dom(_n_rows_V);
       KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
-
+      Rcpp::Rcout<<"CIAO:129"<<std::endl;
       while(iter < iter_max and BC_dist > _parameters._tol)
       {
         iter++;
@@ -170,7 +173,7 @@ public:
                                      _Y,D, _parameters,
                                      _perfac,_dissfac);
         }
-        
+        Rcpp::Rcout<<"CIAO:176"<<std::endl;
         ////// find shift warping minimizing dissimilarities /////////////
         KMA::vector sd(2);
         KMA::imatrix S_new(_n_rows_Y,_n_rows_V);
@@ -192,7 +195,7 @@ public:
             S_new(j,i) = sd(0);
             D_new(j,i) = sd(1);
           }
-
+          Rcpp::Rcout<<"CIAO:198"<<std::endl;
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
         KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
@@ -202,12 +205,14 @@ public:
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Curve has dissimilarity 0 from two different motifs. Using only one of them..."); 
           const KMA::uvector & indexes = arma::find(D0.row(i) == 1);
+          Rcpp::Rcout<<"CIAO:208"<<std::endl;
           D0.row(i).zeros();
           D0(i,indexes(arma::randi(arma::distr_param(0, indexes.n_elem - 1)))) = 1;
         }
         const KMA::uvector & D0_index = arma::find(arma::sum(D0,1) == 1);
         for(arma::sword i : D0_index) {
           const KMA::uvector & col = arma::find(D0.row(i)==1);
+          Rcpp::Rcout<<"CIAO:214"<<std::endl;
           P_new(i,col(0)) = 1;
         }
         const KMA::uvector & not_D0_index = arma::find(arma::sum(D0,1) !=1);
@@ -217,14 +222,17 @@ public:
         for (arma::sword k : deg_indexes) {
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Motif is degenerate (zero membership). Selecting a new center..."); 
+          Rcpp::Rcout<<"CIAO:223"<<std::endl;
           P_new(index_min(D_new.col(k)),k) = 1;
         }
 
         // evaluate objective functions
         // Riccardo: new part, just written 
         KMA::matrix temp_DP = D_new % (arma::pow(P_new,_parameters._m));
+        Rcpp::Rcout<<"CIAO:229"<<std::endl;
         temp_DP.replace(arma::datum::nan,0);
-        J_iter(iter) = arma::accu(temp_DP);
+        Rcpp::Rcout<<"CIAO:231"<<std::endl;
+        J_iter(iter-1) = arma::accu(temp_DP);
       
         // compute Bhattacharyya distance between P_old and P_new
         // @TODO: ask to professor why RowSums in her code and not ColSums
@@ -235,10 +243,15 @@ public:
         else if (criterion == "mean")
           BC_dist = arma::mean(BC_dist_k);
         else if (criterion == "quantile")
+        {
+          Rcpp::Rcout<<"CIAO:242"<<std::endl;
           BC_dist = arma::conv_to<arma::vec>::from
-                    (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
+          (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
+          Rcpp::Rcout<<"CIAO:245"<<std::endl;
+        }
+        
   
-        BC_dist_iter(iter) = BC_dist;
+        BC_dist_iter(iter-1) = BC_dist;
 
         // update 
         _V = V_new;
@@ -246,7 +259,7 @@ public:
         _S0 = S_new;
         D = D_new; 
       }
-
+      Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);
       KMA::imatrix S_clean(_S0);
@@ -254,16 +267,19 @@ public:
       // Riccardo comment: la prof non fa nessun controllo in questa parte su quali delle due strutture viene restituita, perchè?
       // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
       for(arma::uword k=0; k < _n_rows_V; ++k){
+        Rcpp::Rcout<<"compute_motif call:260"<<std::endl;
+        Rcpp::Rcout<<"V_dom[k]="<<V_dom[k]<<std::endl;
         const auto & pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                               _P0.col(k), _Y,
                                                               _parameters._m);
+        Rcpp::Rcout<<"fine prepare output:264"<<std::endl;
         _V.row(k) = *(std::get_if<arma::field<arma::mat>>(&pair_motif_shift));
       } 
-      KMA::umatrix keep = D < arma::quantile(D,quantile4clean);
+      keep = D < arma::quantile(D,quantile4clean);
       KMA::uvector empty_k = arma::find(arma::sum(keep,0) == 0);
       for (arma::sword k: empty_k)
         keep(arma::index_min(D.col(k)),k) = 1;
-      P_clean(arma::find(keep)) = 1;
+      P_clean(arma::find(keep)).fill(1);
       KMA::Mfield V_clean(_V.n_cols,_n_rows_V); // come impostare la size giusta di V_clean? usando _V.n_cols?
       std::map<arma::sword,arma::sword> shift_s;
       for(arma::uword k=0; k < _n_rows_V; ++k){
@@ -282,52 +298,69 @@ public:
         S_clean.col(it->first) += it->second;
       }
 
-      std::vector<KMA::uvector> V_dom_new(K); // questi vector di urowvec -> field<urowvec> per consistenza?
+      std::vector<KMA::uvector> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
       for(arma::uword k=0; k < _n_rows_V ; ++k){
         V_dom_new[k] = util::findDomain<KMA::matrix>(_V(k,0));
       }
+      Rcpp::Rcout<<"CIAO:294"<<std::endl;
       // compute dissimilarities from cleaned motifs
       // Riccardo comment: da rivedere con molta cura: COMPUTATIONAL COST + TEMPLATE VERSION per use0,use1 + dichiarare fuori?
-      const arma::uword d = Y(0,0).n_cols;
+      const arma::uword d = _Y(0,0).n_cols;
       arma::uword index_row;
       arma::uword index_size;
       KMA::matrix y0;
       KMA::matrix y1;
       KMA::Mfield y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto & s_k = S.col(k);
+        const auto & s_k = _S0.col(k);
         const auto & v_dom = V_dom[k];
         const int v_len = v_dom.size();
         KMA::Mfield v_clean = V_clean.col(k);
         const KMA::uvector & indeces_dom = arma::find(v_dom==0);
         for (arma::uword i=0; i < _n_rows_Y; ++i){
+          Rcpp::Rcout<<"CIAO:310"<<std::endl;
           const int s = s_k(i);
+          Rcpp::Rcout<<"CIAO:312"<<std::endl;
           KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(1,s));
           index_size = index.size();
+          Rcpp::Rcout<<"CIAO:315"<<std::endl;
           v_clean(0,k).shed_rows(indeces_dom);
-          const arma::uword y_len = Y(i,0).n_rows;
+          Rcpp::Rcout<<"CIAO:317"<<std::endl;
+          const arma::uword y_len = _Y(i,0).n_rows;
+          Rcpp::Rcout<<"CIAO:319"<<std::endl;
           y0.set_size(index_size + std::max(1,s),d);
+          Rcpp::Rcout<<"CIAO:321"<<std::endl;
           y0.fill(arma::datum::nan);
           for(unsigned int j = 0; j < index_size; ++j) {
             if (index[j]  <= y_len){
               index_row = std::max(0, 1-s) + j;
-              y0.row(index_row) =  Y(i,0).row(index[j] - 1);
+              Rcpp::Rcout<<"CIAO:326"<<std::endl;
+              y0.row(index_row) =  _Y(i,0).row(index[j] - 1);
+              Rcpp::Rcout<<"CIAO:328"<<std::endl;
             }
           }
+          Rcpp::Rcout<<"CIAO:331"<<std::endl;
           y0.shed_rows(indeces_dom);
+          Rcpp::Rcout<<"CIAO:333"<<std::endl;
           y(0,0) = y0;
-          if (use1){
+          if (_n_cols_Y){
+            Rcpp::Rcout<<"CIAO:336"<<std::endl;
             v_clean(1,k).shed_rows(indeces_dom);
-            const arma::uword y_len = Y(i,1).n_rows;
+            Rcpp::Rcout<<"CIAO:338"<<std::endl;
+            const arma::uword y_len = _Y(i,1).n_rows;
             y1.set_size(index_size + std::max(1,s),d);
             y1.fill(arma::datum::nan);
             for(unsigned int j = 0; j < index_size; ++j) {
               if (index[j]  <= y_len){
                 index_row = std::max(0, 1-s) + j;
-                y1.row(index_row) =  Y(i,1).row(index[j] - 1);
+                Rcpp::Rcout<<"CIAO:345"<<std::endl;
+                y1.row(index_row) =  _Y(i,1).row(index[j] - 1);
+                Rcpp::Rcout<<"CIAO:347"<<std::endl;
               }
             }
+            Rcpp::Rcout<<"CIAO:350"<<std::endl;
             y1.shed_rows(indeces_dom);
+            Rcpp::Rcout<<"CIAO:352"<<std::endl;
             y(0,1) = y1;
           }
         D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.col(i)); 
@@ -351,7 +384,7 @@ public:
                    const KMA::matrix & D,
                    const KMA::matrix & D_clean,
                    const KMA::vector & J_iter,
-                   const KMA::vector & BC_dist_iter
+                   const KMA::vector & BC_dist_iter,
                    std::size_t iter) const  
     {   
         // conv to Rcpp::List of V0,V1,V0_clean,V1_clean
@@ -359,18 +392,20 @@ public:
         Rcpp::List V1(_V.n_rows);
         Rcpp::List V0_clean(_V.n_rows);
         Rcpp::List V1_clean(_V.n_rows);
-        // Riccardo comment: devo capire in qualche modo come distinguere caso solo derivate o solo curve
-        // Riccardo comment: una soluzione potrebbe essere salvarsi std::string_view diss che viene passata al constructor
-        // Riccardo comment: per ora fillo solo V0 in entrambi casi ma @TODO: distinguere quando fare fill di V0 oppure fill di V1
-        arma::uword use1 = _V.n_cols == 2? 1 : 0;
+
         for (arma::uword k = 0; k < _V.n_rows; ++k){
-          V0[k] = _V(k,0);
-          V0_clean = V_clean(0,k);
-          if (use1) {
+          if(isY0)
+          {
+            V0[k] = _V(k,0);
+            V0_clean = V_clean(0,k);
+          }
+          if(isY1)
+          {
             V1[k] = _V(k,1);
             V1_clean = V_clean(1,k);
           }
-        } 
+        }
+        
         if (!(_parameters._return_options)){
           return Rcpp::List::create(Rcpp::Named("V0") = V0,
                                     Rcpp::Named("V1") = V1,
@@ -386,37 +421,93 @@ public:
                                     Rcpp::Named("J_iter") = J_iter,
                                     Rcpp::Named("BC_dist_iter") = BC_dist_iter);
         } else {
-          return Rcpp::List::create(Rcpp::Named("V0") = V0,
-                                    Rcpp::Named("V1") = V1,
-                                    Rcpp::Named("V0_clean") = V0_clean,
-                                    Rcpp::Named("V1_clean") = V1_clean,
-                                    Rcpp::Named("P0") = _P0,
-                                    Rcpp::Named("P_clean") = P_clean,
-                                    Rcpp::Named("S0") = _S0,
-                                    Rcpp::Named("S_clean") = S_clean,
-                                    Rcpp::Named("D") = D,
-                                    Rcpp::Named("D_clean") = D_clean,
-                                    Rcpp::Named("iter") = iter,
-                                    Rcpp::Named("J_iter") = J_iter,
-                                    Rcpp::Named("BC_dist_iter") = BC_dist_iter,
-                                    Rcpp::Named("standardize") = _parameters._standardize,
-                                    Rcpp::Named("K") = _parameters._K,
-                                    Rcpp::Named("c") = _parameters._c,
-                                    Rcpp::Named("c_max") = _parameters._c_max,
-                                    Rcpp::Named("iter_max") = _parameters._iter_max,
-                                    Rcpp::Named("quantile") = _parameters._quantile,
-                                    Rcpp::Named("tol") = _parameters._tol,
-                                    Rcpp::Named("stop_criterion") = _parameters._stopCriterion,
-                                    Rcpp::Named("m") = _parameters._m,
-                                    Rcpp::Named("iter4elong") = _parameters._iter4elong,
-                                    Rcpp::Named("tol4elong") = _parameters._tol4elong,
-                                    Rcpp::Named("max_elong") = _parameters._max_elong,
-                                    Rcpp::Named("trials_elong") = _parameters._trials_elong,
-                                    Rcpp::Named("deltaJk_elong") = _parameters.__deltaJK_elong,
-                                    Rcpp::Named("max_gap") = _parameters._max_gap,
-                                    Rcpp::Named("iter4clean") = _parameters._iter4clean,
-                                    Rcpp::Named("tol4clean") = _parameters._tol4clean);
+          return pushResult(V0,V1,
+                            V0_clean,V1_clean,
+                            V_clean,P_clean,
+                            S_clean,D,D_clean,
+                            J_iter,BC_dist_iter,iter);
         }
+    }
+    
+    //Mandatory since we want to return more than 20 elements in a List
+    Rcpp::List pushResult(const Rcpp::List V0,
+                          const Rcpp::List V1,
+                          const Rcpp::List V0_clean,
+                          const Rcpp::List V1_clean,
+                          const KMA::Mfield & V_clean,
+                          const KMA::matrix & P_clean,
+                          const KMA::imatrix & S_clean,
+                          const KMA::matrix & D,
+                          const KMA::matrix & D_clean,
+                          const KMA::vector & J_iter,
+                          const KMA::vector & BC_dist_iter,
+                          std::size_t iter) const
+    {
+      std::vector<std::string_view> names(30);
+      Rcpp::List result(30);
+      names[0] = "V0";
+      result[0] = V0;
+      names[1] = "V1";
+      result[1] = V0;
+      names[2] = "V0_clean";
+      result[2] = V0_clean;
+      names[3] = "V1_clean";
+      result[3] = V1_clean;
+      names[4] = "P0";
+      result[4] = _P0;
+      names[5] = "P_clean";
+      result[5] = P_clean;
+      names[6] = "S0";
+      result[6] = _S0;
+      names[7] = "S_clean";
+      result[7] = S_clean;
+      names[8] = "D";
+      result[8] = D;
+      names[9] = "D_clean";
+      result[9] = D_clean;
+      names[10] = "iter";
+      result[10] = iter;
+      names[11] = "J_iter";
+      result[11] = J_iter;
+      names[12] = "BC_dist_iter";
+      result[12] = BC_dist_iter;
+      names[13] = "standardize";
+      result[13] = _parameters._standardize;
+      names[14] = "K";
+      result[14] = _parameters._K;
+      names[15] = "c";
+      result[15] = _parameters._c;
+      names[16] = "c_max";
+      result[16] = _parameters._c_max;
+      names[17] = "iter_max";
+      result[17] = _parameters._iter_max;
+      names[18] = "quantile";
+      result[18] = _parameters._quantile;
+      names[19] = "tol";
+      result[19] = _parameters._tol;
+      names[20] = "stop_criterion";
+      result[20] = _parameters._stopCriterion;
+      names[21] = "m,";
+      result[21] = _parameters._m;
+      names[22] = "iter4elong";
+      result[22] = _parameters._iter4elong;
+      names[23] = "tol4elong";
+      result[23] = _parameters._tol4elong;
+      names[24] = "max_elong";
+      result[24] = _parameters._max_elong;
+      names[25] = "trials_elong";
+      result[25] = _parameters._trials_elong;
+      names[26] = "deltaJk_elong";
+      result[26] = _parameters._deltaJK_elong;
+      names[27] = "max_gap";
+      result[27] = _parameters._max_gap;
+      names[28] = "iter4clean";
+      result[28] = _parameters._iter4clean;
+      names[29] = "tol4clean";
+      result[29] = _parameters._tol4clean;
+      
+      result.attr("names") = Rcpp::wrap(names);
+      return result;
     }
   
     // Functional Data
@@ -434,7 +525,8 @@ public:
     // Membership and shifting matrix
     KMA::matrix _P0;
     KMA::imatrix _S0;
-    
+    bool isY0 = true;
+    bool isY1 = true;
 };
 
 

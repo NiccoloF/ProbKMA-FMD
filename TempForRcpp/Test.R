@@ -17,7 +17,7 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=100
+iter_max=1
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
@@ -31,7 +31,7 @@ iter4clean=50
 tol4clean=1e-4
 quantile4clean=1/K
 return_options=TRUE
-prob <- c(0.25,0.5,0.75)
+prob <- 0.5
 #return_init=TRUE
 
 
@@ -65,7 +65,7 @@ a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss,alpha,w)
 params <- a$Parameters
 data <- a$FuncData
 
-prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
+prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
 b <- prok$probKMA_run()
 
 

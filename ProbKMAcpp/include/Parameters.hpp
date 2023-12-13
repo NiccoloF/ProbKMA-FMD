@@ -12,7 +12,7 @@ struct Parameters
      *const arma::ivec& c,
      *const arma::ivec& c_max,
      *unsigned int iter_max,
-     *unsigned int quantile,
+     *double quantile,
      *const std::string& stopCriterion,
      *double tol,
      *unsigned int iter4elong,
@@ -36,7 +36,7 @@ struct Parameters
     arma::ivec _c;
     arma::ivec _c_max;
     unsigned int _iter_max;
-    unsigned int _quantile;
+    double _quantile;
     double _prob;
     std::string _stopCriterion;
     double _m;

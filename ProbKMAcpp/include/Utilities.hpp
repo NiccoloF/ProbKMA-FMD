@@ -27,7 +27,7 @@ concept IsArmaVector = std::is_same_v<T, KMA::uvector> ||
   
   }
   
-  
+ 
   // returns a rowvector 
   template <typename MatType>
   arma::urowvec findDomain(const MatType& v) {
@@ -39,8 +39,8 @@ concept IsArmaVector = std::is_same_v<T, KMA::uvector> ||
     }
     return result;
   }
-  
-  
+ 
+ 
   inline std::vector<arma::ivec> repeat_elements(const KMA::imatrix& A,const KMA::ivector & times) {
     arma::uword times_size = times.n_elem;
     std::vector<KMA::ivector> result((times_size*(times_size+1))/2 - 1);

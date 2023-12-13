@@ -11,6 +11,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
                                  double m) const
 
 {
+Rcpp::Rcout<<"compute_motif_helper:14"<<std::endl;
     if(arma::accu(p_k) == 0) {
       Rcpp::stop("Motif with no members! Degenerate cluster!");
   }
@@ -26,9 +27,9 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   KMA::umatrix Y_inters_supp(p_k_pos.n_elem,v_dom.n_elem); // for each shifted curve contains an uvec with the domain
   
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
-    
+    Rcpp::Rcout<<"compute_motif_helper:30"<<std::endl;
     const int y_len = Y(p_k_pos(i),0).n_rows;//length of the curve
-    
+    Rcpp::Rcout<<"compute_motif_helper:32"<<std::endl;
     KMA::ivector index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
     
     const int index_size = index.size();
@@ -39,14 +40,14 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
     KMA::matrix y0(v_len,d); 
     
     y0.fill(arma::datum::nan);
-    
+    Rcpp::Rcout<<"compute_motif_helper:43"<<std::endl;
     for(int j : filtered_j) // se questi sono consecutivi c'� modo migliore di agire
       y0.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),0).row(index(j) - 1);
-      
+    Rcpp::Rcout<<"compute_motif_helper:46"<<std::endl;
     y0.shed_rows(arma::find(v_dom==0));
-    
-    Y_inters_supp.row(i) = util::findDomain(y0);
-      
+    Rcpp::Rcout<<"compute_motif_helper:48"<<std::endl;
+    Y_inters_supp(i,0) = util::findDomain(y0);
+      Rcpp::Rcout<<"compute_motif_helper:50"<<std::endl;
     y0.replace(arma::datum::nan,0);
     
     Y_inters_k(i,0) = y0;
@@ -58,37 +59,41 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
       
       for(int j : filtered_j) // se questi sono consecutivi c'è modo migliore di agire
         y1.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),1).row(index(j) - 1); 
-        
+        Rcpp::Rcout<<"compute_motif_helper:62"<<std::endl;
       y1.shed_rows(arma::find(v_dom==0));
       
-      Y_inters_supp.row(i) = util::findDomain(y1);
+      Y_inters_supp(i,1) = util::findDomain(y1);
       
       y1.replace(arma::datum::nan,0);
       
       Y_inters_k(i,1) = y1;
     }
   }
-  
+  Rcpp::Rcout<<"compute_motif_helper:72"<<std::endl;
   KMA::Mfield v_new(1,Y.n_cols);
-  
+  Rcpp::Rcout<<"compute_motif_helper:74"<<std::endl;
   if constexpr (use1) {
+  Rcpp::Rcout<<"compute_motif_helper:76"<<std::endl;
     v_new(0,1) = compute_v_new(Y_inters_k.col(1),
                                Y_inters_supp,
                                v_dom,v_len,p_k,d,m);
+     Rcpp::Rcout<<"compute_motif_helper:80"<<std::endl;
   }
-  
+  Rcpp::Rcout<<"compute_motif_helper:82"<<std::endl;
   v_new(0,0) = compute_v_new(Y_inters_k.col(0),
                                Y_inters_supp,
                                v_dom,v_len,p_k,d,m);
+  Rcpp::Rcout<<"compute_motif_helper:86"<<std::endl;
 
-  
+  Rcpp::Rcout<<v_new(0,0)<<std::endl;
   KMA::uvector v_new_domain = arma::find(util::findDomain<KMA::matrix>(v_new(0,0)) == 1);
   arma::sword index_min = v_new_domain.min();
   arma::sword index_max = v_new_domain.max();
-
+Rcpp::Rcout<<"compute_motif_helper:92"<<std::endl;
   v_new(0,0) = v_new(0,0).rows(index_min,index_max);
   
   if constexpr (use1){
+  Rcpp::Rcout<<"compute_motif_helper:96"<<std::endl;
       v_new(0,1) = v_new(0,1).rows(index_min,index_max);
   }
   if (index_min > 1) {
@@ -141,10 +146,12 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   std::vector<arma::ivec> len_elong_k_right_list(len_elong_k_zero_size);
   const int max_len_elong_k = len_elong_k.back();
   unsigned int v_dom_elong_size = 0;
+  Rcpp::Rcout<<"Motif.ipp:144"<<std::endl;
   for (unsigned int i = 0; i < len_elong_k_zero_size; ++i) {
     len_elong_k_right_list[i] = len_elong_k_zero.elem(find(len_elong_k_zero <=  max_len_elong_k - len_elong_k_zero(i)));
     v_dom_elong_size += len_elong_k_right_list[i].size();
   }
+  Rcpp::Rcout<<"Motif.ipp:149"<<std::endl;
   
   //  v_dom_elong_left_right will be a vector of arma::uvec containing all the elongated version of v_dom_k
   std::vector<arma::urowvec> v_dom_elong_left_right(v_dom_elong_size);  

@@ -8,21 +8,30 @@ KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
                                       arma::uword d,
                                       arma::uword m) const
 {
+  Rcpp::Rcout<<"compute_v_new:11"<<std::endl;
   KMA::matrix v_new(v_len,d,arma::fill::zeros);
   if (Y_inters_k.n_rows == 1){
     v_new.rows(arma::find(v_dom==1)) = Y_inters_k(0);
     v_new.rows(arma::find(v_dom==0)).fill(arma::datum::nan);
     return v_new;
   } 
-  
+  Rcpp::Rcout<<"compute_v_new:18"<<std::endl;
+  Rcpp::Rcout<<"Y_inters_supp="<<Y_inters_supp<<std::endl;
   KMA::vector coeff_k = arma::pow(p_k.elem(arma::find(p_k > 0)), m) / arma::sum(Y_inters_supp, 1);
+  Rcpp::Rcout<<"coeff_k="<<coeff_k<<std::endl;
+  Rcpp::Rcout<<"compute_v_new:20"<<std::endl;
   KMA::vector coeff_x = arma::sum(arma::conv_to<KMA::matrix>::from(Y_inters_supp) % arma::repmat(coeff_k,1,Y_inters_supp.n_cols), 0).t();
-  coeff_x.elem(arma::find(arma::sum(Y_inters_supp, 1) == 0)).fill(arma::datum::nan);
-  
+  Rcpp::Rcout<<"coeff_x="<<coeff_x<<std::endl;
+  coeff_x.elem(arma::find(arma::sum(Y_inters_supp, 0) == 0)).fill(arma::datum::nan);
+  Rcpp::Rcout<<"compute_v_new:23"<<std::endl;
   for (arma::uword i = 0; i < Y_inters_k.n_rows; ++i){
+    Rcpp::Rcout<<"compute_v_new:25"<<std::endl;
     v_new.rows(arma::find(v_dom==1)) += (Y_inters_k(i)*coeff_k(i)) / arma::repmat(coeff_x,1,Y_inters_k(i).n_cols);
+    Rcpp::Rcout<<"compute_v_new:27"<<std::endl;
   }
+  Rcpp::Rcout<<"compute_v_new:29"<<std::endl;
   v_new.rows(arma::find(v_dom==0)).fill(arma::datum::nan);
+  Rcpp::Rcout<<"compute_v_new:31"<<std::endl;
   return v_new;
 }
 

@@ -45,6 +45,7 @@
   c_max = params$c_max
   iter_max = params$iter_max
   quantile = params$quantile
+  prob = params$prob
   stop_criterion = params$stopCriterion
   m = params$m
   tol = params$tol
@@ -58,7 +59,7 @@
   tol4clean = params$tol4clean
   quantile4clean = params$quantile4clean
   return_options = params$return_options
-  return_init = params$return_init
+  
   
   ### check input ####################################################################################
   start=proc.time()
@@ -392,7 +393,7 @@
   
   return(list("FuncData" = list("Y"=Y,"V"=V,"P0"=P0,"S0"=S0),
               "Parameters" = list("standardize"=standardize,"K"=K,"c"=c,"c_max"=c_max,
-                                  "iter_max"=iter_max,"quantile"=quantile,
+                                  "iter_max"=iter_max,"quantile"=quantile,"prob"=prob,
                                   "stopCriterion"=stop_criterion,"m"=m,"w"=w,
                                   "alpha"=alpha,"tol"=tol,
                                   "iter4elong"=iter4elong,"tol4elong"=tol4elong,
@@ -400,7 +401,6 @@
                                   "deltaJK_elong"=deltaJk_elong,"max_gap"=max_gap,
                                   "iter4clean"=iter4clean,"tol4clean"=tol4clean,
                                   "quantile4clean"=quantile4clean,
-                                  "return_options"=return_options,
-                                  "return_init"=return_init) ) )
+                                  "return_options"=return_options) ) )
 }
 
