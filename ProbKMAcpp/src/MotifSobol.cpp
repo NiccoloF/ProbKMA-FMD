@@ -9,6 +9,7 @@ KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
                                       arma::uword m) const
 {
   Rcpp::Rcout<<"compute_v_new:11"<<std::endl;
+  Rcpp::Rcout<<"Y_inters_supp"<<Y_inters_supp<<std::endl;
   KMA::matrix v_new(v_len,d,arma::fill::zeros);
   if (Y_inters_k.n_rows == 1){
     v_new.rows(arma::find(v_dom==1)) = Y_inters_k(0);
@@ -16,7 +17,6 @@ KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
     return v_new;
   } 
   Rcpp::Rcout<<"compute_v_new:18"<<std::endl;
-  Rcpp::Rcout<<"Y_inters_supp="<<Y_inters_supp<<std::endl;
   KMA::vector coeff_k = arma::pow(p_k.elem(arma::find(p_k > 0)), m) / arma::sum(Y_inters_supp, 1);
   Rcpp::Rcout<<"coeff_k="<<coeff_k<<std::endl;
   Rcpp::Rcout<<"compute_v_new:20"<<std::endl;

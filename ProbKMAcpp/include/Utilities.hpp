@@ -19,10 +19,10 @@ concept IsArmaVector = std::is_same_v<T, KMA::uvector> ||
     KMA::uvector dom = arma::find(v_dom==1);
     KMA::Mfield v(1,V.n_cols);
     v(0,0) = V(0,0).rows(dom);
+    
     if constexpr(use1)
-    {
       v(0,1) = V(0,1).rows(dom);
-    }
+    
     return v;
   
   }

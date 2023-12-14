@@ -24,7 +24,9 @@ Rcpp::Rcout<<"compute_motif_helper:14"<<std::endl;
   
   KMA::Mfield Y_inters_k(p_k_pos.n_elem,Y.n_cols); //list of shifted curves
  
-  KMA::umatrix Y_inters_supp(p_k_pos.n_elem,v_dom.n_elem); // for each shifted curve contains an uvec with the domain
+  KMA::umatrix Y_inters_supp(p_k_pos.n_elem,v_len); // for each shifted curve contains an uvec with the domain
+  
+  KMA::matrix y0(v_len,d);
   
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
     Rcpp::Rcout<<"compute_motif_helper:30"<<std::endl;
@@ -33,12 +35,21 @@ Rcpp::Rcout<<"compute_motif_helper:14"<<std::endl;
     KMA::ivector index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
     
     const int index_size = index.size();
-    
+    /*
+    auto index_filtered = index | std::views::filter([&y_len](unsigned int i){i <= y_len};);
+    */                
     auto filtered_j = std::views::iota(0,index_size) // filtering of the indexes
       | std::views::filter([&y_len,&index](int j){return (index[j] <= y_len);});
     
-    KMA::matrix y0(v_len,d); 
+    /* 
+    Y_inters_k(i,0).set_size(std::max(0,1 - s_k(p_k_pos(i)))+
+                             std::ranges::size(index_filtered),d);
+    Y_inters_k(i,0).fill(arma::datum::nan);
     
+    Y_inters_k.rows(std::max(0,1 - s_k(p_k_pos(i))),std::max(0,1 - s_k(p_k_pos(i))) 
+                    + std::ranges::size(index_filtered)) = Y(i,0).ro
+    */
+  
     y0.fill(arma::datum::nan);
     Rcpp::Rcout<<"compute_motif_helper:43"<<std::endl;
     for(int j : filtered_j) // se questi sono consecutivi c'� modo migliore di agire
@@ -46,7 +57,7 @@ Rcpp::Rcout<<"compute_motif_helper:14"<<std::endl;
     Rcpp::Rcout<<"compute_motif_helper:46"<<std::endl;
     y0.shed_rows(arma::find(v_dom==0));
     Rcpp::Rcout<<"compute_motif_helper:48"<<std::endl;
-    Y_inters_supp(i,0) = util::findDomain(y0);
+    Y_inters_supp.row(i) = util::findDomain(y0);
       Rcpp::Rcout<<"compute_motif_helper:50"<<std::endl;
     y0.replace(arma::datum::nan,0);
     
@@ -61,8 +72,6 @@ Rcpp::Rcout<<"compute_motif_helper:14"<<std::endl;
         y1.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),1).row(index(j) - 1); 
         Rcpp::Rcout<<"compute_motif_helper:62"<<std::endl;
       y1.shed_rows(arma::find(v_dom==0));
-      
-      Y_inters_supp(i,1) = util::findDomain(y1);
       
       y1.replace(arma::datum::nan,0);
       
@@ -81,8 +90,8 @@ Rcpp::Rcout<<"compute_motif_helper:14"<<std::endl;
   }
   Rcpp::Rcout<<"compute_motif_helper:82"<<std::endl;
   v_new(0,0) = compute_v_new(Y_inters_k.col(0),
-                               Y_inters_supp,
-                               v_dom,v_len,p_k,d,m);
+                             Y_inters_supp,
+                             v_dom,v_len,p_k,d,m);
   Rcpp::Rcout<<"compute_motif_helper:86"<<std::endl;
 
   Rcpp::Rcout<<v_new(0,0)<<std::endl;

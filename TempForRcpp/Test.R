@@ -57,7 +57,7 @@ Y1_f <- function(Y_i)
   return(Y_i$y1)
 }
 
-
+library(ProbKMAcpp)
 Y0 <- lapply(Y,Y0_f)
 Y1 <- lapply(Y,Y1_f)
 
