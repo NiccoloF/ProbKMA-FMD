@@ -195,6 +195,10 @@ public:
             S_new(j,i) = sd(0);
             D_new(j,i) = sd(1);
           }
+          
+          return Rcpp::List::create(Rcpp::Named("V_new") =  V_new,
+                                    Rcpp::Named("S_new") = S_new,
+                                    Rcpp::Named("D_new") = D_new);
           Rcpp::Rcout<<"CIAO:198"<<std::endl;
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
@@ -259,6 +263,10 @@ public:
         _S0 = S_new;
         D = D_new; 
       }
+      return Rcpp::List::create(Rcpp::Named("V") = _V,
+                                Rcpp::Named("P0") = _P0,
+                                Rcpp::Named("S0") = _S0,
+                                Rcpp::Named("D") = D);
       Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);

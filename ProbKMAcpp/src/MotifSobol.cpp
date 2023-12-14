@@ -9,7 +9,6 @@ KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
                                       arma::uword m) const
 {
   Rcpp::Rcout<<"compute_v_new:11"<<std::endl;
-  Rcpp::Rcout<<"Y_inters_supp"<<Y_inters_supp<<std::endl;
   KMA::matrix v_new(v_len,d,arma::fill::zeros);
   if (Y_inters_k.n_rows == 1){
     v_new.rows(arma::find(v_dom==1)) = Y_inters_k(0);

@@ -1,4 +1,4 @@
-
+set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
 alpha = 0.5 #                 0.0    0.5     0.0
@@ -68,15 +68,38 @@ data <- a$FuncData
 prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
 b <- prok$probKMA_run()
 
-
-
-######## TEST UP TO ELONGATE MOTIF ####################
-
-prok <- new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0)
-
-b <- prok$probKMA_run()
-
-
+.mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
+  if(is.null(cl)){
+    mapply(FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
+  }else{
+    clusterMap(cl,FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
+  }
+}
+.diss_d0_d1_L2 <- function(y,v,w,alpha){
+  # Dissimilarity index for multidimensional curves (dimension=d).
+  # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
+  # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
+  # w: weights for the dissimilarity index in the different dimensions (w>0).
+  # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
+  
+  .diss_L2 <- function(y,v,w){
+    # Dissimilarity index for multidimensional curves (dimension=d).
+    # L2 distance with normalization on common support.
+    # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
+    # w: weights for the dissimilarity index in the different dimensions (w>0).
+    
+    sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
+  }
+  
+  if(alpha==0){
+    return(.diss_L2(y[[1]],v[[1]],w))
+  }else if(alpha==1){
+    return(.diss_L2(y[[2]],v[[2]],w))
+  }else{
+    return((1-alpha)*.diss_L2(y[[1]],v[[1]],w)+alpha*.diss_L2(y[[2]],v[[2]],w))
+  }
+}
 .domain <- function(v,use0){
   if(use0){
     rowSums(!is.na(v[[1]]))!=0
@@ -84,6 +107,104 @@ b <- prok$probKMA_run()
     rowSums(!is.na(v[[2]]))!=0
   }
 }
+.select_domain <- function(v,v_dom,use0,use1){
+  if(use0)
+    v[[1]]=as.matrix(v[[1]][v_dom,])
+  if(use1)
+    v[[2]]=as.matrix(v[[2]][v_dom,])
+  return(v)
+}
+
+.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1){
+  # Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
+  # Return shift and dissimilarity.
+  # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
+  # alpha: weight coefficient between d0.L2 and d1.L2.
+  # w: weights for the dissimilarity index in the different dimensions (w>0).
+  # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
+  
+  v_dom=.domain(v,use0)
+  v=.select_domain(v,v_dom,use0,use1)
+  v_len=length(v_dom)
+  y_len=unlist(lapply(y,nrow))[1]
+  s_rep=(1-(v_len-c_k)):(y_len-v_len+1+(v_len-c_k))
+  index = seq_len(v_len)
+  y_rep=lapply(s_rep,
+               function(i){
+                 index=i-1+seq_len(v_len)
+                 y_rep_i=list(y0=NULL,y1=NULL)
+                 if(use0){
+                   y_rep_i$y0=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[1]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 if(use1){
+                   y_rep_i$y1=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[2]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
+                 return(y_rep_i)
+               })
+  
+  length_inter=unlist(lapply(y_rep,
+                             function(y_rep_i){
+                               if(use0)
+                                 return(sum((!is.na(y_rep_i$y0[,1]))))
+                               return(sum((!is.na(y_rep_i$y1[,1]))))
+                             }))
+  valid=length_inter>=c_k
+  if(sum(valid)==0){
+    valid[length_inter==max(length_inter)]=TRUE
+  }
+  s_rep=s_rep[valid]
+  y_rep=y_rep[valid]
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha)))
+  return(c(s_rep[which.min(d_rep)],min(d_rep)))
+}
+
+
+.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1){
+  # Find dissimilarity between multidimensional curves (dimension=d), without alignment unless their lengths are different.
+  # Return shift and dissimilarity.
+  # To be used by probKMA_silhouette fucntion.
+  # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
+  # alpha: weight coefficient between d0.L2 and d1.L2.
+  # w: weights for the dissimilarity index in the different dimensions (w>0).
+  # aligned: if TRUE, curves are already aligned. If FALSE, the shortest curve is aligned inside the longest.
+  
+  v_dom=.domain(v,use0)
+  v=.select_domain(v,v_dom,use0,use1)
+  v_len=length(v_dom)
+  y_len=unlist(lapply(y,nrow))[1]
+  if(aligned){
+    s_rep=1
+  }else{
+    s_rep=1:(y_len-v_len+1)
+  }
+  y_rep=lapply(s_rep,
+               function(i){
+                 index=i-1+seq_len(v_len)
+                 y_rep_i=list(y0=NULL,y1=NULL)
+                 if(use0){
+                   y_rep_i$y0=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[1]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 if(use1){
+                   y_rep_i$y1=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[2]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
+                 return(y_rep_i)
+               })
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha)))
+  return(c(s_rep[which.min(d_rep)],min(d_rep)))
+}
+
 
 .compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1){
   # Compute the new motif v_new.
@@ -129,7 +250,6 @@ b <- prok$probKMA_run()
     y_len=unlist(lapply(y,nrow))[1]
     y_inters_k=list(y0=NULL,y1=NULL)
     index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-    browser()
     if(use0)
       y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
                           matrix(y$y0[index[index<=y_len],],ncol=d),
@@ -166,15 +286,92 @@ b <- prok$probKMA_run()
   return(v_new)
 }
 
-probKMA_prof <- function(Y0=Y0,Y1=Y1,standardize=standardize,K=K,c=c,c_max=c_max,
-                         diss=diss,alpha=alpha,w=w,m=m,
-                         iter_max=iter_max,stop_criterion=stop_criterion,
-                         quantile=quantile,tol=tol,
-                         iter4elong=iter4elong,tol4elong=tol4elong,max_elong=max_elong,
-                         trials_elong=trials_elong,deltaJk_elong=deltaJk_elong,max_gap=max_gap,
-                         iter4clean=iter4clean,tol4clean=tol4clean,
-                         quantile4clean=quantile4clean,
-                         return_options=TRUE,return_init=TRUE,P0=NULL,S0=NULL){
+
+.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,use0,use1,c_k=NULL,keep_k=NULL){
+  # Compute the objective function J for the motif k.
+  # v: list of two elements, v0=v(x), v1=v'(x), matrices with d columns.
+  # s_k: shift vector for motif k.
+  # p_k: membership vector for motif k.
+  # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x), matrices with d columns, for d-dimensional curves.
+  # alpha: weight coefficient between d0_L2 and d1_L2.
+  # m>1: weighting exponent in least-squares functional.
+  # w: weights for the dissimilarity index in the different dimensions (w>0).
+  # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
+  # keep_k: check c_k only when keep=TRUE for y_shifted.
+  
+  .diss_d0_d1_L2 <- function(y,v,w,alpha){
+    # Dissimilarity index for multidimensional curves (dimension=d).
+    # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
+    # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
+    # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
+    # w: weights for the dissimilarity index in the different dimensions (w>0).
+    # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
+    
+    .diss_L2 <- function(y,v,w){
+      # Dissimilarity index for multidimensional curves (dimension=d).
+      # L2 distance with normalization on common support.
+      # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
+      # w: weights for the dissimilarity index in the different dimensions (w>0).
+      
+      sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
+    }
+    
+    if(alpha==0){
+      return(.diss_L2(y[[1]],v[[1]],w))
+    }else if(alpha==1){
+      return(.diss_L2(y[[2]],v[[2]],w))
+    }else{
+      return((1-alpha)*.diss_L2(y[[1]],v[[1]],w)+alpha*.diss_L2(y[[2]],v[[2]],w))
+    }
+  }
+  .domain <- function(v,use0){
+    if(use0){
+      rowSums(!is.na(v[[1]]))!=0
+    }else{
+      rowSums(!is.na(v[[2]]))!=0
+    }
+  }
+  .select_domain <- function(v,v_dom,use0,use1){
+    if(use0)
+      v[[1]]=as.matrix(v[[1]][v_dom,])
+    if(use1)
+      v[[2]]=as.matrix(v[[2]][v_dom,])
+    return(v)
+  }
+  
+  v_dom=.domain(v,use0)
+  v_len=length(v_dom)
+  v=.select_domain(v,v_dom,use0,use1)
+  d=unlist(lapply(Y[[1]],ncol))[1]
+  Y_inters_k=mapply(function(y,s_k_i,d){
+    y_len=unlist(lapply(y,nrow))[1]
+    y_inters_k=list(y0=NULL,y1=NULL)
+    index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+    if(use0)
+      y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y0[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    if(use1)
+      y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y1[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    return(.select_domain(y_inters_k,v_dom,use0,use1))
+  },Y,s_k,MoreArgs=list(d),SIMPLIFY=FALSE)
+  if(!is.null(keep_k)){
+    supp_inters_length=unlist(lapply(Y_inters_k[keep_k],function(y_inters_k) sum(.domain(y_inters_k,use0))))
+    if(TRUE %in% (supp_inters_length<c_k))
+      return(NA)
+  }
+  dist=unlist(mapply(.diss_d0_d1_L2,Y_inters_k,MoreArgs=list(v,w,alpha)))
+  return(sum(dist*(p_k^m),na.rm=TRUE))
+}
+
+probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
+                    diss='d0_L2',alpha=NULL,w=1,m=2,
+                    iter_max=1000,stop_criterion='max',quantile=NULL,tol=1e-8,
+                    iter4elong=10,tol4elong=1e-3,max_elong=0.5,trials_elong=10,deltaJk_elong=0.05,max_gap=0.2,
+                    iter4clean=50,tol4clean=1e-4,quantile4clean=1/K,
+                    return_options=TRUE,return_init=TRUE,worker_number=NULL){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
   #     list of N matrices with d columns, for d-dimensional curves y_i(x),
@@ -214,6 +411,34 @@ probKMA_prof <- function(Y0=Y0,Y1=Y1,standardize=standardize,K=K,c=c,c_max=c_max
   # return_options: if TRUE, the options K,c,diss,w,m are returned by the function.
   # return_init: if TRUE, P0 and S0 are returned by the function.
   # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially. 
+  
+  ### set parallel jobs #############################################################################
+  start=proc.time()
+  core_number <- detectCores()
+  # check worker number
+  if(!is.null(worker_number)){
+    if(!is.numeric(worker_number)){
+      warning('Worker number not valid. Selecting default number.')
+      worker_number=NULL
+    }else{
+      if((worker_number%%1!=0)|(worker_number<1)|(worker_number>core_number)){
+        warning('Worker number not valid. Selecting default number.')
+        worker_number=NULL
+      }
+    }
+  }
+  if(is.null(worker_number))
+    worker_number <- core_number-1
+  rm(core_number)
+  if(worker_number>1){
+    cl_probKMA=makeCluster(worker_number,timeout=60*60*24*30)
+    clusterExport(cl_probKMA,c('.diss_d0_d1_L2','.domain','.select_domain'))
+    on.exit(stopCluster(cl_probKMA))
+  }else{
+    cl_probKMA=NULL
+  }
+  end=proc.time()
+  #message('set parallel jobs: ',round((end-start)[3],2))
   
   ### check input ####################################################################################
   start=proc.time()
@@ -527,7 +752,7 @@ probKMA_prof <- function(Y0=Y0,Y1=Y1,standardize=standardize,K=K,c=c,c_max=c_max
            },d)
   end=proc.time()
   #message('initialize: ',round((end-start)[3],2))
-  browser()
+  
   ### iterate #############################################################################################
   iter=0
   J_iter=c()
@@ -558,7 +783,6 @@ probKMA_prof <- function(Y0=Y0,Y1=Y1,standardize=standardize,K=K,c=c,c_max=c_max
     S_k=split(S,rep(seq_len(K),each=N))
     P_k=split(P,rep(seq_len(K),each=N))
     V_dom=lapply(V,.domain,use0)
-    browser()
     V_new=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
     changed_s=which(unlist(lapply(V_new,length))>2)
     for(k in changed_s){
@@ -567,25 +791,241 @@ probKMA_prof <- function(Y0=Y0,Y1=Y1,standardize=standardize,K=K,c=c,c_max=c_max
     }
     S_k=split(S,rep(seq_len(K),each=N))
     V_dom=lapply(V_new,.domain,use0)
-    return(list("S_k"=S_k,"P_k"=P_k,"V_dom"=V_dom))
+    end=proc.time()
+    #message('  compute motifs: ',round((end-start)[3],2))
+    
+    ##### elongate motifs #################################################################################
+    start=proc.time()
+    if((iter>1)&&(!(iter%%iter4elong))&&(BC_dist<tol4elong)){
+      # fill
+      with_gaps=which(unlist(lapply(V_dom,function(v_dom) sum(!v_dom)!=0)))
+      if(length(with_gaps)>0){
+        V_dom_filled=lapply(V_dom[with_gaps],function(v_dom) rep_len(TRUE,length(v_dom)))
+        V_filled=mapply(.compute_motif,V_dom_filled,S_k[with_gaps],P_k[with_gaps],MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+        Jk_before=mapply(.compute_Jk,
+                         V_new[with_gaps],S_k[with_gaps],P_k[with_gaps],
+                         MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1))
+        Jk_after=mapply(.compute_Jk,
+                        V_filled,S_k[with_gaps],P_k[with_gaps],
+                        MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1))
+        fill=(Jk_after-Jk_before)/Jk_before<deltaJk_elong
+        V_dom[with_gaps[fill]]=V_dom_filled[fill]
+        V_new[with_gaps[fill]]=V_filled[fill]
+      }
+      # elongate
+      len_dom=unlist(lapply(V_dom,length))
+      len_max_elong=mapply(min,floor(len_dom*max_elong),(c_max-len_dom))
+      len_elong=lapply(len_max_elong,
+                       function(len_max_elong){
+                         if(len_max_elong<=trials_elong){
+                           len_elong=seq_len(len_max_elong)
+                         }else{
+                           len_elong=round(seq(1,len_max_elong,length.out=trials_elong))
+                         }
+                         return(len_elong)
+                       })
+      # left and right elongation
+      keep=D<quantile(D,0.25)
+      empty_k=which(colSums(keep)==0)
+      if(length(empty_k)>0){
+        for(k in empty_k)
+          keep[which.min(D[,k]),k]=TRUE
+      }
+      
+      res_left_right=mapply(function(v_new_k,v_dom_k,s_k,p_k,len_elong_k,keep_k,c){
+        if(length(len_elong_k)==0){
+          return(list(v_new=v_new_k,
+                      v_dom=v_dom_k,
+                      s_k=s_k))
+        }
+        s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
+        v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
+                                             function(len_elong_k_left)
+                                               lapply(c(0,len_elong_k[len_elong_k<=(max(len_elong_k)-len_elong_k_left)]),
+                                                      function(len_elong_k_right) 
+                                                        c(rep_len(TRUE,len_elong_k_left),v_dom_k,rep_len(TRUE,len_elong_k_right)))),
+                                      recursive=FALSE)[-1]
+        v_elong_left_right=mapply(.compute_motif,v_dom_elong_left_right,s_k_elong_left_right,
+                                  MoreArgs=list(p_k,Y,m,use0,use1),SIMPLIFY=FALSE)
+        start_with_NA=unlist(lapply(v_elong_left_right,length))>2
+        v_elong_left_right=v_elong_left_right[!start_with_NA]
+        s_k_elong_left_right=s_k_elong_left_right[!start_with_NA]
+        Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1)
+        c_k_after=floor(unlist(lapply(lapply(v_elong_left_right,.domain,use0),length))*(1-max_gap))
+        c_k_after[c_k_after<c]=c
+        Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
+                               MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
+        best_elong=which.min((Jk_after-Jk_before)/Jk_before)
+        if(length(best_elong)>0){
+          elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
+        }else{
+          elongate=FALSE
+        }
+        if(elongate){
+          return(list(v_new=v_elong_left_right[[best_elong]],
+                      v_dom=v_dom_elong_left_right[[best_elong]],
+                      s_k=s_k_elong_left_right[[best_elong]]))
+        }else{
+          return(list(v_new=v_new_k,
+                      v_dom=v_dom_k,
+                      s_k=s_k))
+        }
+      },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
+      
+      V_new=res_left_right[1,]
+      V_dom=res_left_right[2,]
+      S_k=res_left_right[3,]
+      rm(res_left_right)
+      S=matrix(unlist(S_k),ncol=K)
+    }
+    end=proc.time()
+    #message('  elongate: ',round((end-start)[3],2))
+    
+    ##### find shift warping minimizing dissimilarities ###################################################
+    start=proc.time()
+    c_k=floor(unlist(lapply(V_new,function(v_new) unlist(lapply(v_new,nrow))[1]))*(1-max_gap))
+    c_k[c_k<c]=c
+    c_k=rep(c_k,each=length(Y))
+    YV=expand.grid(Y,V_new)
+    SD=.mapply_custom(cl_probKMA,.find_min_diss,YV[,1],YV[,2],c_k,
+                      MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
+    S_new=matrix(SD[1,],ncol=K)
+    D_new=matrix(SD[2,],ncol=K)
+    browser()
+    end=proc.time()
+    #message('  find shift: ',round((end-start)[3],2))
+    
+    ##### compute memberships #############################################################################
+    start=proc.time()
+    # create membership matrix, with N rows and k columns
+    P_new=matrix(0,nrow=N,ncol=K)
+    # if dist(y_i,v_k)=0 for some k, set p(i,k)=1 and p(i,h)=0 for h!=k
+    D0=apply(D_new,2,'%in%',0)
+    for(i in which(rowSums(D0)>1)){
+      warning(paste0('Curve ',i,' has dissimilarity 0 from two different motifs. Using only one of them...'))
+      D0_select=sample(which(D0[i,]),1)
+      D0[i,-D0_select]=FALSE
+    }
+    D0_index=rowSums(D0)==1
+    P_new[D0_index,]=1*D0[D0_index,]
+    # if dist(y_i,v_k)>0 for all k
+    Dm=as.matrix(D_new[!D0_index,]^(1/(m-1)))
+    P_new[!D0_index,]=1/(Dm*rowSums(1/Dm))
+    # check degenerate clusters (zero membership)
+    for(k in which(colSums(P_new)==0)){
+      warning(paste0('Motif ',k,' is degenerate (zero membership). Selecting a new center...'))
+      P_new[which.min(D_new[,k]),k]=1
+    }
+    end=proc.time()
+    #message('  compute memberships: ',round((end-start)[3],2))
+    
+    ##### evaluate objective function #####################################################################
+    J_iter[iter]=sum(D_new*(P_new^m),na.rm=TRUE)
+    
+    ##### compute Bhattacharyya distance between P_old and P_new ##########################################
+    BC_dist_k=-log(rowSums(sqrt(P_old*P_new)))
+    if(stop_criterion=='max')
+      BC_dist=max(BC_dist_k)
+    if(stop_criterion=='mean')
+      BC_dist=mean(BC_dist_k)
+    if(stop_criterion=='quantile')
+      BC_dist=quantile(BC_dist_k,prob,type=1)
+    BC_dist_iter[iter]=BC_dist    
+    
+    ##### update ##########################################################################################
+    V=V_new
+    P=P_new
+    S=S_new
+    D=D_new
   }
+  
+  ### prepare output ####################################################################################
+  start=proc.time()
+  if(iter==iter_max){
+    warning('maximum number of iterations reached, method stops')
+  }
+  # compute motifs
+  S_k=split(S,rep(seq_len(K),each=N))
+  P_k=split(P,rep(seq_len(K),each=N))
+  if(!use0){
+    use0=TRUE
+    Y=mapply(function(y,y0) list(y0=y0,y1=y$y1),Y,Y0,SIMPLIFY=FALSE)
+  }
+  V=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+  # compute cleaned motifs
+  keep=D<quantile(D,quantile4clean)
+  empty_k=which(colSums(keep)==0)
+  if(length(empty_k)>0){
+    for(k in empty_k)
+      keep[which.min(D[,k]),k]=TRUE
+  }
+  P_clean=P
+  P_clean[keep]=1
+  P_clean[!keep]=0
+  P_k=split(P_clean,rep(seq_len(K),each=N))
+  S_clean=S
+  V_clean=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+  changed_s=which(unlist(lapply(V_clean,length))>2)
+  for(k in changed_s){
+    S_clean[,k]=S_clean[,k]+V_clean[[k]]$shift
+    V_clean[[k]]=V_clean[[k]][c('v0','v1')]
+  }
+  S_k=split(S_clean,rep(seq_len(K),each=N))
+  V_dom=lapply(V_clean,.domain,use0)
+  # compute dissimilarities from cleaned motifs
+  D_clean=mapply(function(s_k,v_dom,v_clean,Y){
+    Y_in_motifs=mapply(function(y,s){
+      if(use0){
+        d=ncol(y$y0) # dimension of curves
+        y_len=nrow(y$y0)
+        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
+        y$y0=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
+                   matrix(y$y0[index[index<=y_len],],ncol=d),
+                   matrix(NA,nrow=sum(index>y_len),ncol=d))
+      }
+      if(use1){
+        d=ncol(y$y1) # dimension of curves
+        y_len=nrow(y$y1)
+        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
+        y$y1=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
+                   matrix(y$y1[index[index<=y_len],],ncol=d),
+                   matrix(NA,nrow=sum(index>y_len),ncol=d))
+      }
+      y=.select_domain(y,v_dom,use0,use1)
+      return(y)
+    },Y,s_k,SIMPLIFY=FALSE)
+    d=unlist(lapply(Y_in_motifs,.diss_d0_d1_L2,.select_domain(v_clean,v_dom,use0,use1),w,alpha))
+    return(d)
+  },S_k,V_dom,V_clean,MoreArgs=list(Y))
+  output=list(Y0=Y0,Y1=Y1,
+              V0=lapply(V,function(v) v$v0),V1=lapply(V,function(v) v$v1),
+              V0_clean=lapply(V_clean,function(v) v$v0),V1_clean=lapply(V_clean,function(v) v$v1),
+              P=P,P_clean=P_clean,S=S,S_clean=S_clean,
+              D=D,D_clean=D_clean,iter=iter,J_iter=J_iter,BC_dist_iter=BC_dist_iter)
+  if(return_options){
+    output=c(output,list(standardize=standardize,K=K,c=c,c_max=c_max,diss=diss,alpha=alpha,w=w,m=m,
+                         iter_max=iter_max,stop_criterion=stop_criterion,quantile=quantile,tol=tol,
+                         iter4elong=iter4elong,tol4elong=tol4elong,max_elong=max_elong,trials_elong=trials_elong,deltaJk_elong=deltaJk_elong,max_gap=max_gap,
+                         iter4clean=iter4clean,tol4clean=tol4clean))
+  }
+  if(return_init){
+    output=c(output,list(P0=P0,S0=S0))
+  }
+  end=proc.time()
+  #message('output: ',round((end-start)[3],2))
+  
+  
+  ### return output ####################################################################################
+  return(output)
 }
 
-use0 <- TRUE
-use1 <- TRUE
-prof <- probKMA_prof(Y0,Y1,standardize,K,c,c_max,
-                     diss,alpha,w,m,
-                     iter_max,stop_criterion,
-                     quantile,tol,
-                     iter4elong,tol4elong,max_elong,
-                     trials_elong,deltaJk_elong,max_gap,
-                     iter4clean,tol4clean,
-                     quantile4clean,
-                     return_options=TRUE,return_init=TRUE,P0=NULL,S0=NULL)
-
-
-
-
-
-
-
+library(parallel)
+z <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=params$c,c_max=params$c_max,
+             P0=data$P0,S0=data$S0,
+             diss=diss,alpha=params$alpha,w=params$w,m=params$m,iter_max=params$iter_max,
+             stop_criterion=params$stopCriterion,
+             quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
+             tol4elong=params$tol4elong,max_elong=params$max_elong,
+             trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
+             max_gap=params$max_gap,params$iter4clean,params$tol4clean,
+             params$quantile4clean,params$return_options,TRUE,NULL)

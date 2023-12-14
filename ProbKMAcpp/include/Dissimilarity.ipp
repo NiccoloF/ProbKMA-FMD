@@ -43,7 +43,6 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
         non_na_indices = arma::find_nan(y_rep(i,0).col(0));
         length_inter(i) = y_rep(i,0).col(0).n_elem - non_na_indices.n_elem;
       }
-      
       arma::uvec valid = length_inter >= c_k;
       if (arma::accu(valid) == 0) {        
         valid.elem(arma::find(length_inter == arma::max(length_inter)))+= 1;  
@@ -51,10 +50,11 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       
       double min_d = std::numeric_limits<double>::max();
       int min_s = 0;
-      
+    
       for (unsigned int i = 0; i < s_rep_size; i++) {
         if (valid(i)) {
-          const double dist = computeDissimilarity(y_rep,v_new);
+        const double dist = computeDissimilarity(y_rep,v_new);
+        Rcpp::Rcout<<"dist="<<dist<<std::endl;
           if (dist < min_d){
             min_d = dist;
             min_s = s_rep[i];
