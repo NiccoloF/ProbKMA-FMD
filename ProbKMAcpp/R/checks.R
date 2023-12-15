@@ -1,4 +1,4 @@
-.initialChecks <- function(Y0,Y1,P0,S0,params,diss,alpha,w){
+.initialChecks <- function(Y0,Y1,P0,S0,params,diss){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
   #     list of N matrices with d columns, for d-dimensional curves y_i(x),
@@ -46,6 +46,8 @@
   iter_max = params$iter_max
   quantile = params$quantile
   prob = params$prob
+  alpha = params$alpha
+  w = params$w
   stop_criterion = params$stopCriterion
   m = params$m
   tol = params$tol

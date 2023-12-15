@@ -17,18 +17,18 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=1
+iter_max=4
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
-iter4elong=10
+iter4elong=2 #10
 tol4elong=100
 max_elong=0.5
 trials_elong=10
 deltaJk_elong=0.05
 max_gap=max_gap
-iter4clean=50
-tol4clean=1e-4
+iter4clean=2 #10
+tol4clean=1 #1e-4
 quantile4clean=1/K
 return_options=TRUE
 prob <- 0.5
@@ -61,7 +61,7 @@ library(ProbKMAcpp)
 Y0 <- lapply(Y,Y0_f)
 Y1 <- lapply(Y,Y1_f)
 
-a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss,alpha,w)
+a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss)
 params <- a$Parameters
 data <- a$FuncData
 
@@ -793,7 +793,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     V_dom=lapply(V_new,.domain,use0)
     end=proc.time()
     #message('  compute motifs: ',round((end-start)[3],2))
-    
+  
     ##### elongate motifs #################################################################################
     start=proc.time()
     if((iter>1)&&(!(iter%%iter4elong))&&(BC_dist<tol4elong)){
@@ -891,7 +891,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                       MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
     S_new=matrix(SD[1,],ncol=K)
     D_new=matrix(SD[2,],ncol=K)
-    browser()
     end=proc.time()
     #message('  find shift: ',round((end-start)[3],2))
     
@@ -937,8 +936,9 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     P=P_new
     S=S_new
     D=D_new
-  }
   
+  }
+  browser()
   ### prepare output ####################################################################################
   start=proc.time()
   if(iter==iter_max){

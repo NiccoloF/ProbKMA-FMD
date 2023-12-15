@@ -111,6 +111,10 @@ public:
     
     Rcpp::List probKMA_run() 
     {
+      // Set Seed
+      Rcpp::Environment base("package:base");
+      Rcpp::Function setSeed = base["set.seed"];
+      setSeed(1);
       /// Iterate ////////////////////////////////////
       std::size_t iter = 0;
       const unsigned int& iter_max = _parameters._iter_max;
@@ -118,7 +122,9 @@ public:
       KMA::vector J_iter(iter_max,arma::fill::zeros);
       KMA::vector BC_dist_iter(iter_max,arma::fill::zeros);
       auto BC_dist = std::numeric_limits<double>::infinity();
-      const KMA::vector quantile4clean(_parameters._quantile4clean); // convert to vector to compute quantile
+      const KMA::vector quantile4clean = {_parameters._quantile4clean}; // convert to vector to compute quantile
+      const unsigned int& iter4clean = _parameters._iter4clean;
+      const double& tol4clean = _parameters._tol4clean;
       KMA::matrix D;
       KMA::umatrix keep;
       std::size_t _n_rows_V = _V.n_rows;
@@ -126,25 +132,24 @@ public:
       std::size_t _n_cols_Y = _Y.n_cols;
       std::vector<arma::urowvec> V_dom(_n_rows_V);
       KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
-      Rcpp::Rcout<<"CIAO:129"<<std::endl;
       while(iter < iter_max and BC_dist > _parameters._tol)
       {
         iter++;
+        Rcpp::Rcout<<"iter="<<iter<<std::endl;
         ///// clean motifs //////////////////////////
         const KMA::matrix P_old = _P0;
-        const unsigned int& iter4clean = _parameters._iter4clean;
-        const double& tol4clean = _parameters._tol4clean;
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
-          keep = D < arma::quantile(D,quantile4clean);
-          const KMA::uvector empty_k = arma::find(arma::sum(keep,0));
+          const auto temppp = arma::quantile(D,quantile4clean);
+          keep = D < arma::as_scalar(arma::quantile(arma::vectorise(D),quantile4clean));
+          const KMA::uvector empty_k = arma::find(arma::sum(keep,0)==0);
           if(!empty_k.empty())
           {
-            KMA::uvector index_min = arma::index_min(D,0);
+            arma::urowvec index_min = arma::index_min(D,0);
             keep(empty_k(index_min),index_min).fill(1);
           }
           _P0.zeros();
-          _P0.elem(arma::find(keep)).fill(1); // set one where values of keep are true
+          _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
         }
         for(int i = 0;i < _n_rows_V;++i)
         {
@@ -166,14 +171,13 @@ public:
           }
           V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
         }
-        
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
                                      _Y,D, _parameters,
                                      _perfac,_dissfac);
         }
-        Rcpp::Rcout<<"CIAO:176"<<std::endl;
+        Rcpp::Rcout<<"181:"<<std::endl;
         ////// find shift warping minimizing dissimilarities /////////////
         KMA::vector sd(2);
         KMA::imatrix S_new(_n_rows_Y,_n_rows_V);
@@ -184,7 +188,7 @@ public:
         const KMA::Mfield& V_new0 = V_new.col(0);
         std::transform(V_new0.begin(),V_new0.end(),c_k.begin(),transform_function);
         c_k.elem(c_k < _parameters._c) = _parameters._c;
-        
+        Rcpp::Rcout<<"imp:187"<<std::endl;
         #ifdef _OPENMP
         #pragma omp parallel for collapse(2) firstprivate(sd)
         #endif
@@ -195,11 +199,8 @@ public:
             S_new(j,i) = sd(0);
             D_new(j,i) = sd(1);
           }
+          Rcpp::Rcout<<"imp:198"<<std::endl;
           
-          return Rcpp::List::create(Rcpp::Named("V_new") =  V_new,
-                                    Rcpp::Named("S_new") = S_new,
-                                    Rcpp::Named("D_new") = D_new);
-          Rcpp::Rcout<<"CIAO:198"<<std::endl;
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
         KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
@@ -209,14 +210,12 @@ public:
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Curve has dissimilarity 0 from two different motifs. Using only one of them..."); 
           const KMA::uvector & indexes = arma::find(D0.row(i) == 1);
-          Rcpp::Rcout<<"CIAO:208"<<std::endl;
           D0.row(i).zeros();
           D0(i,indexes(arma::randi(arma::distr_param(0, indexes.n_elem - 1)))) = 1;
         }
         const KMA::uvector & D0_index = arma::find(arma::sum(D0,1) == 1);
         for(arma::sword i : D0_index) {
           const KMA::uvector & col = arma::find(D0.row(i)==1);
-          Rcpp::Rcout<<"CIAO:214"<<std::endl;
           P_new(i,col(0)) = 1;
         }
         const KMA::uvector & not_D0_index = arma::find(arma::sum(D0,1) !=1);
@@ -226,21 +225,19 @@ public:
         for (arma::sword k : deg_indexes) {
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Motif is degenerate (zero membership). Selecting a new center..."); 
-          Rcpp::Rcout<<"CIAO:223"<<std::endl;
           P_new(index_min(D_new.col(k)),k) = 1;
         }
 
         // evaluate objective functions
         // Riccardo: new part, just written 
         KMA::matrix temp_DP = D_new % (arma::pow(P_new,_parameters._m));
-        Rcpp::Rcout<<"CIAO:229"<<std::endl;
         temp_DP.replace(arma::datum::nan,0);
-        Rcpp::Rcout<<"CIAO:231"<<std::endl;
         J_iter(iter-1) = arma::accu(temp_DP);
       
         // compute Bhattacharyya distance between P_old and P_new
         // @TODO: ask to professor why RowSums in her code and not ColSums
-        const arma::rowvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P_new),0));
+        Rcpp::Rcout<<"imp:235"<<std::endl;
+        const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P_new),1));
         std::string_view criterion = _parameters._stopCriterion;
         if (criterion == "max")
           BC_dist = arma::max(BC_dist_k);
@@ -248,14 +245,13 @@ public:
           BC_dist = arma::mean(BC_dist_k);
         else if (criterion == "quantile")
         {
-          Rcpp::Rcout<<"CIAO:242"<<std::endl;
           BC_dist = arma::conv_to<arma::vec>::from
           (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
-          Rcpp::Rcout<<"CIAO:245"<<std::endl;
         }
         
   
         BC_dist_iter(iter-1) = BC_dist;
+        Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
 
         // update 
         _V = V_new;
@@ -263,10 +259,11 @@ public:
         _S0 = S_new;
         D = D_new; 
       }
-      return Rcpp::List::create(Rcpp::Named("V") = _V,
-                                Rcpp::Named("P0") = _P0,
-                                Rcpp::Named("S0") = _S0,
-                                Rcpp::Named("D") = D);
+      
+      return Rcpp::List::create(Rcpp::Named("V_new")=V_new,
+                                Rcpp::Named("P0")=_P0,
+                                Rcpp::Named("S0")=_S0,
+                                Rcpp::Named("D")=D);
       Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);
@@ -275,12 +272,9 @@ public:
       // Riccardo comment: la prof non fa nessun controllo in questa parte su quali delle due strutture viene restituita, perchè?
       // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        Rcpp::Rcout<<"compute_motif call:260"<<std::endl;
-        Rcpp::Rcout<<"V_dom[k]="<<V_dom[k]<<std::endl;
         const auto & pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                               _P0.col(k), _Y,
                                                               _parameters._m);
-        Rcpp::Rcout<<"fine prepare output:264"<<std::endl;
         _V.row(k) = *(std::get_if<arma::field<arma::mat>>(&pair_motif_shift));
       } 
       keep = D < arma::quantile(D,quantile4clean);
@@ -563,16 +557,14 @@ Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
                          const Rcpp::NumericMatrix& P0,
                          const Rcpp::NumericMatrix& S0,
                          const Rcpp::List& params,
-                         const Rcpp::String& diss,
-                         const double alpha,
-                         const Rcpp::NumericVector& w)
+                         const Rcpp::String& diss)
 {
   try 
   {
     Rcpp::Environment base("package:ProbKMAcpp");
     Rcpp::Function checks = base[".initialChecks"];
     // Call R checks and updata data and parameters
-    return checks(Y0,Y1,P0,S0,params,diss,alpha,w);
+    return checks(Y0,Y1,P0,S0,params,diss);
     
   }catch (Rcpp::exception& e) {
     // Handle the Rcpp exception

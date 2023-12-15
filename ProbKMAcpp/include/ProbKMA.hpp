@@ -45,9 +45,7 @@ class ProbKMA
                            const Rcpp::NumericMatrix& P0,
                            const Rcpp::NumericMatrix& S0,
                            const Rcpp::List& params,
-                           const Rcpp::String diss,
-                           const double alpha,
-                           const Rcpp::NumericVector& w);
+                           const Rcpp::String diss);
 
 
 #endif // PROBKMA_HPP

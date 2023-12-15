@@ -54,7 +54,6 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       for (unsigned int i = 0; i < s_rep_size; i++) {
         if (valid(i)) {
         const double dist = computeDissimilarity(y_rep.row(i),v_new);
-        Rcpp::Rcout<<"dist="<<dist<<std::endl;
           if (dist < min_d){
             min_d = dist;
             min_s = s_rep[i];
