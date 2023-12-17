@@ -41,7 +41,7 @@ double PerformanceSobol::compute_Jk_helper(const KMA::Mfield& V,const KMA::ivect
 
   arma::vec dist(Y_size);
   for (arma::uword i = 0; i < Y_size; ++i){
-    dist(i) = diss->computeDissimilarity(Y_inters_k,v_new); 
+    dist(i) = diss->computeDissimilarity(Y_inters_k.row(i),v_new); 
   }
   arma::vec result = dist % pow(p_k,m);
   return arma::accu(result.elem(arma::find_finite(result)));

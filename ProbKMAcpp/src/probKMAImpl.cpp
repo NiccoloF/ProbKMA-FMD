@@ -277,11 +277,11 @@ public:
                                                               _parameters._m);
         _V.row(k) = *(std::get_if<arma::field<arma::mat>>(&pair_motif_shift));
       } 
-      keep = D < arma::quantile(D,quantile4clean);
+      keep = D < arma::as_scalar(arma::quantile(arma::vectorise(D),quantile4clean));
       KMA::uvector empty_k = arma::find(arma::sum(keep,0) == 0);
       for (arma::sword k: empty_k)
         keep(arma::index_min(D.col(k)),k) = 1;
-      P_clean(arma::find(keep)).fill(1);
+      P_clean(arma::find(keep==1)).fill(1);
       KMA::Mfield V_clean(_V.n_cols,_n_rows_V); // come impostare la size giusta di V_clean? usando _V.n_cols?
       std::map<arma::sword,arma::sword> shift_s;
       for(arma::uword k=0; k < _n_rows_V; ++k){
@@ -291,16 +291,16 @@ public:
         if (auto ptr = std::get_if<arma::field<arma::mat>>(&new_motif)){
           V_clean.col(k) = *ptr;
         } else {
-          const auto & pair_motif_shift = *(std::get_if<std::pair<arma::field<arma::mat>,arma::sword>>(&new_motif));
-          V_clean.col(k) = pair_motif_shift.first;
-          shift_s.insert(std::make_pair(k, pair_motif_shift.second));
+          const auto & pair_motif_shift = std::get_if<std::pair<arma::field<arma::mat>,arma::sword>>(&new_motif);
+          V_clean.col(k) = pair_motif_shift->first;
+          shift_s.insert(std::make_pair(k, pair_motif_shift->second));
         }
       }
       for(auto it = shift_s.begin();it != shift_s.cend(); ++it){
         S_clean.col(it->first) += it->second;
       }
 
-      std::vector<KMA::uvector> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
+      std::vector<arma::urowvec> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
       for(arma::uword k=0; k < _n_rows_V ; ++k){
         V_dom_new[k] = util::findDomain<KMA::matrix>(_V(k,0));
       }
@@ -330,7 +330,7 @@ public:
           Rcpp::Rcout<<"CIAO:317"<<std::endl;
           const arma::uword y_len = _Y(i,0).n_rows;
           Rcpp::Rcout<<"CIAO:319"<<std::endl;
-          y0.set_size(index_size + std::max(1,s),d);
+          y0.set_size(v_len,d);
           Rcpp::Rcout<<"CIAO:321"<<std::endl;
           y0.fill(arma::datum::nan);
           for(unsigned int j = 0; j < index_size; ++j) {
@@ -350,10 +350,10 @@ public:
             v_clean(1,k).shed_rows(indeces_dom);
             Rcpp::Rcout<<"CIAO:338"<<std::endl;
             const arma::uword y_len = _Y(i,1).n_rows;
-            y1.set_size(index_size + std::max(1,s),d);
+            y1.set_size(v_len,d);
             y1.fill(arma::datum::nan);
             for(unsigned int j = 0; j < index_size; ++j) {
-              if (index[j]  <= y_len){
+              if (index[j] <= y_len){
                 index_row = std::max(0, 1-s) + j;
                 Rcpp::Rcout<<"CIAO:345"<<std::endl;
                 y1.row(index_row) =  _Y(i,1).row(index[j] - 1);

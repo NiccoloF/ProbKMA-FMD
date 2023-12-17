@@ -1,3 +1,6 @@
+setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
+library(Rcpp)
+devtools::load_all()
 set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
@@ -21,7 +24,7 @@ iter_max=4
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
-iter4elong=2 #10
+iter4elong=5 #10
 tol4elong=100
 max_elong=0.5
 trials_elong=10
