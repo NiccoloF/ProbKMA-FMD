@@ -15,16 +15,13 @@ KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
     return v_new;
   } 
   KMA::vector coeff_k = arma::pow(p_k.elem(arma::find(p_k > 0)), m) / arma::sum(Y_inters_supp, 1);
-  Rcpp::Rcout<<"compute_v_new:18"<<std::endl;
   KMA::vector coeff_x = arma::sum(arma::conv_to<KMA::matrix>::from(Y_inters_supp) % arma::repmat(coeff_k,1,Y_inters_supp.n_cols), 0).t();
-  Rcpp::Rcout<<"compute_v_new:20"<<std::endl;
   coeff_x.elem(arma::find(arma::sum(Y_inters_supp, 0) == 0)).fill(arma::datum::nan);
   for (arma::uword i = 0; i < Y_inters_k.n_rows; ++i){
     v_new.rows(arma::find(v_dom==1)) += (Y_inters_k(i)*coeff_k(i)) / arma::repmat(coeff_x,1,Y_inters_k(i).n_cols);
   }
 
   v_new.rows(arma::find(v_dom==0)).fill(arma::datum::nan);
-  Rcpp::Rcout<<"END COMPUTE_V_NEW"<<std::endl;
   return v_new;
 }
 

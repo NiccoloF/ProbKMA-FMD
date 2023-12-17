@@ -43,3 +43,4 @@ vignettes/*.pdf
 
 # shared library
 *.so
+*.dll

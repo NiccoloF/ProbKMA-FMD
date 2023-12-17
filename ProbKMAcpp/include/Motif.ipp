@@ -84,7 +84,6 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
                              Y_inters_supp,
                              v_dom,v_len,p_k,d,m);
   
-
   KMA::uvector v_new_domain = arma::find(util::findDomain<KMA::matrix>(v_new(0,0)) == 1);
   arma::sword index_min = v_new_domain.min();
   arma::sword index_max = v_new_domain.max();
@@ -97,7 +96,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   if (index_min > 1) {
     return std::make_pair(v_new,index_min - 1);
   }
-  return std::make_pair(v_new,arma::datum::nan);
+  return v_new;
   // slight different to the R case in both case we return two elements in this case, see in elongate_motifs                     
 }
 
@@ -160,7 +159,7 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
     const unsigned int leng_elong_left = len_elong_k_zero(i);
     for (unsigned int j = 0; j <  leng_elong_right_vector.size(); ++j) {
       arma::urowvec temp(leng_elong_left + v_dom_k_len + leng_elong_right_vector(j), arma::fill::ones);
-      temp.rows(leng_elong_left, leng_elong_left + v_dom_k.n_elem - 1) = v_dom_k;
+      temp.cols(leng_elong_left, leng_elong_left + v_dom_k.n_elem - 1) = v_dom_k;
       v_dom_elong_left_right[k++] = temp;
     }
   }
