@@ -173,6 +173,7 @@ public:
         }
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
+          Rcpp::Rcout << "let's elongate" << std::endl;
           _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
                                      _Y,D, _parameters,
                                      _perfac,_dissfac);

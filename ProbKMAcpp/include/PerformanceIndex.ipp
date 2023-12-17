@@ -9,16 +9,18 @@ double PerformanceSobol::compute_Jk_helper(const KMA::Mfield& V,const KMA::ivect
                                            KMA::vector keep_k,
                                            const std::shared_ptr<Dissimilarity>& diss) const
 {
+  Rcpp::Rcout << "compute performance index" << std::endl;
   // domain of the centroid
   const arma::urowvec& v_dom = util::findDomain(V(0,0));
   
   // select the part of the domain of the centroid
-  KMA::Mfield v_new = util::selectDomain<use1>(v_dom,V);
+  KMA::Mfield v_new = util::selectDomain<use1>(v_dom,V); // qui perchè use1?
   
   const unsigned int Y_size = Y.n_rows;
   
   arma::field<arma::mat> Y_inters_k(Y_size,1 + use1);
   
+  Rcpp::Rcout << "shift curve" << std::endl;
   shiftCurveHandle<use1>(Y_inters_k,Y,s_k,v_dom);
   
   if(std::isfinite(c_k) && arma::is_finite(keep_k))
@@ -44,6 +46,7 @@ double PerformanceSobol::compute_Jk_helper(const KMA::Mfield& V,const KMA::ivect
     dist(i) = diss->computeDissimilarity(Y_inters_k.row(i),v_new); 
   }
   arma::vec result = dist % pow(p_k,m);
+  Rcpp::Rcout << "return compute jk" << std::endl;
   return arma::accu(result.elem(arma::find_finite(result)));
 }
 
