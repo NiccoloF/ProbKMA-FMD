@@ -140,7 +140,6 @@ public:
         const KMA::matrix P_old = _P0;
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
-          const auto temppp = arma::quantile(D,quantile4clean);
           keep = D < arma::as_scalar(arma::quantile(arma::vectorise(D),quantile4clean));
           const KMA::uvector empty_k = arma::find(arma::sum(keep,0)==0);
           if(!empty_k.empty())
@@ -151,6 +150,7 @@ public:
           _P0.zeros();
           _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
         }
+
         for(int i = 0;i < _n_rows_V;++i)
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
@@ -170,15 +170,16 @@ public:
             V_new.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
           }
           V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
+        
         }
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
-          Rcpp::Rcout << "let's elongate" << std::endl;
+
           _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
                                      _Y,D, _parameters,
                                      _perfac,_dissfac);
         }
-        Rcpp::Rcout<<"181:"<<std::endl;
+
         ////// find shift warping minimizing dissimilarities /////////////
         KMA::vector sd(2);
         KMA::imatrix S_new(_n_rows_Y,_n_rows_V);
@@ -189,7 +190,7 @@ public:
         const KMA::Mfield& V_new0 = V_new.col(0);
         std::transform(V_new0.begin(),V_new0.end(),c_k.begin(),transform_function);
         c_k.elem(c_k < _parameters._c) = _parameters._c;
-        Rcpp::Rcout<<"imp:187"<<std::endl;
+
         #ifdef _OPENMP
         #pragma omp parallel for collapse(2) firstprivate(sd)
         #endif
@@ -200,13 +201,12 @@ public:
             S_new(j,i) = sd(0);
             D_new(j,i) = sd(1);
           }
-          Rcpp::Rcout<<"imp:198"<<std::endl;
           
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
         KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
         KMA::umatrix D0 = (D_new == 0);
-        const KMA::uvector & mult_assign = arma::find(arma::sum(D0,1) > 1);
+        const KMA::uvector& mult_assign = arma::find(arma::sum(D0,1) > 1);
         for (arma::sword i : mult_assign) {
           // @TODO: complete this warning message as the message of the prof
           Rcpp::warning("Curve has dissimilarity 0 from two different motifs. Using only one of them..."); 
@@ -237,7 +237,6 @@ public:
       
         // compute Bhattacharyya distance between P_old and P_new
         // @TODO: ask to professor why RowSums in her code and not ColSums
-        Rcpp::Rcout<<"imp:235"<<std::endl;
         const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P_new),1));
         std::string_view criterion = _parameters._stopCriterion;
         if (criterion == "max")
@@ -250,7 +249,6 @@ public:
           (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
         }
         
-  
         BC_dist_iter(iter-1) = BC_dist;
         Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
 
@@ -260,11 +258,11 @@ public:
         _S0 = S_new;
         D = D_new; 
       }
-      
       return Rcpp::List::create(Rcpp::Named("V_new")=V_new,
                                 Rcpp::Named("P0")=_P0,
                                 Rcpp::Named("S0")=_S0,
                                 Rcpp::Named("D")=D);
+      
       Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);

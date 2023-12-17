@@ -92,7 +92,6 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
                              Y_inters_supp,
                              v_dom,v_len,p_k,d,m);
   
-  Rcpp::Rcout << "compute motif in elongation 3" << std::endl;
 
   KMA::uvector v_new_domain = arma::find(util::findDomain<KMA::matrix>(v_new(0,0)) == 1);
   arma::sword index_min = v_new_domain.min();
@@ -111,7 +110,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   if (index_min > 1) {
     return std::make_pair(v_new,index_min - 1);
   }
-  return std::make_pair(v_new,arma::datum::nan);
+  return v_new;
   // slight different to the R case in both case we return two elements in this case, see in elongate_motifs                     
 }
 
