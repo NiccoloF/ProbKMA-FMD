@@ -92,8 +92,9 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   if constexpr (use1){
       v_new(0,1) = v_new(0,1).rows(index_min,index_max);
   }
-  if (index_min > 1) {
-    return std::make_pair(v_new,index_min - 1);
+  if (index_min > 0) {
+    Rcpp::Rcout<<"ATTENZIONE NO TESTATO MOTIF.IPP 96"<<std::endl;
+    return std::make_pair(v_new,index_min);
   }
   return v_new;
   // slight different to the R case in both case we return two elements in this case, see in elongate_motifs                     
@@ -214,15 +215,17 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   }
   
   // find the best elongation in terms of perf. index
-  arma::vec diff_perc = ((Jk_after-Jk_before)/Jk_before);
+  arma::vec diff_perc = (Jk_after-Jk_before)/Jk_before;
   arma::uword best_elong = arma::index_min(diff_perc);
 
   // check that the min really exists
   bool elongate = false;
-  if (best_elong < diff_perc.size())
+  if (best_elong < diff_perc.size() and 
+      arma::conv_to<arma::Col<double>>::from(arma::find_nan(diff_perc)).size() != diff_perc.size())
     elongate = diff_perc(best_elong) < param._deltaJK_elong;
   
   // evaluate if elongate or not
+ 
   if(elongate) {
     Rcpp::Rcout<<"stoElongando"<<std::endl;
     V_new.row(index) =  v_elong_left_right.row(best_elong);

@@ -144,8 +144,9 @@ public:
           const KMA::uvector empty_k = arma::find(arma::sum(keep,0)==0);
           if(!empty_k.empty())
           {
-            arma::urowvec index_min = arma::index_min(D,0);
-            keep(empty_k(index_min),index_min).fill(1);
+            for(arma::uword k : empty_k)
+              keep(arma::index_min(D.col(k)),k) = 1;
+            
           }
           _P0.zeros();
           _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
@@ -172,13 +173,10 @@ public:
           V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
         
         }
+        
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
-          if(iter == 2) 
-            return Rcpp::List::create(Rcpp::Named("V_new")=V_new,
-             Rcpp::Named("P0")=_P0,
-             Rcpp::Named("S0")=_S0,
-             Rcpp::Named("D")=D);
+          
           Rcpp::Rcout<<"elonghiamo iter="<<iter<<std::endl;
           _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
                                      _Y,D, _parameters,
@@ -190,14 +188,23 @@ public:
         KMA::imatrix S_new(_n_rows_Y,_n_rows_V);
         KMA::matrix  D_new(_n_rows_Y,_n_rows_V);
         KMA::ivector c_k(_n_rows_V);
+    
+    //////////////////////////////////////////////////////////////////////////////
         const auto transform_function = [this](const KMA::matrix& V_new0) 
         {return std::floor(V_new0.n_rows * (1 - this->_parameters._max_gap));};
         const KMA::Mfield& V_new0 = V_new.col(0);
-        std::transform(V_new0.begin(),V_new0.end(),c_k.begin(),transform_function);
-        c_k.elem(c_k < _parameters._c) = _parameters._c;
-
+        for(int i = 0;i<_n_rows_V;++i)
+        {
+          c_k(i) = transform_function(V_new0(i,0));
+        }
+        
+        arma::uvec indexes = arma::find(c_k < _parameters._c);
+        if(indexes.size() != 0)
+          c_k.elem(indexes) = _parameters._c;
+    //////////////////////////////////////////////////////////////////////////////
+          
         #ifdef _OPENMP
-        #pragma omp parallel for collapse(2) firstprivate(sd)
+          #pragma omp parallel for collapse(2) firstprivate(sd)
         #endif
         for (unsigned int i = 0; i < _n_rows_V; ++i)
           for (unsigned int j = 0; j < _n_rows_Y; ++j){ 
@@ -207,6 +214,7 @@ public:
             D_new(j,i) = sd(1);
           }
           
+
         // compute memberships (too much code in the run?!)
         // @TODO: change types to KMA:: ...
         KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
@@ -220,11 +228,13 @@ public:
           D0.row(i).zeros();
           D0(i,indexes(arma::randi(arma::distr_param(0, indexes.n_elem - 1)))) = 1;
         }
+        
         const KMA::uvector & D0_index = arma::find(arma::sum(D0,1) == 1);
         for(arma::sword i : D0_index) {
           const KMA::uvector & col = arma::find(D0.row(i)==1);
           P_new(i,col(0)) = 1;
         }
+
         const KMA::uvector & not_D0_index = arma::find(arma::sum(D0,1) !=1);
         const KMA::matrix & Dm = arma::pow(D_new.rows(not_D0_index),1/(_parameters._m-1));
         P_new.rows(not_D0_index) = 1 / (Dm % arma::repmat(arma::sum(1/Dm,1),1,Dm.n_cols));
@@ -234,7 +244,7 @@ public:
           Rcpp::warning("Motif is degenerate (zero membership). Selecting a new center..."); 
           P_new(index_min(D_new.col(k)),k) = 1;
         }
-
+        
         // evaluate objective functions
         // Riccardo: new part, just written 
         KMA::matrix temp_DP = D_new % (arma::pow(P_new,_parameters._m));
@@ -257,6 +267,7 @@ public:
         
         BC_dist_iter(iter-1) = BC_dist;
         Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
+        
 
         // update 
         _V = V_new;
@@ -264,11 +275,12 @@ public:
         _S0 = S_new;
         D = D_new; 
       }
+      /*
       return Rcpp::List::create(Rcpp::Named("V_new")=V_new,
                                 Rcpp::Named("P0")=_P0,
                                 Rcpp::Named("S0")=_S0,
                                 Rcpp::Named("D")=D);
-      
+      */
       Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);
