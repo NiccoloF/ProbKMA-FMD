@@ -142,12 +142,12 @@ public:
         {
           keep = D < arma::as_scalar(arma::quantile(arma::vectorise(D),quantile4clean));
           const KMA::uvector empty_k = arma::find(arma::sum(keep,0)==0);
-          if(!empty_k.empty())
-          {
-            for(arma::uword k : empty_k)
-              keep(arma::index_min(D.col(k)),k) = 1;
+          //if(!empty_k.empty()) // inutile probabilmente
+          //{
+          for(arma::uword k : empty_k)
+            keep(arma::index_min(D.col(k)),k) = 1;
             
-          }
+          //}
           _P0.zeros();
           _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
         }
@@ -283,32 +283,36 @@ public:
       */
       Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
       /////  prepare output //////////////////////////////////
-      KMA::matrix  P_clean(_n_rows_V,_n_rows_Y,arma::fill::zeros);
+      KMA::matrix  P_clean(_n_rows_Y,_n_rows_V,arma::fill::zeros);
       KMA::imatrix S_clean(_S0);
       KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
       // Riccardo comment: la prof non fa nessun controllo in questa parte su quali delle due strutture viene restituita, perchè?
       // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
+
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto & pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
+        const auto& pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                               _P0.col(k), _Y,
                                                               _parameters._m);
-        _V.row(k) = *(std::get_if<arma::field<arma::mat>>(&pair_motif_shift));
+        _V.row(k) = *(std::get_if<KMA::Mfield>(&pair_motif_shift));
       } 
+      
       keep = D < arma::as_scalar(arma::quantile(arma::vectorise(D),quantile4clean));
-      KMA::uvector empty_k = arma::find(arma::sum(keep,0) == 0);
-      for (arma::sword k: empty_k)
+      const KMA::uvector& empty_k = arma::find(arma::sum(keep,0) == 0);
+  
+      for (arma::uword k: empty_k)
         keep(arma::index_min(D.col(k)),k) = 1;
+      
       P_clean(arma::find(keep==1)).fill(1);
       KMA::Mfield V_clean(_n_rows_V,_V.n_cols); 
       std::map<arma::sword,arma::sword> shift_s;
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto & new_motif =  _motfac->compute_motif(V_dom[k], _S0.col(k),
+        const auto& new_motif =  _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                          P_clean.col(k), _Y,
                                                          _parameters._m);
-        if (auto ptr = std::get_if<arma::field<arma::mat>>(&new_motif)){
+        if (auto ptr = std::get_if<KMA::Mfield>(&new_motif)){
           V_clean.row(k) = *ptr;
         } else {
-          const auto & pair_motif_shift = std::get_if<std::pair<arma::field<arma::mat>,arma::sword>>(&new_motif);
+          const auto& pair_motif_shift = std::get_if<std::pair<KMA::Mfield,arma::sword>>(&new_motif);
           V_clean.row(k) = pair_motif_shift->first;
           shift_s.insert(std::make_pair(k, pair_motif_shift->second));
         }
@@ -316,12 +320,10 @@ public:
       for(auto it = shift_s.begin();it != shift_s.cend(); ++it){
         S_clean.col(it->first) += it->second;
       }
-
       std::vector<arma::urowvec> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
       for(arma::uword k=0; k < _n_rows_V ; ++k){
         V_dom_new[k] = util::findDomain<KMA::matrix>(_V(k,0));
       }
-      Rcpp::Rcout<<"CIAO:294"<<std::endl;
       // compute dissimilarities from cleaned motifs
       // Riccardo comment: da rivedere con molta cura: COMPUTATIONAL COST + TEMPLATE VERSION per use0,use1 + dichiarare fuori?
       const arma::uword d = _Y(0,0).n_cols;
@@ -331,58 +333,42 @@ public:
       KMA::matrix y1;
       KMA::Mfield y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto & s_k = _S0.col(k);
-        const auto & v_dom = V_dom[k];
+        const auto& s_k = _S0.col(k);
+        const auto& v_dom = V_dom[k];
         const int v_len = v_dom.size();
-        KMA::Mfield v_clean = V_clean.col(k);
+        //KMA::Mfield v_clean = V_clean.col(k);
         const KMA::uvector & indeces_dom = arma::find(v_dom==0);
         for (arma::uword i=0; i < _n_rows_Y; ++i){
-          Rcpp::Rcout<<"CIAO:310"<<std::endl;
           const int s = s_k(i);
-          Rcpp::Rcout<<"CIAO:312"<<std::endl;
-          KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(1,s));
+          KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
           index_size = index.size();
-          Rcpp::Rcout<<"CIAO:315"<<std::endl;
-          v_clean(k,0).shed_rows(indeces_dom);
-          Rcpp::Rcout<<"CIAO:317"<<std::endl;
+          //v_clean(k,0).shed_rows(indeces_dom);
           const arma::uword y_len = _Y(i,0).n_rows;
-          Rcpp::Rcout<<"CIAO:319"<<std::endl;
           y0.set_size(v_len,d);
-          Rcpp::Rcout<<"CIAO:321"<<std::endl;
           y0.fill(arma::datum::nan);
           for(unsigned int j = 0; j < index_size; ++j) {
             if (index[j]  <= y_len){
               index_row = std::max(0, 1-s) + j;
-              Rcpp::Rcout<<"CIAO:326"<<std::endl;
               y0.row(index_row) =  _Y(i,0).row(index[j] - 1);
-              Rcpp::Rcout<<"CIAO:328"<<std::endl;
             }
           }
-          Rcpp::Rcout<<"CIAO:331"<<std::endl;
           y0.shed_rows(indeces_dom);
-          Rcpp::Rcout<<"CIAO:333"<<std::endl;
           y(0,0) = y0;
-          if (_n_cols_Y){
-            Rcpp::Rcout<<"CIAO:336"<<std::endl;
-            v_clean(k,1).shed_rows(indeces_dom);
-            Rcpp::Rcout<<"CIAO:338"<<std::endl;
+          if (_n_cols_Y>1){
+            //v_clean(k,1).shed_rows(indeces_dom);
             const arma::uword y_len = _Y(i,1).n_rows;
             y1.set_size(v_len,d);
             y1.fill(arma::datum::nan);
             for(unsigned int j = 0; j < index_size; ++j) {
               if (index[j] <= y_len){
                 index_row = std::max(0, 1-s) + j;
-                Rcpp::Rcout<<"CIAO:345"<<std::endl;
                 y1.row(index_row) =  _Y(i,1).row(index[j] - 1);
-                Rcpp::Rcout<<"CIAO:347"<<std::endl;
               }
             }
-            Rcpp::Rcout<<"CIAO:350"<<std::endl;
             y1.shed_rows(indeces_dom);
-            Rcpp::Rcout<<"CIAO:352"<<std::endl;
             y(0,1) = y1;
           }
-        D_clean(i,k) = _dissfac->computeDissimilarity(y,v_clean); 
+        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.row(k)); 
         }
       }
 

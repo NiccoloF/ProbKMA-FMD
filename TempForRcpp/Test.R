@@ -30,7 +30,7 @@ max_gap=max_gap
 iter4clean=2 #10
 tol4clean=1 #1e-4
 quantile4clean=1/K
-return_options=TRUE
+return_options=FALSE
 prob <- 0.5
 #return_init=TRUE
 
@@ -800,7 +800,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       # fill
       with_gaps=which(unlist(lapply(V_dom,function(v_dom) sum(!v_dom)!=0)))
       if(length(with_gaps)>0){
-        browser()
         V_dom_filled=lapply(V_dom[with_gaps],function(v_dom) rep_len(TRUE,length(v_dom)))
         V_filled=mapply(.compute_motif,V_dom_filled,S_k[with_gaps],P_k[with_gaps],MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
         Jk_before=mapply(.compute_Jk,
@@ -941,7 +940,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     D=D_new
   
   }
-  browser()
   ### prepare output ####################################################################################
   start=proc.time()
   if(iter==iter_max){
