@@ -14,8 +14,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   if(arma::accu(p_k) == 0) {
       Rcpp::stop("Motif with no members! Degenerate cluster!");
   }
-  Rcpp::Rcout << "compute motif in elongation 0" << std::endl;
-  
+
   arma::uword v_len = v_dom.n_elem; //length of the current domain
   
   arma::uword d = Y(0,0).n_cols; //number of cols of the curves
@@ -28,13 +27,9 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   
   KMA::matrix y0(v_len,d);
   
-  Rcpp::Rcout << "compute motif in elongation 1" << std::endl;
-  
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
-    Rcpp::Rcout << "si rompe 0" << std::endl;
     const int y_len = Y(p_k_pos(i),0).n_rows;//length of the curve
     KMA::ivector index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
-    Rcpp::Rcout << "si rompe 1" << std::endl;
     const int index_size = index.size();
     /*
     auto index_filtered = index | std::views::filter([&y_len](unsigned int i){i <= y_len};);
@@ -50,16 +45,13 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
     Y_inters_k.rows(std::max(0,1 - s_k(p_k_pos(i))),std::max(0,1 - s_k(p_k_pos(i))) 
                     + std::ranges::size(index_filtered)) = Y(i,0).ro
     */
-    Rcpp::Rcout << "si rompe 2" << std::endl;
     y0.fill(arma::datum::nan);
     for(int j : filtered_j) // se questi sono consecutivi c'� modo migliore di agire
       y0.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),0).row(index(j) - 1);
 
-    Rcpp::Rcout << "si rompe 3" << std::endl;
     y0.shed_rows(arma::find(v_dom==0));
     Y_inters_supp.row(i) = util::findDomain(y0);
     y0.replace(arma::datum::nan,0);
-    Rcpp::Rcout << "si rompe 4" << std::endl;
     Y_inters_k(i,0) = y0;
     
     if constexpr(use1) {
@@ -77,8 +69,6 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
     }
   }
 
-  Rcpp::Rcout << "compute motif in elongation 2" << std::endl;
-  
   KMA::Mfield v_new(1,Y.n_cols);
 
   if constexpr (use1) {
@@ -97,15 +87,10 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   arma::sword index_min = v_new_domain.min();
   arma::sword index_max = v_new_domain.max();
    
-  Rcpp::Rcout << "compute motif in elongation 4" << std::endl;
-
   v_new(0,0) = v_new(0,0).rows(index_min,index_max);
 
-  Rcpp::Rcout << "compute motif in elongation 5" << std::endl;
-  
   if constexpr (use1){
       v_new(0,1) = v_new(0,1).rows(index_min,index_max);
-      Rcpp::Rcout << "compute motif in elongation 6" << std::endl;
   }
   if (index_min > 1) {
     return std::make_pair(v_new,index_min - 1);
@@ -130,56 +115,38 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
 {
   if(len_elong_k.empty()) return;
 
-  //Rcpp::Rcout << "elongation 0" << std::endl;
-  
   const KMA::Mfield& v_new_k = V_new.row(index);
   const arma::urowvec& v_dom_k = V_dom[index];
   const arma::ivec& s_k = S_k.col(index);
 
-  //Rcpp::Rcout << "elongation 1" << std::endl;
-  
   // new vec with zero at the top
   arma::ivec len_elong_k_zero(len_elong_k.size() + 1, arma::fill::zeros);
   std::copy(len_elong_k.begin(), len_elong_k.end(), len_elong_k_zero.begin() + 1);
 
-  //Rcpp::Rcout << "elongation 2" << std::endl;
-  
   // create a matrix whose column_i contains the vector s_k - len_elong_k_zero[i]
   arma::uword len_elong_k_zero_size = len_elong_k_zero.size();
   arma::imat s_k_elong_left_right_temp(s_k.n_elem, len_elong_k_zero_size);
 
-  //Rcpp::Rcout << "elongation 3" << std::endl;
-  
   for (arma::uword i=0; i < len_elong_k_zero_size;++i) {
     s_k_elong_left_right_temp.col(i) = s_k - len_elong_k_zero(i);
   }
 
-  //Rcpp::Rcout << "elongation 4" << std::endl;
-  
   // create a sequence of integer from len_elong_k_zero.size() to 1
   arma::ivec reversedSequence = arma::regspace<arma::ivec>(len_elong_k_zero_size,-1,1);
   reversedSequence(0) -= 1;
  
-  //Rcpp::Rcout << "elongation 5" << std::endl;
-  
   // repeat each col of s_k_elong_left_right a number of times specified by reversedSequence 
   std::vector<arma::ivec> s_k_elong_left_right = util::repeat_elements(s_k_elong_left_right_temp, reversedSequence);
   
-  //Rcpp::Rcout << "elongation 6" << std::endl;
-
   std::vector<arma::ivec> len_elong_k_right_list(len_elong_k_zero_size);
   const int max_len_elong_k = len_elong_k.back();
   unsigned int v_dom_elong_size = 0;
  
-  //Rcpp::Rcout << "elongation 7" << std::endl;
-
   for (unsigned int i = 0; i < len_elong_k_zero_size; ++i) {
     len_elong_k_right_list[i] = len_elong_k_zero.elem(find(len_elong_k_zero <=  max_len_elong_k - len_elong_k_zero(i)));
     v_dom_elong_size += len_elong_k_right_list[i].size();
   }
 
-  //Rcpp::Rcout << "elongation 8" << std::endl;
-  
   //  v_dom_elong_left_right will be a vector of arma::uvec containing all the elongated version of v_dom_k
   std::vector<arma::urowvec> v_dom_elong_left_right(v_dom_elong_size);  
   const int v_dom_k_len = v_dom_k.n_elem;
@@ -194,15 +161,12 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
     }
   }
   
-  //Rcpp::Rcout << "elongation 9" << std::endl;
-
   // create the list containing all the possible v_dom_k elongated using compute_motif
   const int v_elong_left_right_size = s_k_elong_left_right.size();
   arma::uvec not_start_with_NA(v_elong_left_right_size,arma::fill::zeros);
   KMA::Mfield v_elong_left_right(v_elong_left_right_size,Y.n_cols);
 
-  //Rcpp::Rcout << "elongation 10" << std::endl;
- 
+
   for (int i = 0; i < v_elong_left_right_size; i++) {
     const auto & pair_motif_shift = compute_motif_helper<use1>(v_dom_elong_left_right[i+1], s_k_elong_left_right[i], p_k, Y, param._m);
     if (std::holds_alternative<KMA::Mfield>(pair_motif_shift)){
@@ -210,8 +174,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
       not_start_with_NA(i) = 1;
     }
   }
-
-  //Rcpp::Rcout << "elongation 11" << std::endl;
 
   // filter centroid and shifts that are not in NA positions
   auto not_NA_index = std::views::iota(0,v_elong_left_right_size) 
@@ -224,8 +186,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
     filtered_v_elong.row(i++) = v_elong_left_right.row(index);
   }
 
-  //Rcpp::Rcout << "elongation 12" << std::endl;
-  
   auto filtered_s_k = not_NA_index 
   | std::views::transform([&s_k_elong_left_right](int j){return s_k_elong_left_right[j];});
   
@@ -234,8 +194,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   s_k_elong_left_right = std::vector<arma::ivec>(filtered_s_k.begin(),filtered_s_k.end());
   const unsigned int s_k_elong_left_right_size = s_k_elong_left_right.size();
 
-  //Rcpp::Rcout << "elongation 13" << std::endl;
-  
   // compute performance index before elongation
   double Jk_before = perf->compute_Jk(v_new_k,s_k,p_k,Y,param._w,param._m,
                                       arma::datum::nan, KMA::vector(arma::datum::nan), 
@@ -245,8 +203,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   arma::vec c_k_after(s_k_elong_left_right_size);
   arma::vec Jk_after(s_k_elong_left_right_size);
 
-  //Rcpp::Rcout << "elongation 14" << std::endl;
-  
   for (arma::uword i = 0; i < s_k_elong_left_right_size; i++) {
    
     int c_i =  std::max(floor(util::findDomain(v_elong_left_right(i,0)).n_elem*(1 - param._max_gap)),c); 
@@ -257,14 +213,10 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
                                    arma::conv_to<KMA::vector>::from(keep_k),diss);
   }
   
-  //Rcpp::Rcout << "elongation 15" << std::endl;
-
   // find the best elongation in terms of perf. index
   arma::vec diff_perc = ((Jk_after-Jk_before)/Jk_before);
   arma::uword best_elong = arma::index_min(diff_perc);
 
-  //Rcpp::Rcout << "elongation 16" << std::endl;
-  
   // check that the min really exists
   bool elongate = false;
   if (best_elong < diff_perc.size())
@@ -272,6 +224,7 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   
   // evaluate if elongate or not
   if(elongate) {
+    Rcpp::Rcout<<"stoElongando"<<std::endl;
     V_new.row(index) =  v_elong_left_right.row(best_elong);
     V_dom[index] =  v_dom_elong_left_right[best_elong + 1];
     S_k.col(index) = s_k_elong_left_right[best_elong];
@@ -289,8 +242,6 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         const std::shared_ptr<PerformanceIndexAB>& perf,
                                         const std::shared_ptr<Dissimilarity>& diss) const
 {	
-	//Rcpp::Rcout << "elongate 0" << std::endl;
-  
 	std::size_t V_dom_size = V_dom.size();
     
 	arma::ivec len_dom(V_dom_size);
@@ -300,14 +251,12 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     		bool_gaps(i) = (arma::accu(V_dom[i]) < len_dom(i));
   	}
        
-        //Rcpp::Rcout << "elongate 1" << std::endl;
-  
   	arma::uvec with_gaps = arma::find(bool_gaps == 1);
   	unsigned int with_gaps_size = with_gaps.size();
     
   	// @TODO: check this part for domains with NaN
   	if (with_gaps_size != 0){
-      
+      Rcpp::Rcout<<"Entro nei GAPS"<<std::endl;
   		KMA::Mfield V_filled(with_gaps_size,Y.n_cols);
       
   		std::vector<KMA::uvector> V_dom_filled(with_gaps_size);
@@ -355,8 +304,6 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
       
     	}
     
-    //Rcpp::Rcout << "elongate 2" << std::endl;
-  
     std::vector<arma::ivec> len_elong(V_dom_size);
     for (unsigned int i = 0; i < V_dom_size; ++i){
       const int len_max_elong_i = std::min<int>(std::floor(len_dom[i]*param._max_elong),
@@ -370,8 +317,6 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
         round(arma::linspace<arma::ivec>(1, len_max_elong_i, param._trials_elong));
       }
     }
-    
-    //Rcpp::Rcout << "elongate 3" << std::endl;
     
     // vector of probabilities for the quantile function , to be checked this part
     arma::vec prob(1,arma::fill::value(0.25));
@@ -391,14 +336,10 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
       keep(min_col_k_D, k) = true;
     } 
     
-	
-    //Rcpp::Rcout << "elongate 4" << std::endl;
-  
-    //#ifdef _OPENMP
-    //	#pragma omp parallel for 
-    //#endif
+    #ifdef _OPENMP
+    	#pragma omp parallel for 
+    #endif
     for (unsigned int i = 0; i < V_dom_size; ++i){
-      ////Rcpp::Rcout << "dentro elongation " << std::endl;
       elongation<use1>(V_new,V_dom,S_k,P_k.col(i),
                        len_elong[i],keep.col(i),param._c[i],
                        Y,i,param,perf,diss);

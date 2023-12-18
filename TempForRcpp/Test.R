@@ -1,6 +1,3 @@
-setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
-library(Rcpp)
-devtools::load_all()
 set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
@@ -803,6 +800,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       # fill
       with_gaps=which(unlist(lapply(V_dom,function(v_dom) sum(!v_dom)!=0)))
       if(length(with_gaps)>0){
+        browser()
         V_dom_filled=lapply(V_dom[with_gaps],function(v_dom) rep_len(TRUE,length(v_dom)))
         V_filled=mapply(.compute_motif,V_dom_filled,S_k[with_gaps],P_k[with_gaps],MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
         Jk_before=mapply(.compute_Jk,
@@ -859,6 +857,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
                                MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
         best_elong=which.min((Jk_after-Jk_before)/Jk_before)
+        #print((Jk_after-Jk_before)/Jk_before)
         if(length(best_elong)>0){
           elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
         }else{
@@ -881,6 +880,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       rm(res_left_right)
       S=matrix(unlist(S_k),ncol=K)
     }
+    
     end=proc.time()
     #message('  elongate: ',round((end-start)[3],2))
     

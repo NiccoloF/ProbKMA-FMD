@@ -174,7 +174,12 @@ public:
         }
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
-
+          if(iter == 2) 
+            return Rcpp::List::create(Rcpp::Named("V_new")=V_new,
+             Rcpp::Named("P0")=_P0,
+             Rcpp::Named("S0")=_S0,
+             Rcpp::Named("D")=D);
+          Rcpp::Rcout<<"elonghiamo iter="<<iter<<std::endl;
           _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
                                      _Y,D, _parameters,
                                      _perfac,_dissfac);
@@ -209,6 +214,7 @@ public:
         const KMA::uvector& mult_assign = arma::find(arma::sum(D0,1) > 1);
         for (arma::sword i : mult_assign) {
           // @TODO: complete this warning message as the message of the prof
+          Rcpp::Rcout<<"STAMPO WARNING"<<std::endl;
           Rcpp::warning("Curve has dissimilarity 0 from two different motifs. Using only one of them..."); 
           const KMA::uvector & indexes = arma::find(D0.row(i) == 1);
           D0.row(i).zeros();
@@ -281,17 +287,17 @@ public:
       for (arma::sword k: empty_k)
         keep(arma::index_min(D.col(k)),k) = 1;
       P_clean(arma::find(keep==1)).fill(1);
-      KMA::Mfield V_clean(_V.n_cols,_n_rows_V); // come impostare la size giusta di V_clean? usando _V.n_cols?
+      KMA::Mfield V_clean(_n_rows_V,_V.n_cols); 
       std::map<arma::sword,arma::sword> shift_s;
       for(arma::uword k=0; k < _n_rows_V; ++k){
         const auto & new_motif =  _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                          P_clean.col(k), _Y,
                                                          _parameters._m);
         if (auto ptr = std::get_if<arma::field<arma::mat>>(&new_motif)){
-          V_clean.col(k) = *ptr;
+          V_clean.row(k) = *ptr;
         } else {
           const auto & pair_motif_shift = std::get_if<std::pair<arma::field<arma::mat>,arma::sword>>(&new_motif);
-          V_clean.col(k) = pair_motif_shift->first;
+          V_clean.row(k) = pair_motif_shift->first;
           shift_s.insert(std::make_pair(k, pair_motif_shift->second));
         }
       }
@@ -325,7 +331,7 @@ public:
           KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(1,s));
           index_size = index.size();
           Rcpp::Rcout<<"CIAO:315"<<std::endl;
-          v_clean(0,k).shed_rows(indeces_dom);
+          v_clean(k,0).shed_rows(indeces_dom);
           Rcpp::Rcout<<"CIAO:317"<<std::endl;
           const arma::uword y_len = _Y(i,0).n_rows;
           Rcpp::Rcout<<"CIAO:319"<<std::endl;
@@ -346,7 +352,7 @@ public:
           y(0,0) = y0;
           if (_n_cols_Y){
             Rcpp::Rcout<<"CIAO:336"<<std::endl;
-            v_clean(1,k).shed_rows(indeces_dom);
+            v_clean(k,1).shed_rows(indeces_dom);
             Rcpp::Rcout<<"CIAO:338"<<std::endl;
             const arma::uword y_len = _Y(i,1).n_rows;
             y1.set_size(v_len,d);
@@ -364,7 +370,7 @@ public:
             Rcpp::Rcout<<"CIAO:352"<<std::endl;
             y(0,1) = y1;
           }
-        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.col(i)); 
+        D_clean(i,k) = _dissfac->computeDissimilarity(y,v_clean); 
         }
       }
 
@@ -398,12 +404,12 @@ public:
           if(isY0)
           {
             V0[k] = _V(k,0);
-            V0_clean = V_clean(0,k);
+            V0_clean = V_clean(k,0);
           }
           if(isY1)
           {
             V1[k] = _V(k,1);
-            V1_clean = V_clean(1,k);
+            V1_clean = V_clean(k,1);
           }
         }
         
