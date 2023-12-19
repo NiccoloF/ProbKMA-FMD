@@ -177,7 +177,7 @@ public:
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           
-          Rcpp::Rcout<<"elonghiamo iter="<<iter<<std::endl;
+          Rcpp::Rcout<<"Elongation iter="<<iter<<std::endl;
           _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
                                      _Y,D, _parameters,
                                      _perfac,_dissfac);
@@ -281,14 +281,12 @@ public:
                                 Rcpp::Named("S0")=_S0,
                                 Rcpp::Named("D")=D);
       */
-      Rcpp::Rcout<<"Inizio prepare output:252"<<std::endl;
+      Rcpp::Rcout<<"Inizio prepare output"<<std::endl;
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_Y,_n_rows_V,arma::fill::zeros);
       KMA::imatrix S_clean(_S0);
       KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
-      // Riccardo comment: la prof non fa nessun controllo in questa parte su quali delle due strutture viene restituita, perchè?
       // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
-
       for(arma::uword k=0; k < _n_rows_V; ++k){
         const auto& pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                               _P0.col(k), _Y,
@@ -322,9 +320,10 @@ public:
       }
       std::vector<arma::urowvec> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
       for(arma::uword k=0; k < _n_rows_V ; ++k){
-        V_dom_new[k] = util::findDomain<KMA::matrix>(_V(k,0));
+        V_dom_new[k] = util::findDomain<KMA::matrix>(V_clean(k,0));
       }
       // compute dissimilarities from cleaned motifs
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Riccardo comment: da rivedere con molta cura: COMPUTATIONAL COST + TEMPLATE VERSION per use0,use1 + dichiarare fuori?
       const arma::uword d = _Y(0,0).n_cols;
       arma::uword index_row;
@@ -333,16 +332,16 @@ public:
       KMA::matrix y1;
       KMA::Mfield y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto& s_k = _S0.col(k);
-        const auto& v_dom = V_dom[k];
+        const auto& s_k = S_clean.col(k); 
+        const auto& v_dom = V_dom_new[k]; 
         const int v_len = v_dom.size();
-        //KMA::Mfield v_clean = V_clean.col(k);
+        KMA::Mfield v_clean = V_clean.row(k);
         const KMA::uvector & indeces_dom = arma::find(v_dom==0);
+        v_clean(0,0).shed_rows(indeces_dom);
         for (arma::uword i=0; i < _n_rows_Y; ++i){
           const int s = s_k(i);
           KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
           index_size = index.size();
-          //v_clean(k,0).shed_rows(indeces_dom);
           const arma::uword y_len = _Y(i,0).n_rows;
           y0.set_size(v_len,d);
           y0.fill(arma::datum::nan);
@@ -355,7 +354,7 @@ public:
           y0.shed_rows(indeces_dom);
           y(0,0) = y0;
           if (_n_cols_Y>1){
-            //v_clean(k,1).shed_rows(indeces_dom);
+            v_clean(0,1).shed_rows(indeces_dom);
             const arma::uword y_len = _Y(i,1).n_rows;
             y1.set_size(v_len,d);
             y1.fill(arma::datum::nan);
@@ -368,10 +367,10 @@ public:
             y1.shed_rows(indeces_dom);
             y(0,1) = y1;
           }
-        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.row(k)); 
+        D_clean(i,k) = _dissfac->computeDissimilarity(y,v_clean); 
         }
       }
-
+  //////////////////////////////////////////////////////////////////////////////////////
       return toR(V_clean,P_clean,S_clean,D,D_clean,J_iter,BC_dist_iter,iter);
     }
 
@@ -402,12 +401,12 @@ public:
           if(isY0)
           {
             V0[k] = _V(k,0);
-            V0_clean = V_clean(k,0);
+            V0_clean[k] = V_clean(k,0);
           }
           if(isY1)
           {
             V1[k] = _V(k,1);
-            V1_clean = V_clean(k,1);
+            V1_clean[k] = V_clean(k,1);
           }
         }
         

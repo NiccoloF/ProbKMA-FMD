@@ -1,3 +1,4 @@
+#setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
 set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
@@ -17,12 +18,12 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=6
+iter_max=100
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
-iter4elong=2 #10
-tol4elong=100
+iter4elong=12 #10
+tol4elong=10
 max_elong=0.5
 trials_elong=10
 deltaJk_elong=0.05
