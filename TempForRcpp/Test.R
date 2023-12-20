@@ -1,5 +1,5 @@
 #setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
-set.seed(1)
+seed = 1
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
 alpha = 0.5 #                 0.0    0.5     0.0
@@ -18,11 +18,11 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=100
+iter_max=6
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
-iter4elong=12 #10
+iter4elong=2 #10
 tol4elong=10
 max_elong=0.5
 trials_elong=10
@@ -31,13 +31,10 @@ max_gap=max_gap
 iter4clean=2 #10
 tol4clean=1 #1e-4
 quantile4clean=1/K
-return_options=FALSE
+return_options=TRUE
 prob <- 0.5
-#return_init=TRUE
-
 
 load("../TempForRcpp/Y_data.Rdata")
-
 
 params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_max,
                quantile = quantile,stopCriterion = stop_criterion,tol = tol,
@@ -62,7 +59,7 @@ library(ProbKMAcpp)
 Y0 <- lapply(Y,Y0_f)
 Y1 <- lapply(Y,Y1_f)
 
-a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss)
+a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss,seed)
 params <- a$Parameters
 data <- a$FuncData
 

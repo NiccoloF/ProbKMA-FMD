@@ -24,7 +24,8 @@ struct Parameters
      *unsigned int iter4clean,
      *double tol4clean,
      *double quantile4clean,
-     *bool parallel
+     *long long _seed;
+     *bool return_options;
      */
     
     Parameters() = delete;
@@ -52,6 +53,7 @@ struct Parameters
     unsigned int _iter4clean;
     double _tol4clean;
     double _quantile4clean;
+    long long _seed;
     bool _return_options;
 };
 

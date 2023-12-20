@@ -1,4 +1,4 @@
-.initialChecks <- function(Y0,Y1,P0,S0,params,diss){
+.initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
   #     list of N matrices with d columns, for d-dimensional curves y_i(x),
@@ -403,6 +403,7 @@
                                   "deltaJK_elong"=deltaJk_elong,"max_gap"=max_gap,
                                   "iter4clean"=iter4clean,"tol4clean"=tol4clean,
                                   "quantile4clean"=quantile4clean,
+                                  "seed"=seed,
                                   "return_options"=return_options) ) )
 }
 
