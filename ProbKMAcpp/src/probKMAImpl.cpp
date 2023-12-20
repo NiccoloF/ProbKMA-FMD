@@ -65,17 +65,17 @@ public:
       // Funzione di supporto per il caso "H1"
       void handleCaseH1(const Rcpp::List& Y0, const Rcpp::List& Y1,
                         const Rcpp::List& V0, const Rcpp::List& V1) {
-        std::size_t Y_size = Y0.size();
-        std::size_t V_size = V0.size();
+        arma::uword Y_size = Y0.size();
+        arma::uword V_size = V0.size();
         _Y.set_size(Y_size, 2);
         _V.set_size(V_size,2);
         
-        for (int i = 0; i < Y_size; i++) {
+        for (arma::uword i = 0; i < Y_size; i++) {
           _Y(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
           _Y(i, 1) = Rcpp::as<KMA::matrix>(Y1[i]);
         }
         
-        for (int i = 0; i < V_size; i++) {
+        for (arma::uword i = 0; i < V_size; i++) {
           _V(i, 0) = Rcpp::as<KMA::matrix>(V0[i]);
           _V(i, 1) = Rcpp::as<KMA::matrix>(V1[i]);
         }
@@ -95,16 +95,16 @@ public:
       
       // Funzione di supporto per il caso "L2" quando Y[0] non è nullo
       void handleNonNullY(const Rcpp::List& Y, const Rcpp::List& V) {
-        std::size_t Y_size = Y.size();
-        std::size_t V_size = V.size();
+        arma::uword Y_size = Y.size();
+        arma::uword V_size = V.size();
         _Y.set_size(Y_size, 1);
         _V.set_size(V_size, 1);
         
-        for (int i = 0; i < Y_size; i++) {
+        for (arma::uword i = 0; i < Y_size; i++) {
           _Y(i, 0) = Rcpp::as<KMA::matrix>(Y[i]);
         }
         
-        for (int i = 0; i < V_size; i++) {
+        for (arma::uword i = 0; i < V_size; i++) {
           _V(i, 0) = Rcpp::as<KMA::matrix>(V[i]);
         }
       }
@@ -131,14 +131,19 @@ public:
       const double& tol4clean = _parameters._tol4clean;
       const double& m = _parameters._m;
       const double& alpha = _parameters._alpha;
+      const KMA::ivector c = _parameters._c;
       const std::size_t _n_rows_V = _V.n_rows;
       const std::size_t _n_rows_Y = _Y.n_rows;
       const std::size_t _n_cols_Y = _Y.n_cols;
+      const auto transform_function = [this](const KMA::matrix& v0) 
+      {return std::floor(v0.n_rows * (1 - this->_parameters._max_gap));};
+      int c_k_i_temp;
+      KMA::matrix P_old;
   
       KMA::matrix _D(_n_rows_Y,_n_rows_V);
       KMA::umatrix keep;
       std::vector<arma::urowvec> V_dom(_n_rows_V);
-      KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
+      //KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
       
       KMA::vector sd(2);
       KMA::ivector c_k(_n_rows_V);
@@ -149,7 +154,7 @@ public:
         Rcpp::Rcout<<"Iter = "<<iter<<std::endl;
         
         ///// clean motifs //////////////////////////
-        const KMA::matrix P_old = _P0;
+        P_old = _P0;
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
           keep = _D < arma::as_scalar(arma::quantile(arma::vectorise(_D),quantile4clean));
@@ -162,7 +167,7 @@ public:
           _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
         }
 
-        for(int i = 0;i < _n_rows_V;++i)
+        for(std::size_t i = 0;i < _n_rows_V;++i)
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
  
@@ -173,46 +178,42 @@ public:
           {
             const arma::sword& index = ptr_1->second;
             _S0.col(i) += index;
-            V_new.row(i) = ptr_1->first; 
+            _V.row(i) = ptr_1->first; 
           }
           else
           {
-            V_new.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
+            _V.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
           }
           
-          V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
+          V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
         
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           
-          Rcpp::Rcout<<"Compute Elongation... "<<std::endl;
-          _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
+          Rcpp::Rcout<<"Evaluate Elongation... "<<std::endl;
+          _motfac -> elongate_motifs(_V,V_dom,_S0,_P0,
                                      _Y,_D, _parameters,
                                      _perfac,_dissfac);
         }
         
-    ////// find shift warping minimizing dissimilarities /////////////
-        const auto transform_function = [this](const KMA::matrix& V_new0) 
-        {return std::floor(V_new0.n_rows * (1 - this->_parameters._max_gap));};
-        const KMA::Mfield& V_new0 = V_new.col(0);
-        for(int i = 0;i<_n_rows_V;++i)
-          c_k(i) = transform_function(V_new0(i,0));
-        
-        arma::uvec indexes = arma::find(c_k < _parameters._c);
-        if(indexes.size() != 0)
-          c_k.elem(indexes) = _parameters._c;
-    //////////////////////////////////////////////////////////////////////////////
+        ////// find shift warping minimizing dissimilarities /////////
+        for(std::size_t i = 0;i<_n_rows_V;++i) {
+          c_k_i_temp = transform_function(_V(i,0));
+          c_k(i) = std::max(c_k_i_temp,c(i));
+        }
 
         #ifdef _OPENMP
           #pragma omp parallel for collapse(2) firstprivate(sd)
         #endif
         for (unsigned int i = 0; i < _n_rows_V; ++i)
           for (unsigned int j = 0; j < _n_rows_Y; ++j){ 
-            sd = _dissfac->find_diss(_Y.row(j),V_new.row(i),w,alpha,c_k(i)); 
+            sd = _dissfac->find_diss(_Y.row(j),_V.row(i),w,alpha,c_k(i)); 
             _S0(j,i) = sd(0);
             _D(j,i) = sd(1);
           }
+
+        ////// compute memberships ////////////
         KMA::umatrix D0 = (_D == 0);
         const KMA::uvector& mult_assign = arma::find(arma::sum(D0,1) > 1);
         for (arma::uword i : mult_assign) {
@@ -240,13 +241,12 @@ public:
           _P0(index_min(_D.col(k)),k) = 1;
         }
         
-        // evaluate objective functions
-        // Riccardo: new part, just written 
+        ////// evaluate objective functions ///////////
         KMA::matrix temp_DP = _D % (arma::pow(_P0,_parameters._m));
         temp_DP.replace(arma::datum::nan,0);
         J_iter(iter-1) = arma::accu(temp_DP);
       
-        // compute Bhattacharyya distance between P_old and P_new
+        ////// compute Bhattacharyya distance between P_old and P_new /////////
         // @TODO: ask to professor why RowSums in her code and not ColSums
         const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % _P0),1));
         std::string_view criterion = _parameters._stopCriterion;
@@ -263,8 +263,6 @@ public:
         BC_dist_iter(iter-1) = BC_dist;
         Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
         
-        // update 
-        std::swap(_V,V_new);
       }
       
       if(iter == iter_max)
@@ -330,7 +328,7 @@ public:
           const int s = s_k(i);
           KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
           index_size = index.size();
-          const arma::uword y_len = _Y(i,0).n_rows;
+          const int y_len = _Y(i,0).n_rows;
           y0.set_size(v_len,d);
           y0.fill(arma::datum::nan);
           for(unsigned int j = 0; j < index_size; ++j) {
@@ -343,7 +341,7 @@ public:
           y(0,0) = y0;
           if (_n_cols_Y>1){
             v_clean(0,1).shed_rows(indeces_dom);
-            const arma::uword y_len = _Y(i,1).n_rows;
+            const int y_len = _Y(i,1).n_rows;
             y1.set_size(v_len,d);
             y1.fill(arma::datum::nan);
             for(unsigned int j = 0; j < index_size; ++j) {
