@@ -38,7 +38,6 @@ struct Parameters
     arma::ivec _c_max;
     unsigned int _iter_max;
     double _quantile;
-    double _prob;
     std::string _stopCriterion;
     double _m;
     arma::vec _w;

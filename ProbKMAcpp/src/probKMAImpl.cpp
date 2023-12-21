@@ -257,7 +257,7 @@ public:
         else if (criterion == "quantile")
         {
           BC_dist = arma::conv_to<arma::vec>::from
-          (arma::quantile(BC_dist_k,arma::vec(_parameters._prob)))(0);
+          (arma::quantile(BC_dist_k,arma::vec(_parameters._quantile)))(0);
         }
         
         BC_dist_iter(iter-1) = BC_dist;

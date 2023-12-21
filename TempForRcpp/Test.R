@@ -32,7 +32,6 @@ iter4clean=2 #10
 tol4clean=1 #1e-4
 quantile4clean=1/K
 return_options=TRUE
-prob <- 0.5
 
 load("../TempForRcpp/Y_data.Rdata")
 
@@ -43,7 +42,7 @@ params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_
                deltaJK_elong = deltaJk_elong,max_gap = max_gap,iter4clean = iter4clean,
                tol4clean = tol4clean,
                quantile4clean = quantile4clean,return_options = return_options,
-               m = m,w = w,alpha = alpha,prob = prob)
+               m = m,w = w,alpha = alpha)
 
 #library(ProbKMAcpp)
 Y0_f <- function(Y_i)
