@@ -10,6 +10,11 @@ double H1::computeDissimilarity(const KMA::Mfield& Y_i,
             _alpha * this -> distance(Y_i(0,1),V_i(0,1));
 }
 
+void H1::set_parameters(const Parameters & newParameters){
+    _w = newParameters._w;
+    _alpha = newParameters._alpha;
+}
+
 KMA::vector H1::find_diss(const KMA::Mfield Y,
                           const KMA::Mfield V,
                           const KMA::vector& w, 

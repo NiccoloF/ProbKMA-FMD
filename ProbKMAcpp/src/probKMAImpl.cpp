@@ -4,11 +4,6 @@
 #include <limits>
 #include <string_view>
 
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp20)]]
-
-// @TODO: dare consistenza a set parameters, perchè se cambio i parametri in probKma devo anche cambiarli in MotifH1 ecc
-
 class ProbKMA::_probKMAImp
 {
 public:
@@ -62,7 +57,7 @@ public:
       }
     }
       
-      // Funzione di supporto per il caso "H1"
+      // Support function for the case "H1"
       void handleCaseH1(const Rcpp::List& Y0, const Rcpp::List& Y1,
                         const Rcpp::List& V0, const Rcpp::List& V1) {
         arma::uword Y_size = Y0.size();
@@ -81,7 +76,7 @@ public:
         }
       }
       
-      // Funzione di supporto per il caso "L2"
+      // Support function for the case "L2"
       void handleCaseL2(const Rcpp::List& Y0, const Rcpp::List& Y1,
                         const Rcpp::List& V0, const Rcpp::List& V1) {
         if (!Rf_isNull(Y0[0])) {
@@ -139,8 +134,10 @@ public:
       {return std::floor(v0.n_rows * (1 - this->_parameters._max_gap));};
       int c_k_i_temp;
       KMA::matrix P_old;
-  
+      std::string_view criterion = _parameters._stopCriterion;
       KMA::matrix _D(_n_rows_Y,_n_rows_V);
+      KMA::umatrix D0(_n_rows_Y,_n_rows_V);
+      KMA::matrix temp_DP(_n_rows_Y,_n_rows_V);
       KMA::umatrix keep;
       std::vector<arma::urowvec> V_dom(_n_rows_V);
       //KMA::Mfield V_new(_n_rows_V,_Y.n_cols); 
@@ -202,6 +199,8 @@ public:
           c_k_i_temp = transform_function(_V(i,0));
           c_k(i) = std::max(c_k_i_temp,c(i));
         }
+        
+        Rcpp::Rcout << c_k(0) << c_k(1) << std::endl;
 
         #ifdef _OPENMP
           #pragma omp parallel for collapse(2) firstprivate(sd)
@@ -214,7 +213,7 @@ public:
           }
 
         ////// compute memberships ////////////
-        KMA::umatrix D0 = (_D == 0);
+        D0 = (_D == 0);
         const KMA::uvector& mult_assign = arma::find(arma::sum(D0,1) > 1);
         for (arma::uword i : mult_assign) {
           // @TODO: complete this warning message as the message of the prof
@@ -242,14 +241,12 @@ public:
         }
         
         ////// evaluate objective functions ///////////
-        KMA::matrix temp_DP = _D % (arma::pow(_P0,_parameters._m));
+        temp_DP = _D % (arma::pow(_P0,_parameters._m));
         temp_DP.replace(arma::datum::nan,0);
         J_iter(iter-1) = arma::accu(temp_DP);
       
         ////// compute Bhattacharyya distance between P_old and P_new /////////
-        // @TODO: ask to professor why RowSums in her code and not ColSums
         const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % _P0),1));
-        std::string_view criterion = _parameters._stopCriterion;
         if (criterion == "max")
           BC_dist = arma::max(BC_dist_k);
         else if (criterion == "mean")
@@ -272,7 +269,7 @@ public:
       KMA::matrix  P_clean(_n_rows_Y,_n_rows_V,arma::fill::zeros);
       KMA::imatrix S_clean(_S0);
       KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
-      // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
+     
       for(arma::uword k=0; k < _n_rows_V; ++k){
         const auto& pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                               _P0.col(k), _Y,
@@ -304,7 +301,7 @@ public:
       for(auto it = shift_s.begin();it != shift_s.cend(); ++it){
         S_clean.col(it->first) += it->second;
       }
-      std::vector<arma::urowvec> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
+      std::vector<arma::urowvec> V_dom_new(_n_rows_V); 
       for(arma::uword k=0; k < _n_rows_V ; ++k){
         V_dom_new[k] = util::findDomain<KMA::matrix>(V_clean(k,0));
       }
@@ -356,7 +353,7 @@ public:
         D_clean(i,k) = _dissfac->computeDissimilarity(y,v_clean); 
         }
       }
-  //////////////////////////////////////////////////////////////////////////////////////
+      //////////////////////////////////////////////////////////////////////////////////////
       Rcpp::Rcout<<"############## RETURN TO R ##############"<<std::endl;
       return toR(V_clean,P_clean,S_clean,_D,D_clean,J_iter,BC_dist_iter,iter);
     }
@@ -365,6 +362,8 @@ public:
     void set_parameters(const Rcpp::List& newParameters)
     {
       _parameters = newParameters;
+
+      _dissfac -> set_parameters(_parameters);
     }
     
     

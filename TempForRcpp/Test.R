@@ -1,4 +1,4 @@
-#setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
+setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
 seed = 1
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
@@ -63,6 +63,7 @@ params <- a$Parameters
 data <- a$FuncData
 
 prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
+
 b <- prok$probKMA_run()
 
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){

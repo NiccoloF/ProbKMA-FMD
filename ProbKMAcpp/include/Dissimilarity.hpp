@@ -1,6 +1,7 @@
 #ifndef DISSIMILARITY_HPP
 #define DISSIMILARITY_HPP
 #include "TypeTraits.hpp"
+#include "Parameters.hpp"
 #include "RcppArmadillo.h"
 #include <Rcpp.h>
 #include <Utilities.hpp>
@@ -21,6 +22,8 @@ public:
   // compute dissimilarity 
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const = 0; 
+
+  virtual void set_parameters(const Parameters & newParameters) = 0;
   
 // Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
   virtual KMA::vector find_diss(const KMA::Mfield Y,
@@ -66,6 +69,8 @@ public:
   
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;
+
+  void set_parameters(const Parameters & newParameters) override;
   
   virtual KMA::vector find_diss(const KMA::Mfield Y,
                                 const KMA::Mfield V,
@@ -83,6 +88,8 @@ public:
   
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;
+
+  void set_parameters(const Parameters & newParameters) override;
   
   virtual KMA::vector find_diss(const KMA::Mfield Y,
                                 const KMA::Mfield V,

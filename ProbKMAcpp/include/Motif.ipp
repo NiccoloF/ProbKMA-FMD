@@ -227,6 +227,7 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   // evaluate if elongate or not
  
   if(elongate) {
+    Rcpp::Rcout << "effettuo elongazione" << std::endl;
     V_new.row(index) =  v_elong_left_right.row(best_elong);
     V_dom[index] =  v_dom_elong_left_right[best_elong + 1];
     S_k.col(index) = s_k_elong_left_right[best_elong];
