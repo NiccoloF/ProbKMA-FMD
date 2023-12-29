@@ -1,4 +1,5 @@
-#setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
+setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
+devtools::load_all()
 set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
@@ -18,11 +19,11 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=100
+iter_max=6
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
-iter4elong=12 #10
+iter4elong=2 #10
 tol4elong=10
 max_elong=0.5
 trials_elong=10
@@ -31,10 +32,8 @@ max_gap=max_gap
 iter4clean=2 #10
 tol4clean=1 #1e-4
 quantile4clean=1/K
-return_options=FALSE
-prob <- 0.5
-#return_init=TRUE
-
+return_options=TRUE
+seed <- 1
 
 load("../TempForRcpp/Y_data.Rdata")
 
@@ -46,7 +45,7 @@ params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_
                deltaJK_elong = deltaJk_elong,max_gap = max_gap,iter4clean = iter4clean,
                tol4clean = tol4clean,
                quantile4clean = quantile4clean,return_options = return_options,
-               m = m,w = w,alpha = alpha,prob = prob)
+               m = m,w = w,alpha = alpha,seed = seed)
 
 #library(ProbKMAcpp)
 Y0_f <- function(Y_i)
@@ -68,6 +67,16 @@ data <- a$FuncData
 
 prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
 b <- prok$probKMA_run()
+
+############# test set_parameters #################
+alpha <- 0.7
+params$alpha <- alpha
+a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss)
+params <- a$Parameters
+prok$set_parameters(params)
+b <- prok$probKMA_run()
+###################################################
+
 
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
   if(is.null(cl)){

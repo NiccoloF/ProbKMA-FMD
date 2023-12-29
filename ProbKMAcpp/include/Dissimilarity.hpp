@@ -5,9 +5,7 @@
 #include <Rcpp.h>
 #include <Utilities.hpp>
 #include <ranges>
-
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp20)]]
+#include "Parameters.hpp"
 
 // Abstract class for dissimilarities
 class Dissimilarity
@@ -22,11 +20,13 @@ public:
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const = 0; 
   
-// Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
+  // Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
   virtual KMA::vector find_diss(const KMA::Mfield Y,
                                 const KMA::Mfield V,
                                 const KMA::vector& w, 
                                 double alpha, unsigned int c_k) const = 0;
+
+  virtual void set_parameters(const Parameters & newParameters) = 0;
   
 protected:
 
@@ -71,6 +71,8 @@ public:
                                 const KMA::Mfield V,
                                 const KMA::vector& w, 
                                 double alpha, unsigned int c_k) const override;
+
+   void set_parameters(const Parameters & newParameters) override;
   
 };
 
@@ -88,6 +90,8 @@ public:
                                 const KMA::Mfield V,
                                 const KMA::vector& w, 
                                 double alpha, unsigned int c_k) const override;
+  
+  void set_parameters(const Parameters & newParameters) override;
   
   double _alpha;
 
