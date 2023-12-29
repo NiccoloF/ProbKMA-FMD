@@ -1040,3 +1040,7 @@ z <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=params$c,c_
              trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
              max_gap=params$max_gap,params$iter4clean,params$tol4clean,
              params$quantile4clean,params$return_options,TRUE,NULL)
+
+save(z,file="output_prof.RData")
+
+load(file="output_prof.RData") # output with iter_max = 6, iter4elong = 2, seed = 1

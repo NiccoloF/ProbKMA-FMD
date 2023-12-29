@@ -128,7 +128,7 @@ public:
       KMA::ivector c = _parameters._c;
       const arma::uword _n_rows_V = _V.n_rows; 
       const arma::uword _n_rows_Y = _Y.n_rows;
-      const arma::uword _n_cols_Y = _Y.n_cols;
+      //const arma::uword _n_cols_Y = _Y.n_cols;
 
       // Initialization data structures ////////////////////////
       KMA::vector J_iter(iter_max,arma::fill::zeros);
@@ -300,53 +300,10 @@ public:
         V_dom_new[k] = util::findDomain<KMA::matrix>(V_clean(k,0));
       }
 
-      /// compute dissimilarities from cleaned motifs //////////////////////////////
-      // @TODO: compattare ed esportare
-      const arma::uword d = _Y(0,0).n_cols;
-      arma::uword index_row;
-      arma::uword index_size;
-      KMA::matrix y0;
-      KMA::matrix y1;
-      KMA::Mfield y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
-      for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto& s_k = S_clean.col(k);  // S_clean
-        const auto& v_dom = V_dom_new[k];  // V_dom_new
-        const int v_len = v_dom.size(); 
-        const KMA::uvector & indeces_dom = arma::find(v_dom==0);
-        for (arma::uword i=0; i < _n_rows_Y; ++i){
-          const int s = s_k(i);
-          KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
-          index_size = index.size();
-          const int y_len = _Y(i,0).n_rows; //_Y
-          y0.set_size(v_len,d);
-          y0.fill(arma::datum::nan);
-          for(unsigned int j = 0; j < index_size; ++j) {
-            if (index[j]  <= y_len){
-              index_row = std::max(0, 1-s) + j;
-              y0.row(index_row) =  _Y(i,0).row(index[j] - 1);
-            }
-          }
-          y0.shed_rows(indeces_dom);
-          y(0,0) = y0;
-          if (_n_cols_Y>1){
-            const int y_len = _Y(i,1).n_rows;
-            y1.set_size(v_len,d);
-            y1.fill(arma::datum::nan);
-            for(unsigned int j = 0; j < index_size; ++j) {
-              if (index[j] <= y_len){
-                index_row = std::max(0, 1-s) + j;
-                y1.row(index_row) =  _Y(i,1).row(index[j] - 1);
-              }
-            }
-            y1.shed_rows(indeces_dom);
-            y(0,1) = y1;
-          }
-
-        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.row(k)); //D_clean
-
-        }
-      }
-
+      /// compute dissimilarities from cleaned motifs, fill D_clean //////////////
+      _dissfac -> computeDissimilarityClean(D_clean,S_clean,V_dom_new,V_clean,_Y);
+      
+      /// return output //////////////////////////////////////////////////////
       return toR(V_clean,P_clean,S_clean,_D,D_clean,J_iter,BC_dist_iter,iter);
 
     }

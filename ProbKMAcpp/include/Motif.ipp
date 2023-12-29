@@ -34,7 +34,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
     auto filtered_j = std::views::iota(0,index_size) // filtering of the indexes
       | std::views::filter([&y_len,&index](int j){return (index[j] <= y_len);});
     y0.fill(arma::datum::nan);
-    for(int j : filtered_j) // se questi sono consecutivi c'� modo migliore di agire
+    for(int j : filtered_j) 
       y0.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),0).row(index(j) - 1);
     y0.shed_rows(arma::find(v_dom==0));
     Y_inters_supp.row(i) = util::findDomain(y0);

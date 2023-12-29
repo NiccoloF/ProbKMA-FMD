@@ -15,6 +15,15 @@ void H1::set_parameters(const Parameters & newParameters){
     _alpha = newParameters._alpha;
 }
 
+void H1::computeDissimilarityClean(KMA::matrix & D_clean,
+                                   const KMA::imatrix & S_clean,
+                                   const std::vector<arma::urowvec> & V_dom_new,
+                                   const KMA::Mfield & V_clean,
+                                   const KMA::Mfield & Y) const
+{
+  return computeDissimilarityClean_helper<true>(D_clean,S_clean,V_dom_new,V_clean,Y);
+}
+
 KMA::vector H1::find_diss(const KMA::Mfield Y,
                           const KMA::Mfield V,
                           const KMA::vector& w, 

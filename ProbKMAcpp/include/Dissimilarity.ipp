@@ -63,3 +63,43 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       
       return arma::vec({static_cast<double>(min_s), min_d}); 
   }
+  
+template<bool use1>
+void SobolDiss::computeDissimilarityClean_helper(KMA::matrix & D_clean,
+                                                 const KMA::imatrix & S_clean,
+                                                 const std::vector<arma::urowvec> & V_dom_new,
+				                 const KMA::Mfield & V_clean,										
+                                                 const KMA::Mfield & Y) const
+{ 
+ const arma::uword d = Y(0,0).n_cols;
+ KMA::Mfield y(1,Y.n_cols);
+ arma::uword _n_rows_V = V_dom_new.size();
+ arma::uword _n_rows_Y = Y.n_rows;
+ for(arma::uword k=0; k < _n_rows_V; ++k)
+ {
+  const auto& s_k = S_clean.col(k);  
+  const auto& v_dom = V_dom_new[k];  
+  const int v_len = v_dom.size(); 
+  const KMA::uvector & indeces_dom = arma::find(v_dom==0);
+  for (arma::uword i=0; i < _n_rows_Y; ++i)
+  {
+    const int s = s_k(i);
+    KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
+    const int y_len = Y(i,0).n_rows; 
+    y(0,0).set_size(v_len,d);
+    y(0,0).fill(arma::datum::nan);
+    arma::uvec filtered_j = arma::find(index <= y_len);
+    arma::uword start = index(*(filtered_j.cbegin())) - 1;
+    arma::uword end = index(*(filtered_j.cend() - 1)) - 1;
+    y(0,0).rows(std::max(0, 1-s),std::max(0, 1-s) +  filtered_j.n_elem - 1) =  Y(i,0).rows(start,end);
+    y(0,0).shed_rows(indeces_dom);
+    if constexpr(use1) {
+      y(0,1).set_size(v_len,d);
+      y(0,1).fill(arma::datum::nan);
+      y(0,1).rows(std::max(0, 1-s),std::max(0, 1-s) +  filtered_j.n_elem - 1) =  Y(i,1).rows(start,end);
+      y(0,1).shed_rows(indeces_dom);
+    }
+   D_clean(i,k) = computeDissimilarity(y,V_clean.row(k)); 
+  }
+ }
+}
