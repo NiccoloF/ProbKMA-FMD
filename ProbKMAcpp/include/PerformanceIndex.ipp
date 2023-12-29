@@ -6,35 +6,36 @@ template<bool use1>
 double PerformanceSobol::compute_Jk_helper(const KMA::Mfield& V,const KMA::ivector& s_k,
                                            const KMA::vector& p_k,const KMA::Mfield& Y,
                                            const KMA::vector& w,int m,double c_k, 
-                                           KMA::vector keep_k,
+                                           const KMA::uvector & keep_k,
                                            const std::shared_ptr<Dissimilarity>& diss) const
 {
   // domain of the centroid
   const arma::urowvec& v_dom = util::findDomain(V(0,0));
   
   // select the part of the domain of the centroid
-  KMA::Mfield v_new = util::selectDomain<use1>(v_dom,V); // qui perchè use1?
+  KMA::Mfield v_new = util::selectDomain<use1>(v_dom,V); 
   
   const unsigned int Y_size = Y.n_rows;
   
   arma::field<arma::mat> Y_inters_k(Y_size,1 + use1);
-  
+
   shiftCurveHandle<use1>(Y_inters_k,Y,s_k,v_dom);
   
-  if(std::isfinite(c_k) && arma::is_finite(keep_k))
+  if(std::isfinite(c_k) && (keep_k.size() > 0))
   { 
-    arma::uvec keep_k_= arma::conv_to<arma::uvec>::from(keep_k);
-    arma::ivec supp_inters_length(arma::accu(keep_k_));
+    arma::ivec supp_inters_length(arma::accu(keep_k));
+    unsigned int c_k_ = static_cast<unsigned int>(c_k);
 
     unsigned int k = 0;
     for (arma::uword i = 0; i < Y_size; ++i){
-      if (keep_k_(i)){
+      if (keep_k(i)){
         supp_inters_length(k++)= arma::accu(util::findDomain(Y_inters_k(i,0)));
       }
     }
-
-    arma::uvec check_lengths = supp_inters_length < static_cast<int>(c_k);
-    if (arma::accu(check_lengths) > 0){
+    
+    arma::uvec check_lengths = supp_inters_length < c_k_;
+    
+    if (arma::accu(check_lengths) > 0){ 
       return NA_REAL;
     }
   }

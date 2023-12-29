@@ -19,14 +19,14 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=6
+iter_max=8
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
 iter4elong=2 #10
 tol4elong=10
 max_elong=0.5
-trials_elong=10
+trials_elong=2
 deltaJk_elong=0.05
 max_gap=max_gap
 iter4clean=2 #10
@@ -865,8 +865,9 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         c_k_after[c_k_after<c]=c
         Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
                                MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
+        print(Jk_before)
+        print(Jk_after)
         best_elong=which.min((Jk_after-Jk_before)/Jk_before)
-        #print((Jk_after-Jk_before)/Jk_before)
         if(length(best_elong)>0){
           elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
         }else{
@@ -942,7 +943,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     if(stop_criterion=='quantile')
       BC_dist=quantile(BC_dist_k,prob,type=1)
     BC_dist_iter[iter]=BC_dist    
-    
+    print(BC_dist)
     ##### update ##########################################################################################
     V=V_new
     P=P_new

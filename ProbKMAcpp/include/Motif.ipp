@@ -157,53 +157,54 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
       not_start_with_NA(i) = 1;
     }
   }
-
+   
   // filter centroid and shifts that are not in NA positions
   auto not_NA_index = std::views::iota(0,v_elong_left_right_size) 
     | std::views::filter([&not_start_with_NA](int index_j){return(not_start_with_NA(index_j));});
   
   KMA::Mfield filtered_v_elong(arma::accu(not_start_with_NA),Y.n_cols);
+  std::vector<arma::ivec> filtered_s_k(arma::accu(not_start_with_NA));
   
   int i = 0;
   for(const auto & index : not_NA_index){
-    filtered_v_elong.row(i++) = v_elong_left_right.row(index);
+    filtered_v_elong.row(i) = v_elong_left_right.row(index);
+    filtered_s_k[i] = s_k_elong_left_right[index];
+    i = i + 1;
   }
 
-  auto filtered_s_k = not_NA_index 
-  | std::views::transform([&s_k_elong_left_right](int j){return s_k_elong_left_right[j];});
-  
   v_elong_left_right = filtered_v_elong;
-  
-  s_k_elong_left_right = std::vector<arma::ivec>(filtered_s_k.begin(),filtered_s_k.end());
+  s_k_elong_left_right = filtered_s_k;
+
   const unsigned int s_k_elong_left_right_size = s_k_elong_left_right.size();
 
   // compute performance index before elongation
   double Jk_before = perf->compute_Jk(v_new_k,s_k,p_k,Y,param._w,param._m,
-                                      arma::datum::nan, KMA::vector(arma::datum::nan), 
+                                      arma::datum::nan, KMA::uvector({}), 
                                       diss);
 
   // compute performance indexes for all possible elongations
-  arma::vec c_k_after(s_k_elong_left_right_size);
   arma::vec Jk_after(s_k_elong_left_right_size);
+  double c_i;
 
   for (arma::uword i = 0; i < s_k_elong_left_right_size; i++) {
-   
-    int c_i =  std::max(floor(util::findDomain(v_elong_left_right(i,0)).n_elem*(1 - param._max_gap)),c); 
     
-    c_k_after[i] = c_i;
+    c_i = std::max<double>(floor(util::findDomain(v_elong_left_right(i,0)).n_elem*(1 - param._max_gap)),c); 
+    
     Jk_after[i] = perf->compute_Jk(v_elong_left_right.row(i),s_k_elong_left_right[i],
-                                   p_k,Y,param._w,param._m,static_cast<double>(c_i),
-                                   arma::conv_to<KMA::vector>::from(keep_k),diss);
+                                   p_k,Y,param._w,param._m,c_i,
+                                   keep_k,diss);
   }
-  
+
+  Rcpp::Rcout << Jk_before << std::endl;
+  Rcpp::Rcout << Jk_after.t() << std::endl;
+ 
   // find the best elongation in terms of perf. index
   arma::vec diff_perc = (Jk_after-Jk_before)/Jk_before;
   arma::uword best_elong = arma::index_min(diff_perc);
 
   // check that the min really exists
   bool elongate = false;
-  if (best_elong < diff_perc.size() and 
-      arma::conv_to<arma::Col<double>>::from(arma::find_nan(diff_perc)).size() != diff_perc.size())
+  if (best_elong < diff_perc.size() and arma::conv_to<arma::Col<double>>::from(arma::find_nan(diff_perc)).size() != diff_perc.size())
     elongate = diff_perc(best_elong) < param._deltaJK_elong;
   
   // evaluate if elongate or not
@@ -267,14 +268,14 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         		S_k.col(with_gaps(i)),
                                         		P_k.col(with_gaps(i)),
                                         		Y,param._w,param._m,
-                                        		arma::datum::nan,arma::vec(arma::datum::nan),
+                                        		arma::datum::nan,arma::uvec({}),
                                         		diss);
         
         		Jk_after(i) = perf->compute_Jk(V_filled.row(i), 
                                        		       S_k.col(with_gaps(i)),
                                                        P_k.col(with_gaps(i)),
                                                        Y,param._w,param._m,
-                                                       arma::datum::nan,arma::vec(arma::datum::nan),
+                                                       arma::datum::nan,arma::uvec({}),
                                                        diss);
       		}
       
