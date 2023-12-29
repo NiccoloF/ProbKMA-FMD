@@ -128,7 +128,6 @@ public:
       KMA::ivector c = _parameters._c;
       const arma::uword _n_rows_V = _V.n_rows; 
       const arma::uword _n_rows_Y = _Y.n_rows;
-      //const arma::uword _n_cols_Y = _Y.n_cols;
 
       // Initialization data structures ////////////////////////
       KMA::vector J_iter(iter_max,arma::fill::zeros);
