@@ -125,7 +125,7 @@ public:
       const double alpha = _parameters._alpha;
       const unsigned int iter4clean = _parameters._iter4clean;
       const double tol4clean = _parameters._tol4clean;
-      KMA::umatrix keep;
+      KMA::ivector c = _parameters._c;
       const arma::uword _n_rows_V = _V.n_rows; 
       const arma::uword _n_rows_Y = _Y.n_rows;
       const arma::uword _n_cols_Y = _Y.n_cols;
@@ -137,15 +137,11 @@ public:
       KMA::vector sd(2);
       KMA::matrix _D(_n_rows_Y,_n_rows_V);
       std::vector<arma::urowvec> V_dom(_n_rows_V);
-      KMA::Mfield V_new(_n_rows_V,_n_cols_Y); 
       KMA::ivector c_k(_n_rows_V);
-      KMA::matrix P_old(_n_rows_Y,_n_rows_V); // @ TODO: cercare di togliere more copies as possible
-      KMA::imatrix S_new(_n_rows_Y,_n_rows_V);
-      KMA::matrix  D_new(_n_rows_Y,_n_rows_V);
-      KMA::matrix P_new(_n_rows_Y,_n_rows_V,arma::fill::zeros);
-      KMA::ivector c = _parameters._c;
+      KMA::matrix P_old(_n_rows_Y,_n_rows_V); 
       KMA::umatrix D0(_n_rows_Y,_n_rows_V);
       KMA::matrix temp_DP(_n_rows_Y,_n_rows_V);
+      KMA::umatrix keep;
 
       /// Iterate ////////////////////////////////////
       while(iter < iter_max and BC_dist > _parameters._tol)
@@ -158,45 +154,39 @@ public:
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
           keep = _D < arma::as_scalar(arma::quantile(arma::vectorise(_D),quantile4clean));
-
           const KMA::uvector & empty_k = arma::find(arma::sum(keep,0)==0);
-          
           for(arma::uword k : empty_k)
             keep(arma::index_min(_D.col(k)),k) = 1;
-            
           _P0.zeros();
           _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
         }
 
+        ///// compute motifs ///////////////////////
         for(arma::uword i = 0;i < _n_rows_V;++i)
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
-      
-          const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,_S0.col(i),
-                                                            _P0.col(i),_Y,
-                                                            _parameters._m);
-          
+          const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,
+                                                             _S0.col(i),
+                                                             _P0.col(i),_Y,
+                                                             _parameters._m);
           if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
           {
             const arma::sword& index = ptr_1->second;
             _S0.col(i) += index;
-            V_new.row(i) = ptr_1->first; 
+            _V.row(i) = ptr_1->first; 
           }
           else
           {
-            V_new.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
+            _V.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
           }
-
-          V_dom[i] = util::findDomain<KMA::matrix>(V_new(i,0));
-        
+          V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
         
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           
           Rcpp::Rcout<<"Trying to elongate at iter:"<<iter<<std::endl;
-          
-          _motfac -> elongate_motifs(V_new,V_dom,_S0,_P0,
+          _motfac -> elongate_motifs(_V,V_dom,_S0,_P0,
                                      _Y,_D, _parameters,
                                      _perfac,_dissfac);
         }
@@ -204,7 +194,7 @@ public:
         ////// find shift warping minimizing dissimilarities /////////////
         for(arma::uword i = 0;i<_n_rows_V;++i)
         {
-          c_k(i) = transform_function(V_new(i,0));
+          c_k(i) = transform_function(_V(i,0));
           c_k(i) = std::max(c_k(i), c(i));
         }
           
@@ -213,14 +203,14 @@ public:
         #endif
         for (arma::uword i = 0; i < _n_rows_V; ++i)
           for (arma::uword j = 0; j < _n_rows_Y; ++j){ 
-            sd = _dissfac->find_diss(_Y.row(j),V_new.row(i),w,alpha,c_k(i)); 
-            S_new(j,i) = sd(0);
-            D_new(j,i) = sd(1);
+            sd = _dissfac->find_diss(_Y.row(j),_V.row(i),w,alpha,c_k(i)); 
+            _S0(j,i) = sd(0);
+            _D(j,i) = sd(1);
           }
           
 
         /// compute memberships /////////////////////
-        D0 = (D_new == 0);
+        D0 = (_D == 0);
         const KMA::uvector& mult_assign = arma::find(arma::sum(D0,1) > 1);
         for (arma::uword i : mult_assign) {
           Rcpp::warning("Curve has dissimilarity 0 from two different motifs. Using only one of them..."); 
@@ -232,25 +222,25 @@ public:
         const KMA::uvector & D0_index = arma::find(arma::sum(D0,1) == 1);
         for(arma::uword i : D0_index) {
           const KMA::uvector & col = arma::find(D0.row(i)==1);
-          P_new(i,col(0)) = 1;
+          _P0(i,col(0)) = 1;
         }
 
         const KMA::uvector & not_D0_index = arma::find(arma::sum(D0,1) !=1);
-        const KMA::matrix & Dm = arma::pow(D_new.rows(not_D0_index),1/(_parameters._m-1));
-        P_new.rows(not_D0_index) = 1 / (Dm % arma::repmat(arma::sum(1/Dm,1),1,Dm.n_cols));
-        const KMA::uvector & deg_indexes = arma::find(arma::sum(P_new,0)==0);
+        const KMA::matrix & Dm = arma::pow(_D.rows(not_D0_index),1/(_parameters._m-1));
+        _P0.rows(not_D0_index) = 1 / (Dm % arma::repmat(arma::sum(1/Dm,1),1,Dm.n_cols));
+        const KMA::uvector & deg_indexes = arma::find(arma::sum(_P0,0)==0);
         for (arma::uword k : deg_indexes) {
           Rcpp::warning("Motif is degenerate (zero membership). Selecting a new center..."); 
-          P_new(index_min(D_new.col(k)),k) = 1;
+          _P0(index_min(_D.col(k)),k) = 1;
         }
         
         /// evaluate objective functions ////////////////
-        temp_DP = D_new % (arma::pow(P_new,_parameters._m));
+        temp_DP = _D % (arma::pow(_P0,_parameters._m));
         temp_DP.replace(arma::datum::nan,0);
         J_iter(iter-1) = arma::accu(temp_DP);
       
         /// compute Bhattacharyya distance between P_old and P_new ///////////////
-        const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P_new),1));
+        const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % _P0),1));
         if (criterion == "max")
           BC_dist = arma::max(BC_dist_k);
         else if (criterion == "mean")
@@ -264,12 +254,6 @@ public:
         BC_dist_iter(iter-1) = BC_dist;
         Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
         
-
-        // update ///////////////////////////////////
-        _V = V_new;
-        _P0 = P_new; 
-        _S0 = S_new;
-        _D = D_new; 
       }
       
       if(iter == iter_max)
@@ -279,7 +263,7 @@ public:
       KMA::matrix  P_clean(_n_rows_Y,_n_rows_V,arma::fill::zeros);
       KMA::imatrix S_clean(_S0);
       KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
-      // non viene fatto controllo se pair_motif contiene effettivamente solo il campo arma::field<arma::mat>
+     
       for(arma::uword k=0; k < _n_rows_V; ++k){
         const auto& pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
                                                               _P0.col(k), _Y,
@@ -311,7 +295,7 @@ public:
       for(auto it = shift_s.begin();it != shift_s.cend(); ++it){
         S_clean.col(it->first) += it->second;
       }
-      std::vector<arma::urowvec> V_dom_new(_n_rows_V); // questi vector di urowvec -> field<urowvec> per consistenza?
+      std::vector<arma::urowvec> V_dom_new(_n_rows_V);
       for(arma::uword k=0; k < _n_rows_V ; ++k){
         V_dom_new[k] = util::findDomain<KMA::matrix>(V_clean(k,0));
       }
@@ -325,17 +309,15 @@ public:
       KMA::matrix y1;
       KMA::Mfield y(1,_Y.n_cols); // in this way should be 1 or 2 according to use0, use1
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto& s_k = S_clean.col(k); 
-        const auto& v_dom = V_dom_new[k]; 
-        const int v_len = v_dom.size();
-        //KMA::Mfield v_clean = V_clean.row(k);
+        const auto& s_k = S_clean.col(k);  // S_clean
+        const auto& v_dom = V_dom_new[k];  // V_dom_new
+        const int v_len = v_dom.size(); 
         const KMA::uvector & indeces_dom = arma::find(v_dom==0);
-        //v_clean(0,0).shed_rows(indeces_dom);
         for (arma::uword i=0; i < _n_rows_Y; ++i){
           const int s = s_k(i);
           KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
           index_size = index.size();
-          const int y_len = _Y(i,0).n_rows;
+          const int y_len = _Y(i,0).n_rows; //_Y
           y0.set_size(v_len,d);
           y0.fill(arma::datum::nan);
           for(unsigned int j = 0; j < index_size; ++j) {
@@ -347,7 +329,6 @@ public:
           y0.shed_rows(indeces_dom);
           y(0,0) = y0;
           if (_n_cols_Y>1){
-            //v_clean(0,1).shed_rows(indeces_dom);
             const int y_len = _Y(i,1).n_rows;
             y1.set_size(v_len,d);
             y1.fill(arma::datum::nan);
@@ -361,7 +342,7 @@ public:
             y(0,1) = y1;
           }
 
-        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.row(k)); 
+        D_clean(i,k) = _dissfac->computeDissimilarity(y,V_clean.row(k)); //D_clean
 
         }
       }

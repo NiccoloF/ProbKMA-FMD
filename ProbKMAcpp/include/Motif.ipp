@@ -30,41 +30,23 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
     const int y_len = Y(p_k_pos(i),0).n_rows;//length of the curve
     KMA::ivector index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
-    const int index_size = index.size();
-    /*
-    auto index_filtered = index | std::views::filter([&y_len](unsigned int i){i <= y_len};);
-    */                
+    const int index_size = index.size();                
     auto filtered_j = std::views::iota(0,index_size) // filtering of the indexes
       | std::views::filter([&y_len,&index](int j){return (index[j] <= y_len);});
-    
-    /* 
-    Y_inters_k(i,0).set_size(std::max(0,1 - s_k(p_k_pos(i)))+
-                             std::ranges::size(index_filtered),d);
-    Y_inters_k(i,0).fill(arma::datum::nan);
-    
-    Y_inters_k.rows(std::max(0,1 - s_k(p_k_pos(i))),std::max(0,1 - s_k(p_k_pos(i))) 
-                    + std::ranges::size(index_filtered)) = Y(i,0).ro
-    */
     y0.fill(arma::datum::nan);
     for(int j : filtered_j) // se questi sono consecutivi c'� modo migliore di agire
       y0.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),0).row(index(j) - 1);
-
     y0.shed_rows(arma::find(v_dom==0));
     Y_inters_supp.row(i) = util::findDomain(y0);
     y0.replace(arma::datum::nan,0);
     Y_inters_k(i,0) = y0;
-    
     if constexpr(use1) {
       KMA::matrix y1(v_len,d); 
-      
       y1.fill(arma::datum::nan);
-      
-      for(int j : filtered_j) // se questi sono consecutivi c'è modo migliore di agire
+      for(int j : filtered_j) 
         y1.row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),1).row(index(j) - 1); 
       y1.shed_rows(arma::find(v_dom==0));
-      
       y1.replace(arma::datum::nan,0);
-      
       Y_inters_k(i,1) = y1;
     }
   }
@@ -225,9 +207,8 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
     elongate = diff_perc(best_elong) < param._deltaJK_elong;
   
   // evaluate if elongate or not
- 
   if(elongate) {
-    Rcpp::Rcout<<"stoElongando"<<std::endl;
+    Rcpp::Rcout<<"Execute elongation motif: "<< index << std::endl;
     V_new.row(index) =  v_elong_left_right.row(best_elong);
     V_dom[index] =  v_dom_elong_left_right[best_elong + 1];
     S_k.col(index) = s_k_elong_left_right[best_elong];
@@ -247,7 +228,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
 {	
 	std::size_t V_dom_size = V_dom.size();
     
-	arma::ivec len_dom(V_dom_size);
+	arma::uvec len_dom(V_dom_size);
 	arma::uvec bool_gaps(V_dom_size);
   	for(unsigned int i = 0; i < V_dom_size; ++i){
     		len_dom(i) = V_dom[i].size();
@@ -309,8 +290,8 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     
     std::vector<arma::ivec> len_elong(V_dom_size);
     for (unsigned int i = 0; i < V_dom_size; ++i){
-      const int len_max_elong_i = std::min<int>(std::floor(len_dom[i]*param._max_elong),
-                                                param._c_max[i] - len_dom[i]);
+      const unsigned int len_max_elong_i = std::min<unsigned int>(std::floor(len_dom[i]*param._max_elong),
+                                                                  param._c_max[i] - len_dom[i]);
       if (len_max_elong_i == 0){
         len_elong[i] = KMA::ivector{};
       } 
