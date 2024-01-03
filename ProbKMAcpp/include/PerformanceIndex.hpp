@@ -20,7 +20,7 @@ public:
                             const KMA::vector& w,
                             int m,
                             double c_k, // actually is an int
-                            KMA::vector keep_k, // actually is an KMA::uvector
+                            const KMA::uvector & keep_k, // actually is an KMA::uvector
                             const std::shared_ptr<Dissimilarity>& diss) const = 0; 
 
   protected:
@@ -79,7 +79,7 @@ protected:
   double compute_Jk_helper(const KMA::Mfield& v,const KMA::ivector& s_k,
                            const KMA::vector& p_k,const KMA::Mfield& Y,
                            const KMA::vector& w,int m,double c_k, 
-                           KMA::vector keep_k,
+                           const KMA::uvector& keep_k,
                            const std::shared_ptr<Dissimilarity>& diss) const;
 };
 
@@ -90,7 +90,7 @@ class PerformanceL2 final: public PerformanceSobol
   double compute_Jk(const KMA::Mfield& v,const KMA::ivector& s_k,
                     const KMA::vector& p_k,const KMA::Mfield& Y,
                     const KMA::vector& w,int m,double c_k, 
-                    KMA::vector keep_k,
+                    const KMA::uvector& keep_k,
                     const std::shared_ptr<Dissimilarity>& diss) const override;
 };
 
@@ -101,7 +101,7 @@ class PerformanceH1 final: public PerformanceSobol
   double compute_Jk(const KMA::Mfield& v,const KMA::ivector& s_k,
                     const KMA::vector& p_k,const KMA::Mfield& Y,
                     const KMA::vector& w,int m,double c_k,
-                    KMA::vector keep_k,
+                    const KMA::uvector& keep_k,
                     const std::shared_ptr<Dissimilarity>& diss) const override;
   
 };

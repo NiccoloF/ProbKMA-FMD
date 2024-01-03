@@ -45,7 +45,6 @@
   c_max = params$c_max
   iter_max = params$iter_max
   quantile = params$quantile
-  prob = params$prob
   alpha = params$alpha
   w = params$w
   stop_criterion = params$stopCriterion
@@ -61,6 +60,7 @@
   tol4clean = params$tol4clean
   quantile4clean = params$quantile4clean
   return_options = params$return_options
+  seed = params$seed
   
   
   ### check input ####################################################################################
@@ -395,7 +395,7 @@
   
   return(list("FuncData" = list("Y"=Y,"V"=V,"P0"=P0,"S0"=S0),
               "Parameters" = list("standardize"=standardize,"K"=K,"c"=c,"c_max"=c_max,
-                                  "iter_max"=iter_max,"quantile"=quantile,"prob"=prob,
+                                  "iter_max"=iter_max,"quantile"=quantile,
                                   "stopCriterion"=stop_criterion,"m"=m,"w"=w,
                                   "alpha"=alpha,"tol"=tol,
                                   "iter4elong"=iter4elong,"tol4elong"=tol4elong,

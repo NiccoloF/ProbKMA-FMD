@@ -24,6 +24,7 @@
     _quantile4clean = params["quantile4clean"];
     _seed = params["seed"];
     _return_options = params["return_options"];
+    _seed = params["seed"];
   }
 
 

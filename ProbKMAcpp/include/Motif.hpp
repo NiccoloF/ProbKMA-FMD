@@ -38,7 +38,8 @@ class MotifPure
                          const KMA::Mfield& Y,const KMA::matrix& D,
                          const Parameters& param,
                          const std::shared_ptr<PerformanceIndexAB>& perf,
-                         const std::shared_ptr<Dissimilarity>& diss) const = 0;
+                         const std::shared_ptr<Dissimilarity>& diss,
+                         unsigned int iter) const = 0;
     
                           
     virtual ~MotifPure() = default;
@@ -76,7 +77,8 @@ protected:
                               const KMA::Mfield& Y,const KMA::matrix& D,
                               const Parameters& param,
                               const std::shared_ptr<PerformanceIndexAB>& perf,
-                              const std::shared_ptr<Dissimilarity>& diss) const;
+                              const std::shared_ptr<Dissimilarity>& diss,
+                              unsigned int iter) const;
   
   template<bool use1>
   void elongation(KMA::Mfield& V_new, 
@@ -90,7 +92,8 @@ protected:
                   const unsigned int index,
                   const Parameters& param,
                   const std::shared_ptr<PerformanceIndexAB>& performance,
-                  const std::shared_ptr<Dissimilarity>& diss) const;
+                  const std::shared_ptr<Dissimilarity>& diss,
+                  unsigned int iter) const;
   
 };
 
@@ -115,7 +118,8 @@ public:
                        const KMA::Mfield& Y,const KMA::matrix& D,
                        const Parameters& param,
                        const std::shared_ptr<PerformanceIndexAB>& perf,
-                       const std::shared_ptr<Dissimilarity>& diss) const override;
+                       const std::shared_ptr<Dissimilarity>& diss,
+                       unsigned int iter) const override;
   
   virtual ~MotifL2() = default;
   
@@ -143,7 +147,8 @@ public:
                        const KMA::Mfield& Y,const KMA::matrix& D,
                        const Parameters& param,
                        const std::shared_ptr<PerformanceIndexAB>& perf,
-                       const std::shared_ptr<Dissimilarity>& diss) const override;
+                       const std::shared_ptr<Dissimilarity>& diss,
+                       unsigned int iter) const override;
   
 };
 

@@ -1,13 +1,13 @@
 setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
-seed = 1
+set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
 alpha = 0.5 #                 0.0    0.5     0.0
-max_gap = 0 
+max_gap = 0
 trials_elong = 200
 c_max = 53
 K = 2
-c = 40 
+c = 40
 standardize=FALSE
 c=c
 c_max=c_max
@@ -18,20 +18,21 @@ diss=diss
 alpha=alpha
 w=c(0.5,0.5)
 m=2
-iter_max=6
+iter_max=16
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
 iter4elong=2 #10
 tol4elong=10
 max_elong=0.5
-trials_elong=10
+trials_elong=2
 deltaJk_elong=0.05
 max_gap=max_gap
 iter4clean=2 #10
 tol4clean=1 #1e-4
 quantile4clean=1/K
 return_options=TRUE
+seed <- 1
 
 load("../TempForRcpp/Y_data.Rdata")
 
@@ -42,7 +43,7 @@ params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_
                deltaJK_elong = deltaJk_elong,max_gap = max_gap,iter4clean = iter4clean,
                tol4clean = tol4clean,
                quantile4clean = quantile4clean,return_options = return_options,
-               m = m,w = w,alpha = alpha)
+               m = m,w = w,alpha = alpha,seed = seed)
 
 #library(ProbKMAcpp)
 Y0_f <- function(Y_i)
@@ -66,6 +67,15 @@ prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
 
 b <- prok$probKMA_run()
 
+############# test set_parameters #################
+alpha <- 0.7
+params$alpha <- alpha
+a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss)
+params <- a$Parameters
+prok$set_parameters(params)
+b <- prok$probKMA_run()
+###################################################
+
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
   if(is.null(cl)){
     mapply(FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
@@ -73,6 +83,7 @@ b <- prok$probKMA_run()
     clusterMap(cl,FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
   }
 }
+
 .diss_d0_d1_L2 <- function(y,v,w,alpha){
   # Dissimilarity index for multidimensional curves (dimension=d).
   # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
@@ -80,16 +91,16 @@ b <- prok$probKMA_run()
   # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-  
+
   .diss_L2 <- function(y,v,w){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # L2 distance with normalization on common support.
     # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
-    
+
     sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
   }
-  
+
   if(alpha==0){
     return(.diss_L2(y[[1]],v[[1]],w))
   }else if(alpha==1){
@@ -121,7 +132,7 @@ b <- prok$probKMA_run()
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-  
+
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -145,7 +156,7 @@ b <- prok$probKMA_run()
                  y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
                  return(y_rep_i)
                })
-  
+
   length_inter=unlist(lapply(y_rep,
                              function(y_rep_i){
                                if(use0)
@@ -172,7 +183,7 @@ b <- prok$probKMA_run()
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # aligned: if TRUE, curves are already aligned. If FALSE, the shortest curve is aligned inside the longest.
-  
+
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -210,7 +221,7 @@ b <- prok$probKMA_run()
   # s_k: shift vector for motif k.
   # p_k: membership vector for motif k.
   # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x), matrices with d columns, for d-dimensional curves.
-  
+
   .domain <- function(v,use0){
     if(use0){
       rowSums(!is.na(v[[1]]))!=0
@@ -238,7 +249,7 @@ b <- prok$probKMA_run()
     v_new[v_dom,]=Reduce('+',mapply('*',Y_inters_k,coeff_k,SIMPLIFY=FALSE))/coeff_x
     return(v_new)
   }
-  
+
   if(sum(p_k)==0){
     stop('Motif with no members! Degenerate cluster!')
   }
@@ -296,7 +307,7 @@ b <- prok$probKMA_run()
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
   # keep_k: check c_k only when keep=TRUE for y_shifted.
-  
+
   .diss_d0_d1_L2 <- function(y,v,w,alpha){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
@@ -304,16 +315,16 @@ b <- prok$probKMA_run()
     # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-    
+
     .diss_L2 <- function(y,v,w){
       # Dissimilarity index for multidimensional curves (dimension=d).
       # L2 distance with normalization on common support.
       # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
       # w: weights for the dissimilarity index in the different dimensions (w>0).
-      
+
       sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
     }
-    
+
     if(alpha==0){
       return(.diss_L2(y[[1]],v[[1]],w))
     }else if(alpha==1){
@@ -336,7 +347,7 @@ b <- prok$probKMA_run()
       v[[2]]=as.matrix(v[[2]][v_dom,])
     return(v)
   }
-  
+
   v_dom=.domain(v,use0)
   v_len=length(v_dom)
   v=.select_domain(v,v_dom,use0,use1)
@@ -386,12 +397,12 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   # c_max: maximum motif lengths. Can be an integer (or a vector of K integers).
   # P0: initial membership matrix, with N row and K column (if NULL, a random P0 is choosen).
   # S0: initial shift warping matrix, with N row and K column (if NULL, a random S0 is choosen).
-  # diss: dissimilarity. Possible choices are 'd0_L2', 'd1_L2', 'd0_d1_L2'. 
+  # diss: dissimilarity. Possible choices are 'd0_L2', 'd1_L2', 'd0_d1_L2'.
   # alpha: when diss='d0_d1_L2', weight coefficient between d0_L2 and d1_L2 (alpha=0 means d0_L2, alpha=1 means d1_L2).
   # w: vector of weights for the dissimilarity index in the different dimensions (w>0).
   # m>1: weighting exponent in least-squares functional.
   # iter_max: the maximum number of iterations allowed.
-  # stop_criterion: criterion to stop iterate, based on the Bhattacharyya distance between memberships in subsequent iterations. 
+  # stop_criterion: criterion to stop iterate, based on the Bhattacharyya distance between memberships in subsequent iterations.
   #                 Possible choices are: 'max' for the maximum of distances in the different motifs;
   #                                       'mean' for the average of distances in the different motifs;
   #                                       'quantile' for the quantile of distances in the different motifs (in this case, quantile must be provided).
@@ -408,8 +419,8 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   # quantile4clean: dissimilarity quantile to be used in motif cleaning.
   # return_options: if TRUE, the options K,c,diss,w,m are returned by the function.
   # return_init: if TRUE, P0 and S0 are returned by the function.
-  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially. 
-  
+  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially.
+
   ### set parallel jobs #############################################################################
   start=proc.time()
   core_number <- detectCores()
@@ -437,7 +448,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   }
   end=proc.time()
   #message('set parallel jobs: ',round((end-start)[3],2))
-  
+
   ### check input ####################################################################################
   start=proc.time()
   # check dissimilarity
@@ -707,7 +718,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     stop('quantile4clean not valid.')
   end=proc.time()
   #message('check input: ',round((end-start)[3],2))
-  
+
   ### initialize #############################################################################################
   start=proc.time()
   if(is.null(P0)){
@@ -737,7 +748,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
               nrow=N,ncol=K,byrow=TRUE)
   }
   S=S0
-  
+
   # create empty motifs
   V=lapply(c,
            function(c_k,d){
@@ -750,7 +761,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
            },d)
   end=proc.time()
   #message('initialize: ',round((end-start)[3],2))
-  
+
   ### iterate #############################################################################################
   iter=0
   J_iter=c()
@@ -759,7 +770,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   while((iter<iter_max)&(BC_dist>tol)){
     iter=iter+1
     #message('iter ',iter)
-    
+
     ##### clean motifs ###################################################################################
     start=proc.time()
     P_old=P
@@ -775,7 +786,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     }
     end=proc.time()
     #message('  clean: ',round((end-start)[3],2))
-    
+
     ##### compute motifs ###################################################################################
     start=proc.time()
     S_k=split(S,rep(seq_len(K),each=N))
@@ -791,7 +802,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     V_dom=lapply(V_new,.domain,use0)
     end=proc.time()
     #message('  compute motifs: ',round((end-start)[3],2))
-  
+
     ##### elongate motifs #################################################################################
     start=proc.time()
     if((iter>1)&&(!(iter%%iter4elong))&&(BC_dist<tol4elong)){
@@ -822,6 +833,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                          }
                          return(len_elong)
                        })
+      print(len_elong)
       # left and right elongation
       keep=D<quantile(D,0.25)
       empty_k=which(colSums(keep)==0)
@@ -829,18 +841,18 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         for(k in empty_k)
           keep[which.min(D[,k]),k]=TRUE
       }
-      
       res_left_right=mapply(function(v_new_k,v_dom_k,s_k,p_k,len_elong_k,keep_k,c){
         if(length(len_elong_k)==0){
           return(list(v_new=v_new_k,
                       v_dom=v_dom_k,
                       s_k=s_k))
         }
+        if(iter == 8) save(v_new_k,v_dom_k,s_k,file = "elongatio_check.RData")
         s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
         v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
                                              function(len_elong_k_left)
                                                lapply(c(0,len_elong_k[len_elong_k<=(max(len_elong_k)-len_elong_k_left)]),
-                                                      function(len_elong_k_right) 
+                                                      function(len_elong_k_right)
                                                         c(rep_len(TRUE,len_elong_k_left),v_dom_k,rep_len(TRUE,len_elong_k_right)))),
                                       recursive=FALSE)[-1]
         v_elong_left_right=mapply(.compute_motif,v_dom_elong_left_right,s_k_elong_left_right,
@@ -854,7 +866,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
                                MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
         best_elong=which.min((Jk_after-Jk_before)/Jk_before)
-        #print((Jk_after-Jk_before)/Jk_before)
         if(length(best_elong)>0){
           elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
         }else{
@@ -870,17 +881,17 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                       s_k=s_k))
         }
       },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
-      
+
       V_new=res_left_right[1,]
       V_dom=res_left_right[2,]
       S_k=res_left_right[3,]
       rm(res_left_right)
       S=matrix(unlist(S_k),ncol=K)
     }
-    
+
     end=proc.time()
     #message('  elongate: ',round((end-start)[3],2))
-    
+
     ##### find shift warping minimizing dissimilarities ###################################################
     start=proc.time()
     c_k=floor(unlist(lapply(V_new,function(v_new) unlist(lapply(v_new,nrow))[1]))*(1-max_gap))
@@ -893,7 +904,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     D_new=matrix(SD[2,],ncol=K)
     end=proc.time()
     #message('  find shift: ',round((end-start)[3],2))
-    
+
     ##### compute memberships #############################################################################
     start=proc.time()
     # create membership matrix, with N rows and k columns
@@ -917,10 +928,10 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     }
     end=proc.time()
     #message('  compute memberships: ',round((end-start)[3],2))
-    
+
     ##### evaluate objective function #####################################################################
     J_iter[iter]=sum(D_new*(P_new^m),na.rm=TRUE)
-    
+
     ##### compute Bhattacharyya distance between P_old and P_new ##########################################
     BC_dist_k=-log(rowSums(sqrt(P_old*P_new)))
     if(stop_criterion=='max')
@@ -929,14 +940,14 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       BC_dist=mean(BC_dist_k)
     if(stop_criterion=='quantile')
       BC_dist=quantile(BC_dist_k,prob,type=1)
-    BC_dist_iter[iter]=BC_dist    
-    
+    BC_dist_iter[iter]=BC_dist
+    print(BC_dist)
     ##### update ##########################################################################################
     V=V_new
     P=P_new
     S=S_new
     D=D_new
-  
+
   }
   ### prepare output ####################################################################################
   start=proc.time()
@@ -1012,8 +1023,8 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   }
   end=proc.time()
   #message('output: ',round((end-start)[3],2))
-  
-  
+
+
   ### return output ####################################################################################
   return(output)
 }
@@ -1028,3 +1039,7 @@ z <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=params$c,c_
              trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
              max_gap=params$max_gap,params$iter4clean,params$tol4clean,
              params$quantile4clean,params$return_options,TRUE,NULL)
+
+save(z,file="output_prof.RData")
+
+load(file="output_prof.RData") # output with iter_max = 6, iter4elong = 2, seed = 1
