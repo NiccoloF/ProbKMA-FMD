@@ -120,7 +120,7 @@ public:
       const unsigned int iter_max = _parameters._iter_max;
       const auto transform_function = [this](const KMA::matrix& v0) 
         {return std::floor(v0.n_rows * (1 - this->_parameters._max_gap));};
-      const KMA::vector quantile4clean = {_parameters._quantile4clean}; // convert to vector to compute quantile
+      const double quantile4clean = _parameters._quantile4clean;
       const KMA::vector w = _parameters._w;
       const double alpha = _parameters._alpha;
       const unsigned int iter4clean = _parameters._iter4clean;
@@ -128,6 +128,8 @@ public:
       KMA::ivector c = _parameters._c;
       const arma::uword _n_rows_V = _V.n_rows; 
       const arma::uword _n_rows_Y = _Y.n_rows;
+      Rcpp::Environment stats("package:stats");
+      Rcpp::Function quantile = stats["quantile"];
 
       // Initialization data structures ////////////////////////
       KMA::vector J_iter(iter_max,arma::fill::zeros);
@@ -152,7 +154,7 @@ public:
         const KMA::matrix P_old = _P0;
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
-          keep = _D < arma::as_scalar(arma::quantile(arma::vectorise(_D),quantile4clean));
+          keep = _D < Rcpp::as<double>(quantile(_D,quantile4clean));
           const KMA::uvector & empty_k = arma::find(arma::sum(keep,0)==0);
           for(arma::uword k : empty_k)
             keep(arma::index_min(_D.col(k)),k) = 1;
@@ -183,7 +185,6 @@ public:
         
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
-          
           Rcpp::Rcout<<"Trying to elongate at iter:"<<iter<<std::endl;
           _motfac -> elongate_motifs(_V,V_dom,_S0,_P0,
                                      _Y,_D, _parameters,
@@ -245,11 +246,8 @@ public:
         else if (criterion == "mean")
           BC_dist = arma::mean(BC_dist_k);
         else if (criterion == "quantile")
-        {
-          BC_dist = arma::conv_to<arma::vec>::from
-          (arma::quantile(BC_dist_k,arma::vec(_parameters._quantile)))(0);
-        }
-        
+          BC_dist = Rcpp::as<double>(quantile(BC_dist_k,_parameters._quantile));
+      
         BC_dist_iter(iter-1) = BC_dist;
         Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
         
@@ -270,7 +268,7 @@ public:
         _V.row(k) = *(std::get_if<KMA::Mfield>(&pair_motif_shift));
       } 
       
-      keep = _D < arma::as_scalar(arma::quantile(arma::vectorise(_D),quantile4clean));
+      keep = _D < Rcpp::as<double>(quantile(_D,quantile4clean));
       const KMA::uvector& empty_k = arma::find(arma::sum(keep,0) == 0);
   
       for (arma::uword k: empty_k)

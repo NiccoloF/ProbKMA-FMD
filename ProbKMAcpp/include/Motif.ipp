@@ -28,7 +28,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   KMA::matrix y0(v_len,d);
   
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
-    const int y_len = Y(p_k_pos(i),0).n_rows;//length of the curve
+    const int y_len = Y(p_k_pos(i),0).n_rows; //length of the curve
     KMA::ivector index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
     const int index_size = index.size();                
     auto filtered_j = std::views::iota(0,index_size) // filtering of the indexes
@@ -75,7 +75,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
       v_new(0,1) = v_new(0,1).rows(index_min,index_max);
   }
   if (index_min > 0) {
-    Rcpp::Rcout<<"ATTENZIONE NO TESTATO MOTIF.IPP 96"<<std::endl;
+    Rcpp::Rcout<<"ATTENZIONE NO TESTATO MOTIF.IPP 78"<<std::endl;
     return std::make_pair(v_new,index_min);
   }
 
@@ -104,17 +104,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   const arma::urowvec& v_dom_k = V_dom[index];
   const arma::ivec& s_k = S_k.col(index);
 
-  /*if (iter == 8 and index == 1){
-   Rcpp::Rcout << "v_new_k_00:" << std::endl;
-   Rcpp::Rcout << v_new_k(0,0).t() << std::endl;
-   Rcpp::Rcout << "v_new_k_01:" << std::endl;
-   Rcpp::Rcout << v_new_k(0,1).t() << std::endl;
-   Rcpp::Rcout << "v_dom_k" << std::endl;
-   Rcpp::Rcout << v_dom_k << std::endl;
-   Rcpp::Rcout << "s_k" << std::endl;
-   Rcpp::Rcout << s_k.t() << std::endl;
-  }*/ //until here tutto giusto anche alla seconda iterazione
-
   // new vec with zero at the top
   arma::ivec len_elong_k_zero(len_elong_k.size() + 1, arma::fill::zeros);
   std::copy(len_elong_k.begin(), len_elong_k.end(), len_elong_k_zero.begin() + 1);
@@ -134,8 +123,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   // repeat each col of s_k_elong_left_right a number of times specified by reversedSequence 
   std::vector<arma::ivec> s_k_elong_left_right = util::repeat_elements(s_k_elong_left_right_temp, reversedSequence);
 
-  // debug stampare s_k_elong_left_right at iter==8 and index==1
-  
   std::vector<arma::ivec> len_elong_k_right_list(len_elong_k_zero_size);
   const int max_len_elong_k = len_elong_k.back();
   unsigned int v_dom_elong_size = 0;
@@ -159,8 +146,6 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
     }
   }
 
-  //stampare v_dom_elong_left right e capire il best_elong della prof in questa iterazione in questo punto 
-  
   // create the list containing all the possible v_dom_k elongated using compute_motif
   const int v_elong_left_right_size = s_k_elong_left_right.size();
   arma::uvec not_start_with_NA(v_elong_left_right_size,arma::fill::zeros);
@@ -252,53 +237,52 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     
   	// @TODO: check this part for domains with NaN
   	if (with_gaps_size != 0){
-                Rcpp::Rcout<<"Entro nei GAPS"<<std::endl;
+      
   		KMA::Mfield V_filled(with_gaps_size,Y.n_cols);
       
   		std::vector<KMA::uvector> V_dom_filled(with_gaps_size);
       
-		arma::vec Jk_before(with_gaps_size);
+		  arma::vec Jk_before(with_gaps_size);
       
-     		arma::vec Jk_after(with_gaps_size);
+      arma::vec Jk_after(with_gaps_size);
       
-     		// fill the domains of the motifs with gaps and recompute the motifs with the filled domains
-     		// and compute the perf.indexes before and after the filling
-		#ifdef _OPENMP
-		#pragma omp parallel for 
-		#endif
-      		for (unsigned int i = 0; i < with_gaps_size; ++i){
+     	// fill the domains of the motifs with gaps and recompute the motifs with the filled domains
+     	// and compute the perf.indexes before and after the filling
+		  #ifdef _OPENMP
+		  #pragma omp parallel for 
+		  #endif
+      for (unsigned int i = 0; i < with_gaps_size; ++i){
         
-        		V_dom_filled[i] = arma::uvec(V_dom[with_gaps(i)].n_elem,arma::fill::ones);
-        		const auto & variant_motif = compute_motif_helper<use1>(V_dom_filled[i],  // errore
+        V_dom_filled[i] = arma::uvec(V_dom[with_gaps(i)].n_elem,arma::fill::ones);
+        const auto & variant_motif = compute_motif_helper<use1>(V_dom_filled[i],  // errore
                                                                 		S_k.col(with_gaps(i)),
                                                                 		P_k.col(with_gaps(i)),
                                                                 		Y,param._m);
 
-        		V_filled.row(i) = *(std::get_if<KMA::Mfield>(&variant_motif)); // Possibile errore se ritorna Nullptr
+        V_filled.row(i) = *(std::get_if<KMA::Mfield>(&variant_motif)); // Possibile errore se ritorna Nullptr
         
-        		Jk_before(i) = perf->compute_Jk(V_new.row(with_gaps(i)), 
+        Jk_before(i) = perf->compute_Jk(V_new.row(with_gaps(i)), 
                                         		S_k.col(with_gaps(i)),
                                         		P_k.col(with_gaps(i)),
                                         		Y,param._w,param._m,
                                         		arma::datum::nan,arma::uvec({}),
                                         		diss);
         
-        		Jk_after(i) = perf->compute_Jk(V_filled.row(i), 
-                                       		       S_k.col(with_gaps(i)),
-                                                       P_k.col(with_gaps(i)),
-                                                       Y,param._w,param._m,
-                                                       arma::datum::nan,arma::uvec({}),
-                                                       diss);
-      		}
+        Jk_after(i) = perf->compute_Jk(V_filled.row(i), 
+                                      S_k.col(with_gaps(i)),
+                                      P_k.col(with_gaps(i)),
+                                      Y,param._w,param._m,
+                                      arma::datum::nan,arma::uvec({}),
+                                      diss);
+     }
       
-		// if filling the domain improves the perf. index over a certain threshold replace the domain and the motifs with the filled one
-      		const arma::uvec& fill = arma::find((Jk_after-Jk_before)/Jk_before < param._deltaJK_elong);
-      		for(unsigned int i=0; i < fill.size(); ++i){
-        		V_dom[with_gaps(i)] = V_dom_filled[i];
-        		V_new.row(with_gaps(i)) = V_filled.row(i);
-      		}
-      
-    	}
+		 // if filling the domain improves the perf. index over a certain threshold replace the domain and the motifs with the filled one
+     const arma::uvec& fill = arma::find((Jk_after-Jk_before)/Jk_before < param._deltaJK_elong);
+     for(unsigned int i=0; i < fill.size(); ++i){
+       V_dom[with_gaps(i)] = V_dom_filled[i];
+       V_new.row(with_gaps(i)) = V_filled.row(i);
+       } 
+    }
     
     std::vector<arma::ivec> len_elong(V_dom_size);
     for (unsigned int i = 0; i < V_dom_size; ++i){
@@ -313,25 +297,25 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
         round(arma::linspace<arma::ivec>(1, len_max_elong_i, param._trials_elong));
       }
     }
-
-    // vector of probabilities for the quantile function , to be checked this part
-    arma::vec prob(1,arma::fill::value(0.25));
-    // compute the quantile of the distance matrix
-    arma::vec quantile = arma::quantile(vectorise(D), prob);
+    
+    Rcpp::Environment stats("package:stats");
+    Rcpp::Function quantile = stats["quantile"];
+   
+    double quant = Rcpp::as<double>(quantile(D,0.25)); 
     // keep will be a matrix whose value i,j will be D(i,j) < quantile(0)
-    arma::umat keep = D < quantile(0);
+    arma::umat keep = D < quant;
     // col-wise sum of the matrix keep
     const arma::uvec& col_sum_keep = (sum(keep, 0)).t();
     // vector of bool = true iff col_sum_keep[i]==0
     const arma::uvec& col_sum_keep_zero = (col_sum_keep==0);
     // empty_k stores the indexes of the col that have col_sum_keep = 0 
     const arma::uvec& empty_k = find(col_sum_keep_zero);
-    
+
     for (auto k : empty_k){
       const unsigned int min_col_k_D = index_min(D.col(k));
       keep(min_col_k_D, k) = true;
     } 
-    
+
     #ifdef _OPENMP
     	#pragma omp parallel for 
     #endif

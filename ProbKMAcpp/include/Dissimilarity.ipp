@@ -65,13 +65,14 @@ template<bool use1>
 void SobolDiss::computeDissimilarityClean_helper(KMA::matrix & D_clean,
                                                  const KMA::imatrix & S_clean,
                                                  const std::vector<arma::urowvec> & V_dom_new,
-				                 const KMA::Mfield & V_clean,										
+				                                         const KMA::Mfield & V_clean,										
                                                  const KMA::Mfield & Y) const
 { 
  const arma::uword d = Y(0,0).n_cols;
  KMA::Mfield y(1,Y.n_cols);
  arma::uword _n_rows_V = V_dom_new.size();
  arma::uword _n_rows_Y = Y.n_rows;
+
  for(arma::uword k=0; k < _n_rows_V; ++k)
  {
   const auto& s_k = S_clean.col(k);  
