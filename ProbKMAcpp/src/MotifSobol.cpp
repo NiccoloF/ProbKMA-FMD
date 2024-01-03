@@ -20,7 +20,7 @@ KMA::matrix MotifSobol::compute_v_new(const KMA::Mfield& Y_inters_k,
   for (arma::uword i = 0; i < Y_inters_k.n_rows; ++i){
     v_new.rows(arma::find(v_dom==1)) += (Y_inters_k(i)*coeff_k(i)) / arma::repmat(coeff_x,1,Y_inters_k(i).n_cols);
   }
-
+  
   v_new.rows(arma::find(v_dom==0)).fill(arma::datum::nan);
   return v_new;
 }

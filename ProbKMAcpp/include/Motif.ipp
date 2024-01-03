@@ -78,6 +78,7 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
     Rcpp::Rcout<<"ATTENZIONE NO TESTATO MOTIF.IPP 96"<<std::endl;
     return std::make_pair(v_new,index_min);
   }
+
   return v_new;
   // slight different to the R case in both case we return two elements in this case, see in elongate_motifs                     
 }
@@ -94,13 +95,25 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
                             const unsigned int index,
                             const Parameters& param,
                             const std::shared_ptr<PerformanceIndexAB>& perf,
-                            const std::shared_ptr<Dissimilarity>& diss) const
+                            const std::shared_ptr<Dissimilarity>& diss,
+                            unsigned int iter) const
 {
   if(len_elong_k.empty()) return;
 
   const KMA::Mfield& v_new_k = V_new.row(index);
   const arma::urowvec& v_dom_k = V_dom[index];
   const arma::ivec& s_k = S_k.col(index);
+
+  /*if (iter == 8 and index == 1){
+   Rcpp::Rcout << "v_new_k_00:" << std::endl;
+   Rcpp::Rcout << v_new_k(0,0).t() << std::endl;
+   Rcpp::Rcout << "v_new_k_01:" << std::endl;
+   Rcpp::Rcout << v_new_k(0,1).t() << std::endl;
+   Rcpp::Rcout << "v_dom_k" << std::endl;
+   Rcpp::Rcout << v_dom_k << std::endl;
+   Rcpp::Rcout << "s_k" << std::endl;
+   Rcpp::Rcout << s_k.t() << std::endl;
+  }*/ //until here tutto giusto anche alla seconda iterazione
 
   // new vec with zero at the top
   arma::ivec len_elong_k_zero(len_elong_k.size() + 1, arma::fill::zeros);
@@ -120,6 +133,8 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
  
   // repeat each col of s_k_elong_left_right a number of times specified by reversedSequence 
   std::vector<arma::ivec> s_k_elong_left_right = util::repeat_elements(s_k_elong_left_right_temp, reversedSequence);
+
+  // debug stampare s_k_elong_left_right at iter==8 and index==1
   
   std::vector<arma::ivec> len_elong_k_right_list(len_elong_k_zero_size);
   const int max_len_elong_k = len_elong_k.back();
@@ -143,6 +158,8 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
       v_dom_elong_left_right[k++] = temp;
     }
   }
+
+  //stampare v_dom_elong_left right e capire il best_elong della prof in questa iterazione in questo punto 
   
   // create the list containing all the possible v_dom_k elongated using compute_motif
   const int v_elong_left_right_size = s_k_elong_left_right.size();
@@ -172,10 +189,7 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
     i = i + 1;
   }
 
-  v_elong_left_right = filtered_v_elong;
-  s_k_elong_left_right = filtered_s_k;
-
-  const unsigned int s_k_elong_left_right_size = s_k_elong_left_right.size();
+  const unsigned int s_k_elong_left_right_size = filtered_s_k.size();
 
   // compute performance index before elongation
   double Jk_before = perf->compute_Jk(v_new_k,s_k,p_k,Y,param._w,param._m,
@@ -188,16 +202,13 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
 
   for (arma::uword i = 0; i < s_k_elong_left_right_size; i++) {
     
-    c_i = std::max<double>(floor(util::findDomain(v_elong_left_right(i,0)).n_elem*(1 - param._max_gap)),c); 
-    
-    Jk_after[i] = perf->compute_Jk(v_elong_left_right.row(i),s_k_elong_left_right[i],
+    c_i = std::max<double>(floor(util::findDomain(filtered_v_elong(i,0)).n_elem*(1 - param._max_gap)),c); 
+
+    Jk_after[i] = perf->compute_Jk(filtered_v_elong.row(i),filtered_s_k[i],
                                    p_k,Y,param._w,param._m,c_i,
                                    keep_k,diss);
   }
 
-  Rcpp::Rcout << Jk_before << std::endl;
-  Rcpp::Rcout << Jk_after.t() << std::endl;
- 
   // find the best elongation in terms of perf. index
   arma::vec diff_perc = (Jk_after-Jk_before)/Jk_before;
   arma::uword best_elong = arma::index_min(diff_perc);
@@ -209,9 +220,9 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
   
   // evaluate if elongate or not
   if(elongate) {
-    V_new.row(index) =  v_elong_left_right.row(best_elong);
+    V_new.row(index) =  filtered_v_elong.row(best_elong);
     V_dom[index] =  v_dom_elong_left_right[best_elong + 1];
-    S_k.col(index) = s_k_elong_left_right[best_elong];
+    S_k.col(index) = filtered_s_k[best_elong]; // stampare questo
   } else {
     return;
   }               
@@ -224,7 +235,8 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         const KMA::Mfield& Y,const KMA::matrix& D,
                                         const Parameters& param,
                                         const std::shared_ptr<PerformanceIndexAB>& perf,
-                                        const std::shared_ptr<Dissimilarity>& diss) const
+                                        const std::shared_ptr<Dissimilarity>& diss,
+                                        unsigned int iter) const
 {	
 	std::size_t V_dom_size = V_dom.size();
     
@@ -240,7 +252,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     
   	// @TODO: check this part for domains with NaN
   	if (with_gaps_size != 0){
-      Rcpp::Rcout<<"Entro nei GAPS"<<std::endl;
+                Rcpp::Rcout<<"Entro nei GAPS"<<std::endl;
   		KMA::Mfield V_filled(with_gaps_size,Y.n_cols);
       
   		std::vector<KMA::uvector> V_dom_filled(with_gaps_size);
@@ -301,7 +313,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
         round(arma::linspace<arma::ivec>(1, len_max_elong_i, param._trials_elong));
       }
     }
-    
+
     // vector of probabilities for the quantile function , to be checked this part
     arma::vec prob(1,arma::fill::value(0.25));
     // compute the quantile of the distance matrix
@@ -326,7 +338,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     for (unsigned int i = 0; i < V_dom_size; ++i){
       elongation<use1>(V_new,V_dom,S_k,P_k.col(i),
                        len_elong[i],keep.col(i),param._c[i],
-                       Y,i,param,perf,diss);
+                       Y,i,param,perf,diss,iter);
     }
 }
 

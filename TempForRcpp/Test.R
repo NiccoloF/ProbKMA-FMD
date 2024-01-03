@@ -77,7 +77,6 @@ prok$set_parameters(params)
 b <- prok$probKMA_run()
 ###################################################
 
-
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
   if(is.null(cl)){
     mapply(FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
@@ -85,6 +84,7 @@ b <- prok$probKMA_run()
     clusterMap(cl,FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
   }
 }
+
 .diss_d0_d1_L2 <- function(y,v,w,alpha){
   # Dissimilarity index for multidimensional curves (dimension=d).
   # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
@@ -834,6 +834,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                          }
                          return(len_elong)
                        })
+      print(len_elong)
       # left and right elongation
       keep=D<quantile(D,0.25)
       empty_k=which(colSums(keep)==0)
@@ -841,13 +842,13 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         for(k in empty_k)
           keep[which.min(D[,k]),k]=TRUE
       }
-      
       res_left_right=mapply(function(v_new_k,v_dom_k,s_k,p_k,len_elong_k,keep_k,c){
         if(length(len_elong_k)==0){
           return(list(v_new=v_new_k,
                       v_dom=v_dom_k,
                       s_k=s_k))
         }
+        if(iter == 8) save(v_new_k,v_dom_k,s_k,file = "elongatio_check.RData")
         s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
         v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
                                              function(len_elong_k_left)
@@ -865,8 +866,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         c_k_after[c_k_after<c]=c
         Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
                                MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
-        print(Jk_before)
-        print(Jk_after)
         best_elong=which.min((Jk_after-Jk_before)/Jk_before)
         if(length(best_elong)>0){
           elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong

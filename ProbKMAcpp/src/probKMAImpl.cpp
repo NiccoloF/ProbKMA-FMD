@@ -187,7 +187,7 @@ public:
           Rcpp::Rcout<<"Trying to elongate at iter:"<<iter<<std::endl;
           _motfac -> elongate_motifs(_V,V_dom,_S0,_P0,
                                      _Y,_D, _parameters,
-                                     _perfac,_dissfac);
+                                     _perfac,_dissfac,iter);
         }
 
         ////// find shift warping minimizing dissimilarities /////////////
