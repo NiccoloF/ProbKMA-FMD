@@ -95,8 +95,7 @@ void MotifSobol::elongation(KMA::Mfield& V_new,
                             const unsigned int index,
                             const Parameters& param,
                             const std::shared_ptr<PerformanceIndexAB>& perf,
-                            const std::shared_ptr<Dissimilarity>& diss,
-                            unsigned int iter) const
+                            const std::shared_ptr<Dissimilarity>& diss) const
 {
   if(len_elong_k.empty()) return;
 
@@ -220,8 +219,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         const KMA::Mfield& Y,const KMA::matrix& D,
                                         const Parameters& param,
                                         const std::shared_ptr<PerformanceIndexAB>& perf,
-                                        const std::shared_ptr<Dissimilarity>& diss,
-                                        unsigned int iter) const
+                                        const std::shared_ptr<Dissimilarity>& diss) const
 {
 	std::size_t V_dom_size = V_dom.size();
 
@@ -322,7 +320,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     for (unsigned int i = 0; i < V_dom_size; ++i){
       elongation<use1>(V_new,V_dom,S_k,P_k.col(i),
                        len_elong[i],keep.col(i),param._c[i],
-                       Y,i,param,perf,diss,iter);
+                       Y,i,param,perf,diss);
     }
 }
 

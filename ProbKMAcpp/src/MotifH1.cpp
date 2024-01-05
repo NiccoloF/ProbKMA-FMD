@@ -17,9 +17,8 @@ void MotifH1::elongate_motifs(KMA::Mfield& V_new,
                               const KMA::Mfield& Y,const KMA::matrix& D,
                               const Parameters& param,
                               const std::shared_ptr<PerformanceIndexAB>& perf,
-                              const std::shared_ptr<Dissimilarity>& diss,
-                              unsigned int iter) const
+                              const std::shared_ptr<Dissimilarity>& diss) const
 {
-  return elongate_motifs_helper<true>(V_new,V_dom,S_k,P_k,Y,D,param,perf,diss,iter);
+  return elongate_motifs_helper<true>(V_new,V_dom,S_k,P_k,Y,D,param,perf,diss);
 }
 
