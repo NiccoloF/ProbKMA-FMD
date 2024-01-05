@@ -35,9 +35,6 @@ public:
                                 const KMA::Mfield V,
                                 const KMA::vector& w,
                                 double alpha, unsigned int c_k) const = 0;
-
-  virtual void set_parameters(const Parameters & newParameters) = 0;
-
 protected:
 
   virtual double distance(const KMA::matrix& y,
@@ -122,8 +119,6 @@ public:
                                 const KMA::Mfield V,
                                 const KMA::vector& w,
                                 double alpha, unsigned int c_k) const override;
-
-  void set_parameters(const Parameters & newParameters) override;
 
   double _alpha;
 

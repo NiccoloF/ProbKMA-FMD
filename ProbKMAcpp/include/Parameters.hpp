@@ -30,7 +30,6 @@ struct Parameters
     unsigned int _iter4clean;
     double _tol4clean;
     double _quantile4clean;
-    long long _seed;
     bool _return_options;
     unsigned int _seed;
 };
