@@ -16,18 +16,19 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       const unsigned int s_rep_size = s_rep.size();
       KMA::Mfield y_rep(s_rep_size,Y.n_cols);
       
-      const int index_size = v_len;
-      arma::uvec indeces_dom = arma::find(v_dom==0);
+      KMA::uvector indeces_dom = arma::find(v_dom==0);
+      KMA::ivector index;
+      KMA::uvector filtered_j;
+
       for (unsigned int i = 0; i < s_rep_size; ++i) {
-        KMA::ivector index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
-        KMA::uvector filtered_j = arma::find((index > 0) && (index <= y_len));
-        y_rep(i,0).set_size(index_size, d);
+        index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
+        filtered_j = arma::find((index > 0) && (index <= y_len));
+        y_rep(i,0).set_size(v_len, d);
         y_rep(i,0).fill(arma::datum::nan);
         y_rep(i,0).rows(0,filtered_j.n_elem - 1) = Y(0,0).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
         y_rep(i,0).shed_rows(indeces_dom); 
-        
         if constexpr(use1) {
-          y_rep(i,1).set_size(index_size, d);
+          y_rep(i,1).set_size(v_len, d);
           y_rep(i,1).fill(arma::datum::nan);
           y_rep(i,1).rows(0,filtered_j.n_elem - 1) = Y(0,1).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
           y_rep(i,1).shed_rows(indeces_dom);
@@ -79,11 +80,13 @@ void SobolDiss::computeDissimilarityClean_helper(KMA::matrix & D_clean,
   const auto& v_dom = V_dom_new[k];  
   const int v_len = v_dom.size(); 
   const KMA::uvector & indeces_dom = arma::find(v_dom==0);
+  KMA::ivector index;
+  int y_len;
   for (arma::uword i=0; i < _n_rows_Y; ++i)
   {
     const int s = s_k(i);
-    KMA::ivector index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
-    const int y_len = Y(i,0).n_rows; 
+    index = std::max(1,s) - 1 + arma::regspace<arma::ivec>(1,v_len - std::max(0,1-s));
+    y_len = Y(i,0).n_rows; 
     y(0,0).set_size(v_len,d);
     y(0,0).fill(arma::datum::nan);
     const arma::uvec & filtered_j = arma::find(index <= y_len);

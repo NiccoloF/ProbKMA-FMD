@@ -34,32 +34,24 @@ public:
     std::size_t Y_size = Y.n_rows;
     std::size_t v_len = v_dom.size();
     KMA::uvector indeces_dom = arma::find(v_dom==0);
-    arma::uword index_row;
-    
+    KMA::uvector filtered_j;
+    unsigned int y_len;
+    KMA::ivector index;
+    int s_k_i;
+   
     for (unsigned int i = 0; i < Y_size; ++i){
-      int s_k_i = s_k[i];
-      arma::ivec index = arma::regspace<arma::ivec>(1, v_len - std::max(0, 1-s_k_i))+std::max(1,s_k_i)-1;
-      unsigned int index_size = index.size();
+      s_k_i = s_k[i];
+      index = arma::regspace<arma::ivec>(1, v_len - std::max(0, 1-s_k_i))+std::max(1,s_k_i)-1;
       Y_inters_k(i,0).set_size(v_len,Y(0,0).n_cols);
-      const int y_len = Y(i,0).n_rows;
+      y_len = Y(i,0).n_rows;
+      filtered_j = arma::find(index <= y_len);
       Y_inters_k(i,0).fill(arma::datum::nan);
-      for(unsigned int j = 0; j < index_size; ++j) {
-        if (index[j]  <= y_len){
-          index_row = std::max(0, 1-s_k_i) + j;
-          Y_inters_k(i,0).row(index_row) =  Y(i,0).row(index[j] - 1);
-        }
-      }
+      Y_inters_k(i,0).rows(std::max(0, 1-s_k_i), std::max(0, 1-s_k_i) + filtered_j.n_elem - 1) =  Y(i,0).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
       Y_inters_k(i,0).shed_rows(indeces_dom);
       if constexpr(use1){
         Y_inters_k(i,1).set_size(v_len,Y(0,0).n_cols);
-        const int y_len = Y(i,1).n_rows;
         Y_inters_k(i,1).fill(arma::datum::nan);
-        for(unsigned int j = 0; j < index_size; ++j) {
-          if (index[j] <= y_len){
-            index_row = std::max(0, 1-s_k_i) + j;
-            Y_inters_k(i,1).row(index_row) =  Y(i,1).row(index[j] - 1);
-          }
-        }
+        Y_inters_k(i,1).rows(std::max(0, 1-s_k_i), std::max(0, 1-s_k_i) + filtered_j.n_elem - 1) =  Y(i,1).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
         Y_inters_k(i,1).shed_rows(indeces_dom);
       }
     } 

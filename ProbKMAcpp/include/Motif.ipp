@@ -25,25 +25,26 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
 
   KMA::umatrix Y_inters_supp(p_k_pos.n_elem,v_len); // for each shifted curve contains an uvec with the domain
 
+  KMA::uvector filtered_j;
+  KMA::ivector index;
+  KMA::uvector indeces_dom = arma::find(v_dom==0);
+  unsigned int y_len;
+
   for (arma::uword i = 0; i < p_k_pos.n_elem; ++i){
-    const int y_len = Y(p_k_pos(i),0).n_rows; //length of the curve
-    KMA::ivector index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
-    const int index_size = index.size();
-    auto filtered_j = std::views::iota(0,index_size) // filtering of the indexes
-      | std::views::filter([&y_len,&index](int j){return (index[j] <= y_len);});
+    y_len = Y(p_k_pos(i),0).n_rows; //length of the curve
+    index = std::max(1,s_k(p_k_pos(i))) - 1 + arma::regspace<KMA::ivector>(1,v_len - std::max(0,1 - s_k(p_k_pos(i))));
+    filtered_j = arma::find(index <= y_len);
     Y_inters_k(i,0).set_size(v_len,d);
     Y_inters_k(i,0).fill(arma::datum::nan);
-    for(int j : filtered_j)
-      Y_inters_k(i,0).row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),0).row(index(j) - 1);
-    Y_inters_k(i,0).shed_rows(arma::find(v_dom==0));
+    Y_inters_k(i,0).rows(std::max(0,1 - s_k(p_k_pos(i))),std::max(0,1 - s_k(p_k_pos(i))) + filtered_j.n_elem - 1) =  Y(p_k_pos(i),0).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
+    Y_inters_k(i,0).shed_rows(indeces_dom);
     Y_inters_supp.row(i) = util::findDomain(Y_inters_k(i,0));
     Y_inters_k(i,0).replace(arma::datum::nan,0);
     if constexpr(use1) {
       Y_inters_k(i,1).set_size(v_len,d);
       Y_inters_k(i,1).fill(arma::datum::nan);
-      for(int j : filtered_j)
-        Y_inters_k(i,1).row(std::max(0,1 - s_k(p_k_pos(i))) + j) =  Y(p_k_pos(i),1).row(index(j) - 1);
-      Y_inters_k(i,1).shed_rows(arma::find(v_dom==0));
+      Y_inters_k(i,1).rows(std::max(0,1 - s_k(p_k_pos(i))),std::max(0,1 - s_k(p_k_pos(i))) + filtered_j.n_elem - 1) =  Y(p_k_pos(i),1).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
+      Y_inters_k(i,1).shed_rows(indeces_dom);
       Y_inters_k(i,1).replace(arma::datum::nan,0);
     }
   }
@@ -216,7 +217,8 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         const KMA::Mfield& Y,const KMA::matrix& D,
                                         const Parameters& param,
                                         const std::shared_ptr<PerformanceIndexAB>& perf,
-                                        const std::shared_ptr<Dissimilarity>& diss) const
+                                        const std::shared_ptr<Dissimilarity>& diss,
+                                        const Rcpp::Function & quantile_func) const
 {
 	std::size_t V_dom_size = V_dom.size();
 
@@ -293,10 +295,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
       }
     }
 
-    Rcpp::Environment stats("package:stats");
-    Rcpp::Function quantile = stats["quantile"];
-
-    double quant = Rcpp::as<double>(quantile(D,0.25));
+    double quant = Rcpp::as<double>(quantile_func(D,0.25));
     // keep will be a matrix whose value i,j will be D(i,j) < quantile(0)
     arma::umat keep = D < quant;
     // col-wise sum of the matrix keep
