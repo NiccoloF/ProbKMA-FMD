@@ -40,31 +40,27 @@ public:
       int s_k_i = s_k[i];
       arma::ivec index = arma::regspace<arma::ivec>(1, v_len - std::max(0, 1-s_k_i))+std::max(1,s_k_i)-1;
       unsigned int index_size = index.size();
-      
-      arma::mat new_y0(index_size + std::max(0, 1-s_k_i), Y(0,0).n_cols);
+      Y_inters_k(i,0).set_size(v_len,Y(0,0).n_cols);
       const int y_len = Y(i,0).n_rows;
-      new_y0.fill(arma::datum::nan);
+      Y_inters_k(i,0).fill(arma::datum::nan);
       for(unsigned int j = 0; j < index_size; ++j) {
         if (index[j]  <= y_len){
           index_row = std::max(0, 1-s_k_i) + j;
-          new_y0.row(index_row) =  Y(i,0).row(index[j] - 1);
+          Y_inters_k(i,0).row(index_row) =  Y(i,0).row(index[j] - 1);
         }
       }
-      new_y0.shed_rows(indeces_dom);
-      Y_inters_k(i,0) = new_y0;
-      
+      Y_inters_k(i,0).shed_rows(indeces_dom);
       if constexpr(use1){
-        arma::mat new_y1(index_size + std::max(0, 1-s_k_i), Y(0,1).n_cols);
+        Y_inters_k(i,1).set_size(v_len,Y(0,0).n_cols);
         const int y_len = Y(i,1).n_rows;
-        new_y1.fill(arma::datum::nan);
+        Y_inters_k(i,1).fill(arma::datum::nan);
         for(unsigned int j = 0; j < index_size; ++j) {
           if (index[j] <= y_len){
             index_row = std::max(0, 1-s_k_i) + j;
-            new_y1.row(index_row) =  Y(i,1).row(index[j] - 1);
+            Y_inters_k(i,1).row(index_row) =  Y(i,1).row(index[j] - 1);
           }
         }
-        new_y1.shed_rows(indeces_dom);
-        Y_inters_k(i,1) = new_y1;
+        Y_inters_k(i,1).shed_rows(indeces_dom);
       }
     } 
   }
