@@ -2,8 +2,8 @@ setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMA
 devtools::load_all()
 set.seed(1)
 standardize = TRUE
-diss = 'd0_d1_L2' # try with d1_L2 d0_d1_L2 d0_L2
-alpha = 0.5 #                 0.0    0.5     0.0
+diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
+alpha = 0.5 #             0.0    0.5     1.0
 max_gap = 0
 trials_elong = 200
 c_max = 53
@@ -834,7 +834,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                          }
                          return(len_elong)
                        })
-      print(len_elong)
       # left and right elongation
       keep=D<quantile(D,0.25)
       empty_k=which(colSums(keep)==0)
