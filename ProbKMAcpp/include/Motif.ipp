@@ -78,7 +78,6 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
   }
 
   return v_new;
-  // slight different to the R case in both case we return two elements in this case, see in elongate_motifs
 }
 
 template<bool use1>

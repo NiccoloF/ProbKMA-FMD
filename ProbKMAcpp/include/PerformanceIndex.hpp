@@ -20,7 +20,7 @@ public:
                             const KMA::vector& w,
                             int m,
                             double c_k, // actually is an int
-                            const KMA::uvector & keep_k, // actually is an KMA::uvector
+                            const KMA::uvector & keep_k, 
                             const std::shared_ptr<Dissimilarity>& diss) const = 0; 
 
   protected:
