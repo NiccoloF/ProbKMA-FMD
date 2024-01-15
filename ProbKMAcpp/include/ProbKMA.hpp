@@ -33,7 +33,13 @@ class ProbKMA
     Rcpp::List probKMA_run() const;
 
     void set_parameters(const Rcpp::List& parameters);
-    
+
+    void reinit_motifs(const arma::ivec & c, arma::sword d);
+
+    void set_P0(const KMA::matrix & P0);
+
+    void set_S0(const KMA::imatrix& S0);
+
  private:
 
     // Pimpl design
