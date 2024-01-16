@@ -34,6 +34,10 @@ class ProbKMA
 
     void set_parameters(const Rcpp::List& parameters);
 
+    Rcpp::List get_parameters();
+
+    Rcpp::List get_motifs();
+
     void reinit_motifs(const arma::ivec & c, arma::sword d);
 
     void set_P0(const KMA::matrix & P0);

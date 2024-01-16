@@ -312,6 +312,11 @@ public:
       _dissfac -> set_parameters(_parameters);
     }
 
+    // to be removed
+    Rcpp::List get_parameters() {
+      return _parameters.to_list();
+    }
+
 
     void reinit_motifs(const arma::ivec & c, 
                        arma::sword d)
@@ -319,13 +324,28 @@ public:
       arma::uword K = c.size();
       _V.set_size(K, _isY0 + _isY1); 
       for(arma::uword k=0; k < K; ++k){
-        if(_isY0 and _isY1){
+        if (_isY0) {
           _V(k,0).set_size(c(k),d);
+          _V(k,0).fill(arma::fill::zeros);
+        } 
+        if (_isY1) {
           _V(k,1).set_size(c(k),d);
-        } else {
-          _V(k,0).set_size(c(k),d);
+          _V(k,1).fill(arma::fill::zeros);
         }
       }
+    }
+
+    Rcpp::List get_motifs(){
+      Rcpp::List V0(_V.n_rows);
+      Rcpp::List V1(_V.n_rows);
+      for(arma::uword k = 0; k < _V.n_rows; ++k)
+      {
+        if (_isY0)
+         V0[k] = _V(k,0);
+        if (_isY1)
+         V1[k] = _V(k,1);
+      }
+      return Rcpp::List::create(V0,V1);
     }
 
     void set_P0(const KMA::matrix & P0) 
@@ -527,6 +547,16 @@ void ProbKMA::set_S0(const KMA::imatrix& S0) // to be implemented
     _probKMA -> set_S0(S0);
 }
 
+Rcpp::List ProbKMA::get_parameters()
+{
+  return _probKMA -> get_parameters();
+}
+
+Rcpp::List ProbKMA::get_motifs()
+{
+  return _probKMA -> get_motifs();
+}
+
 // [[Rcpp::export(initialChecks)]]
 Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
                          const Rcpp::NumericMatrix& P0,
@@ -562,6 +592,8 @@ RCPP_MODULE(ProbKMAModule) {
                KMA::matrix,KMA::imatrix,std::string>()
   .method("probKMA_run",&ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters)
+  .method("get_parameters", &ProbKMA::get_parameters)
+  .method("get_motifs", &ProbKMA::get_motifs)
   .method("reinit_motifs", &ProbKMA::reinit_motifs)
   .method("set_P0", &ProbKMA::set_P0)
   .method("set_S0", &ProbKMA::set_S0);

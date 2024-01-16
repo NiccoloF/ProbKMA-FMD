@@ -6,7 +6,7 @@ diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
 alpha = 0.5 #             0.0    0.5     1.0
 max_gap = 0
 trials_elong = 200
-c_max = 53
+c_max = 71
 K = 2
 c = 40
 standardize=FALSE
@@ -17,25 +17,25 @@ P0= matrix()
 S0= matrix() 
 diss=diss
 alpha=alpha
-w=c(0.5,0.5)
+w=1
 m=2
-iter_max=16 
+iter_max=1000 
 stop_criterion='max'
 quantile=0.25
 tol=1e-8
-iter4elong=2
-tol4elong=10
+iter4elong=1
+tol4elong=1e-3
 max_elong=0.5
-trials_elong=2
+trials_elong=201
 deltaJk_elong=0.05
 max_gap=max_gap
-iter4clean=2 #10
-tol4clean=1 #1e-4
+iter4clean=50 #10
+tol4clean=1e-4 #1e-4
 quantile4clean=1/K
 return_options=TRUE
 seed <- 1
 
-load("../TempForRcpp/Y_data.Rdata")
+load("../TempForRcpp/len200_sd0.1.RData")
 
 params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_max,
                quantile = quantile,stopCriterion = stop_criterion,tol = tol,
@@ -46,19 +46,8 @@ params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_
                quantile4clean = quantile4clean,return_options = return_options,
                m = m,w = w,alpha = alpha,seed = seed)
 
-#library(ProbKMAcpp)
-Y0_f <- function(Y_i)
-{
-  return(Y_i$y0)
-}
-Y1_f <- function(Y_i)
-{
-  return(Y_i$y1)
-}
 
 library(ProbKMAcpp)
-Y0 <- lapply(Y,Y0_f)
-Y1 <- lapply(Y,Y1_f)
 
 a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss,seed)
 params <- a$Parameters
@@ -66,15 +55,6 @@ data <- a$FuncData
 
 prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
 b <- prok$probKMA_run()
-
-############# test set_parameters #################
-alpha <- 0.7
-params$alpha <- alpha
-a <- ProbKMAcpp::initialChecks(Y0,Y1,P0,S0,params,diss)
-params <- a$Parameters
-prok$set_parameters(params)
-b <- prok$probKMA_run()
-###################################################
 
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
   if(is.null(cl)){
@@ -91,16 +71,16 @@ b <- prok$probKMA_run()
   # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-
+  
   .diss_L2 <- function(y,v,w){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # L2 distance with normalization on common support.
     # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
-
+    
     sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
   }
-
+  
   if(alpha==0){
     return(.diss_L2(y[[1]],v[[1]],w))
   }else if(alpha==1){
@@ -109,6 +89,7 @@ b <- prok$probKMA_run()
     return((1-alpha)*.diss_L2(y[[1]],v[[1]],w)+alpha*.diss_L2(y[[2]],v[[2]],w))
   }
 }
+
 .domain <- function(v,use0){
   if(use0){
     rowSums(!is.na(v[[1]]))!=0
@@ -116,6 +97,7 @@ b <- prok$probKMA_run()
     rowSums(!is.na(v[[2]]))!=0
   }
 }
+
 .select_domain <- function(v,v_dom,use0,use1){
   if(use0)
     v[[1]]=as.matrix(v[[1]][v_dom,])
@@ -132,7 +114,7 @@ b <- prok$probKMA_run()
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -156,7 +138,7 @@ b <- prok$probKMA_run()
                  y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
                  return(y_rep_i)
                })
-
+  
   length_inter=unlist(lapply(y_rep,
                              function(y_rep_i){
                                if(use0)
@@ -183,7 +165,7 @@ b <- prok$probKMA_run()
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # aligned: if TRUE, curves are already aligned. If FALSE, the shortest curve is aligned inside the longest.
-
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -221,7 +203,7 @@ b <- prok$probKMA_run()
   # s_k: shift vector for motif k.
   # p_k: membership vector for motif k.
   # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x), matrices with d columns, for d-dimensional curves.
-
+  
   .domain <- function(v,use0){
     if(use0){
       rowSums(!is.na(v[[1]]))!=0
@@ -249,7 +231,7 @@ b <- prok$probKMA_run()
     v_new[v_dom,]=Reduce('+',mapply('*',Y_inters_k,coeff_k,SIMPLIFY=FALSE))/coeff_x
     return(v_new)
   }
-
+  
   if(sum(p_k)==0){
     stop('Motif with no members! Degenerate cluster!')
   }
@@ -307,7 +289,7 @@ b <- prok$probKMA_run()
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
   # keep_k: check c_k only when keep=TRUE for y_shifted.
-
+  
   .diss_d0_d1_L2 <- function(y,v,w,alpha){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
@@ -315,16 +297,16 @@ b <- prok$probKMA_run()
     # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-
+    
     .diss_L2 <- function(y,v,w){
       # Dissimilarity index for multidimensional curves (dimension=d).
       # L2 distance with normalization on common support.
       # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
       # w: weights for the dissimilarity index in the different dimensions (w>0).
-
+      
       sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
     }
-
+    
     if(alpha==0){
       return(.diss_L2(y[[1]],v[[1]],w))
     }else if(alpha==1){
@@ -347,7 +329,7 @@ b <- prok$probKMA_run()
       v[[2]]=as.matrix(v[[2]][v_dom,])
     return(v)
   }
-
+  
   v_dom=.domain(v,use0)
   v_len=length(v_dom)
   v=.select_domain(v,v_dom,use0,use1)
@@ -420,7 +402,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   # return_options: if TRUE, the options K,c,diss,w,m are returned by the function.
   # return_init: if TRUE, P0 and S0 are returned by the function.
   # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially.
-
+  
   ### set parallel jobs #############################################################################
   start=proc.time()
   core_number <- detectCores()
@@ -448,7 +430,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   }
   end=proc.time()
   #message('set parallel jobs: ',round((end-start)[3],2))
-
+  
   ### check input ####################################################################################
   start=proc.time()
   # check dissimilarity
@@ -718,7 +700,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     stop('quantile4clean not valid.')
   end=proc.time()
   #message('check input: ',round((end-start)[3],2))
-
+  
   ### initialize #############################################################################################
   start=proc.time()
   if(is.null(P0)){
@@ -748,7 +730,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
               nrow=N,ncol=K,byrow=TRUE)
   }
   S=S0
-
+  
   # create empty motifs
   V=lapply(c,
            function(c_k,d){
@@ -761,7 +743,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
            },d)
   end=proc.time()
   #message('initialize: ',round((end-start)[3],2))
-
+  
   ### iterate #############################################################################################
   iter=0
   J_iter=c()
@@ -770,7 +752,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   while((iter<iter_max)&(BC_dist>tol)){
     iter=iter+1
     #message('iter ',iter)
-
+    
     ##### clean motifs ###################################################################################
     start=proc.time()
     P_old=P
@@ -786,7 +768,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     }
     end=proc.time()
     #message('  clean: ',round((end-start)[3],2))
-
+    
     ##### compute motifs ###################################################################################
     start=proc.time()
     S_k=split(S,rep(seq_len(K),each=N))
@@ -802,7 +784,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     V_dom=lapply(V_new,.domain,use0)
     end=proc.time()
     #message('  compute motifs: ',round((end-start)[3],2))
-
+    
     ##### elongate motifs #################################################################################
     start=proc.time()
     if((iter>1)&&(!(iter%%iter4elong))&&(BC_dist<tol4elong)){
@@ -880,17 +862,17 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                       s_k=s_k))
         }
       },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
-
+      
       V_new=res_left_right[1,]
       V_dom=res_left_right[2,]
       S_k=res_left_right[3,]
       rm(res_left_right)
       S=matrix(unlist(S_k),ncol=K)
     }
-
+    
     end=proc.time()
     #message('  elongate: ',round((end-start)[3],2))
-
+    
     ##### find shift warping minimizing dissimilarities ###################################################
     start=proc.time()
     c_k=floor(unlist(lapply(V_new,function(v_new) unlist(lapply(v_new,nrow))[1]))*(1-max_gap))
@@ -903,7 +885,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     D_new=matrix(SD[2,],ncol=K)
     end=proc.time()
     #message('  find shift: ',round((end-start)[3],2))
-
+    
     ##### compute memberships #############################################################################
     start=proc.time()
     # create membership matrix, with N rows and k columns
@@ -927,10 +909,10 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     }
     end=proc.time()
     #message('  compute memberships: ',round((end-start)[3],2))
-
+    
     ##### evaluate objective function #####################################################################
     J_iter[iter]=sum(D_new*(P_new^m),na.rm=TRUE)
-
+    
     ##### compute Bhattacharyya distance between P_old and P_new ##########################################
     BC_dist_k=-log(rowSums(sqrt(P_old*P_new)))
     if(stop_criterion=='max')
@@ -946,7 +928,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     P=P_new
     S=S_new
     D=D_new
-
+    
   }
   ### prepare output ####################################################################################
   start=proc.time()
@@ -1022,8 +1004,8 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   }
   end=proc.time()
   #message('output: ',round((end-start)[3],2))
-
-
+  
+  
   ### return output ####################################################################################
   return(output)
 }
@@ -1039,519 +1021,21 @@ z <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=params$c,c_
              max_gap=params$max_gap,params$iter4clean,params$tol4clean,
              params$quantile4clean,params$return_options,TRUE,NULL)
 
-#save(z,file="output_prof.RData")
-#load(file="output_prof.RData") 
+# adaptation setting_parameters
+#params$c = 60
+#params$K = K
+#params$quantile4clean = 1/K
+# add an option for the seed, maybe P0 and S0 have to change
+#params$c_max = c_max
+#checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,1)
+#params <- checked_data$Parameters
+#data <- checked_data$FuncData
+#prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
+#prok$set_P0(data$P0)
+#prok$set_S0(data$S0)
+#prok$set_parameters(params)
+#probKMA_results = prok$probKMA_run() # new run for probKMA with updated parameters
 
-########### new probKMA_plot adapted
-probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
-  # my idea was passing data instead of Y0 and Y1 but in this way when data suppresses Y0 or Y1 it does not work
-  d=ncol(Y0[[1]])
-  N=nrow(probKMA_results$P0)
-  K=ncol(probKMA_results$P0)
-  V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
-  S_k=split(probKMA_results$S0,rep(seq_len(K),each=N))
-  P_k=split(probKMA_results$P0,rep(seq_len(K),each=N)) 
-  
-  ### plot motifs with matched curves ########################################################################
-  if(cleaned){
-    S_clean_k=split(probKMA_results$S_clean,rep(seq_len(K),each=N))
-    P_clean_k=split(probKMA_results$P_clean,rep(seq_len(K),each=N))
-    if(is.null(probKMA_results$V1[[1]])){
-      mapply(function(v,v_dom,s_k,p_clean_k,k){
-        keep=which(p_clean_k==1)
-        Y_inters_k=mapply(
-          function(y,s_k_i,v_dom){
-            v_len=length(v_dom)
-            d=ncol(y)
-            y_len=nrow(y)
-            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                             matrix(y[index[index<=y_len],],ncol=d),
-                             matrix(NA,nrow=sum(index>y_len),ncol=d))
-            return(Y_inters_k)},
-          Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
-    }else{
-      mapply(function(v0,v1,v_dom,s_k,p_clean_k,k){
-        keep=which(p_clean_k==1)
-        Y0_inters_k=mapply(
-          function(y,s_k_i,v_dom){
-            v_len=length(v_dom)
-            d=ncol(y)
-            y_len=nrow(y)
-            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                             matrix(y[index[index<=y_len],],ncol=d),
-                             matrix(NA,nrow=sum(index>y_len),ncol=d))
-            return(Y_inters_k)},
-          Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        Y1_inters_k=mapply(
-          function(y,s_k_i,v_dom){
-            v_len=length(v_dom)
-            d=ncol(y)
-            y_len=nrow(y)
-            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                             matrix(y[index[index<=y_len],],ncol=d),
-                             matrix(NA,nrow=sum(index>y_len),ncol=d))
-            return(Y_inters_k)},
-          Y1[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
-                 points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0_clean,probKMA_results$V1_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
-    }
-  }else{
-    if(is.null(probKMA_results$V1[[1]])){
-      mapply(function(v,v_dom,s_k,p_k,k){
-        Y_inters_k=mapply(function(y,s_k_i,v_dom){
-          v_len=length(v_dom)
-          d=ncol(y)
-          y_len=nrow(y)
-          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                           matrix(y[index[index<=y_len],],ncol=d),
-                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-          return(Y_inters_k)},
-          Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0,V_dom,S_k,P_k,seq_len(K))
-    }else{
-      mapply(function(v0,v1,v_dom,s_k,p_k,k){
-        Y0_inters_k=mapply(function(y,s_k_i,v_dom){
-          v_len=length(v_dom)
-          d=ncol(y)
-          y_len=nrow(y)
-          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                           matrix(y[index[index<=y_len],],ncol=d),
-                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-          return(Y_inters_k)},
-          Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        Y1_inters_k=mapply(function(y,s_k_i,v_dom){
-          v_len=length(v_dom)
-          d=ncol(y)
-          y_len=nrow(y)
-          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                           matrix(y[index[index<=y_len],],ncol=d),
-                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-          return(Y_inters_k)},
-          Y1,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
-                 points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0,probKMA_results$V1,V_dom,S_k,P_k,seq_len(K))
-    }
-  }
-  layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-  
-  ### plot motifs ############################################################################################
-  if(cleaned){
-    lapply(seq_len(d),
-           function(j){
-             par(mar=c(3,4,4,2)+0.1)
-             motif_length=unlist(lapply(probKMA_results$V0_clean,nrow))
-             plot(probKMA_results$V0_clean[[1]][,j],type='l',col=2,lwd=7,lty=1,main=ylab[j],xlim=c(1,max(motif_length)),
-                  ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V0_clean),na.rm=TRUE),max(unlist(probKMA_results$V0_clean),na.rm=TRUE)))
-             mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                    probKMA_results$V0_clean[-1],seq_len(K-1))
-             par(mar=c(0,0,0,0))
-             plot.new()
-             legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-             return()})
-  }else{
-    lapply(seq_len(d),
-           function(j){
-             par(mar=c(3,4,4,2)+0.1)
-             motif_length=unlist(lapply(probKMA_results$V0,nrow))
-             plot(probKMA_results$V0[[1]][,j],type='l',col=2,lwd=7,lty=1,main=ylab[j],xlim=c(1,max(motif_length)),
-                  ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V0),na.rm=TRUE),max(unlist(probKMA_results$V0),na.rm=TRUE)))
-             mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                    probKMA_results$V0[-1],seq_len(K-1))
-             par(mar=c(0,0,0,0))
-             plot.new()
-             legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-             return()})
-  }
-  if(!is.null(probKMA_results$V1[[1]])){
-    layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-    if(cleaned){
-      lapply(seq_len(d),
-             function(j){
-               par(mar=c(3,4,4,2)+0.1)
-               motif_length=unlist(lapply(probKMA_results$V1_clean,nrow))
-               plot(probKMA_results$V1_clean[[1]][,j],type='l',col=2,lwd=7,lty=1,main=paste0(ylab[j],' derivative'),xlim=c(1,max(motif_length)),
-                    ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V1_clean),na.rm=TRUE),max(unlist(probKMA_results$V1_clean),na.rm=TRUE)))
-               mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                      probKMA_results$V1_clean[-1],seq_len(K-1))
-               par(mar=c(0,0,0,0))
-               plot.new()
-               legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-               return()})
-    }else{
-      lapply(seq_len(d),
-             function(j){
-               par(mar=c(3,4,4,2)+0.1)
-               motif_length=unlist(lapply(probKMA_results$V1,nrow))
-               plot(probKMA_results$V1[[1]][,j],type='l',col=2,lwd=7,lty=1,main=paste0(ylab[j],' derivative'),xlim=c(1,max(motif_length)),
-                    ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V1),na.rm=TRUE),max(unlist(probKMA_results$V1),na.rm=TRUE)))
-               mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                      probKMA_results$V1[-1],seq_len(K-1))
-               par(mar=c(0,0,0,0))
-               plot.new()
-               legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-               return()})
-    }
-  }
-  
-  ### plot memberships #######################################################################################
-  par(mfrow=c(K,1),mar=c(3,4,4,2)+0.1)
-  if(cleaned){
-    mapply(function(p_k,p_clean_k,k){
-      col=rep('lightgray',N)
-      col[p_clean_k==1]='gray35'
-      barplot(p_k,names.arg=seq_len(N),col=col,las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
-    },P_k,P_clean_k,seq_len(K))
-  }else{
-    mapply(function(p_k,k){
-      barplot(p_k,names.arg=seq_len(N),col='gray',las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
-    },P_k,seq_len(K))
-  }
-  
-  ### plot objective function and Bhattacharyya distance #####################################################
-  par(mfrow=c(1,1))
-  plot(seq_len(probKMA_results$iter),probKMA_results$J_iter,type='l',xlab='iter',ylab='objective function',main='Objective function Jm')
-  plot(seq_len(probKMA_results$iter),probKMA_results$BC_dist_iter,type='l',xlab='iter',ylab='distance between memberships',main='Bhattacharyya distance between memberships')
-  
-  return()
-}
-
-probKMA_plot(Y0, Y1, b)
-
-########### old probKMA_plot
-probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE){
-  
-  d=ncol(probKMA_results$Y0[[1]])
-  N=nrow(probKMA_results$P)
-  K=ncol(probKMA_results$P)
-  V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
-  S_k=split(probKMA_results$S,rep(seq_len(K),each=N))
-  P_k=split(probKMA_results$P,rep(seq_len(K),each=N))
-  
-  ### plot motifs with matched curves ########################################################################
-  if(cleaned){
-    S_clean_k=split(probKMA_results$S_clean,rep(seq_len(K),each=N))
-    P_clean_k=split(probKMA_results$P_clean,rep(seq_len(K),each=N))
-    if(is.null(probKMA_results$V1[[1]])){
-      mapply(function(v,v_dom,s_k,p_clean_k,k){
-        keep=which(p_clean_k==1)
-        Y_inters_k=mapply(
-          function(y,s_k_i,v_dom){
-            v_len=length(v_dom)
-            d=ncol(y)
-            y_len=nrow(y)
-            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                             matrix(y[index[index<=y_len],],ncol=d),
-                             matrix(NA,nrow=sum(index>y_len),ncol=d))
-            return(Y_inters_k)},
-          probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
-    }else{
-      mapply(function(v0,v1,v_dom,s_k,p_clean_k,k){
-        keep=which(p_clean_k==1)
-        Y0_inters_k=mapply(
-          function(y,s_k_i,v_dom){
-            v_len=length(v_dom)
-            d=ncol(y)
-            y_len=nrow(y)
-            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                             matrix(y[index[index<=y_len],],ncol=d),
-                             matrix(NA,nrow=sum(index>y_len),ncol=d))
-            return(Y_inters_k)},
-          probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        Y1_inters_k=mapply(
-          function(y,s_k_i,v_dom){
-            v_len=length(v_dom)
-            d=ncol(y)
-            y_len=nrow(y)
-            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                             matrix(y[index[index<=y_len],],ncol=d),
-                             matrix(NA,nrow=sum(index>y_len),ncol=d))
-            return(Y_inters_k)},
-          probKMA_results$Y1[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
-                 points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0_clean,probKMA_results$V1_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
-    }
-  }else{
-    if(is.null(probKMA_results$V1[[1]])){
-      mapply(function(v,v_dom,s_k,p_k,k){
-        Y_inters_k=mapply(function(y,s_k_i,v_dom){
-          v_len=length(v_dom)
-          d=ncol(y)
-          y_len=nrow(y)
-          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                           matrix(y[index[index<=y_len],],ncol=d),
-                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-          return(Y_inters_k)},
-          probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0,V_dom,S_k,P_k,seq_len(K))
-    }else{
-      mapply(function(v0,v1,v_dom,s_k,p_k,k){
-        Y0_inters_k=mapply(function(y,s_k_i,v_dom){
-          v_len=length(v_dom)
-          d=ncol(y)
-          y_len=nrow(y)
-          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                           matrix(y[index[index<=y_len],],ncol=d),
-                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-          return(Y_inters_k)},
-          probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        Y1_inters_k=mapply(function(y,s_k_i,v_dom){
-          v_len=length(v_dom)
-          d=ncol(y)
-          y_len=nrow(y)
-          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                           matrix(y[index[index<=y_len],],ncol=d),
-                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-          return(Y_inters_k)},
-          probKMA_results$Y1,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                 points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        lapply(seq_len(d),
-               function(j){
-                 par(mar=c(3,4,4,2)+0.1)
-                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                 y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
-                 points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                 par(mar=c(0,0,0,0))
-                 plot.new()
-                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-               })
-        return()},
-        probKMA_results$V0,probKMA_results$V1,V_dom,S_k,P_k,seq_len(K))
-    }
-  }
-  layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-  
-  ### plot motifs ############################################################################################
-  if(cleaned){
-    lapply(seq_len(d),
-           function(j){
-             par(mar=c(3,4,4,2)+0.1)
-             motif_length=unlist(lapply(probKMA_results$V0_clean,nrow))
-             plot(probKMA_results$V0_clean[[1]][,j],type='l',col=2,lwd=7,lty=1,main=ylab[j],xlim=c(1,max(motif_length)),
-                  ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V0_clean),na.rm=TRUE),max(unlist(probKMA_results$V0_clean),na.rm=TRUE)))
-             mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                    probKMA_results$V0_clean[-1],seq_len(K-1))
-             par(mar=c(0,0,0,0))
-             plot.new()
-             legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-             return()})
-  }else{
-    lapply(seq_len(d),
-           function(j){
-             par(mar=c(3,4,4,2)+0.1)
-             motif_length=unlist(lapply(probKMA_results$V0,nrow))
-             plot(probKMA_results$V0[[1]][,j],type='l',col=2,lwd=7,lty=1,main=ylab[j],xlim=c(1,max(motif_length)),
-                  ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V0),na.rm=TRUE),max(unlist(probKMA_results$V0),na.rm=TRUE)))
-             mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                    probKMA_results$V0[-1],seq_len(K-1))
-             par(mar=c(0,0,0,0))
-             plot.new()
-             legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-             return()})
-  }
-  if(!is.null(probKMA_results$V1[[1]])){
-    layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-    if(cleaned){
-      lapply(seq_len(d),
-             function(j){
-               par(mar=c(3,4,4,2)+0.1)
-               motif_length=unlist(lapply(probKMA_results$V1_clean,nrow))
-               plot(probKMA_results$V1_clean[[1]][,j],type='l',col=2,lwd=7,lty=1,main=paste0(ylab[j],' derivative'),xlim=c(1,max(motif_length)),
-                    ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V1_clean),na.rm=TRUE),max(unlist(probKMA_results$V1_clean),na.rm=TRUE)))
-               mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                      probKMA_results$V1_clean[-1],seq_len(K-1))
-               par(mar=c(0,0,0,0))
-               plot.new()
-               legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-               return()})
-    }else{
-      lapply(seq_len(d),
-             function(j){
-               par(mar=c(3,4,4,2)+0.1)
-               motif_length=unlist(lapply(probKMA_results$V1,nrow))
-               plot(probKMA_results$V1[[1]][,j],type='l',col=2,lwd=7,lty=1,main=paste0(ylab[j],' derivative'),xlim=c(1,max(motif_length)),
-                    ylab=ylab[j],ylim=c(min(unlist(probKMA_results$V1),na.rm=TRUE),max(unlist(probKMA_results$V1),na.rm=TRUE)))
-               mapply(function(v,k) points(v[,j],type='l',col=k+2,lwd=7,lty=1,ylab=ylab),
-                      probKMA_results$V1[-1],seq_len(K-1))
-               par(mar=c(0,0,0,0))
-               plot.new()
-               legend('left',paste('motif',seq_len(K)),col=seq_len(K)+1,lwd=7,lty=1,bty="n",xpd=TRUE)
-               return()})
-    }
-  }
-  
-  ### plot memberships #######################################################################################
-  par(mfrow=c(K,1),mar=c(3,4,4,2)+0.1)
-  if(cleaned){
-    mapply(function(p_k,p_clean_k,k){
-      col=rep('lightgray',N)
-      col[p_clean_k==1]='gray35'
-      barplot(p_k,names.arg=seq_len(N),col=col,las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
-    },P_k,P_clean_k,seq_len(K))
-  }else{
-    mapply(function(p_k,k){
-      barplot(p_k,names.arg=seq_len(N),col='gray',las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
-    },P_k,seq_len(K))
-  }
-  
-  ### plot objective function and Bhattacharyya distance #####################################################
-  par(mfrow=c(1,1))
-  plot(seq_len(probKMA_results$iter),probKMA_results$J_iter,type='l',xlab='iter',ylab='objective function',main='Objective function Jm')
-  plot(seq_len(probKMA_results$iter),probKMA_results$BC_dist_iter,type='l',xlab='iter',ylab='distance between memberships',main='Bhattacharyya distance between memberships')
-  
-  return()
-}
-
-probKMA_plot(z)
-
-
-########### probKMA_silhouette adapted 
 probKMA_silhouette <- function(Y0, Y1, params, diss, probKMA_results,align=FALSE,plot=TRUE){
   ### compute silhouette #####################################################################################
   if(diss=='d0_L2'){
@@ -1573,7 +1057,7 @@ probKMA_silhouette <- function(Y0, Y1, params, diss, probKMA_results,align=FALSE
     Y=mapply(function(y0,y1) list(y0=y0,y1=y1),Y0,Y1,SIMPLIFY=FALSE)
   }
   w=params$w
-  d=ncol(Y0[[1]])
+  d=ncol(as.matrix(Y0[[1]]))
   N=nrow(probKMA_results$P_clean)
   K=ncol(probKMA_results$P_clean)
   V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
@@ -1692,170 +1176,10 @@ probKMA_silhouette <- function(Y0, Y1, params, diss, probKMA_results,align=FALSE
   
 }
 
-sil <- probKMA_silhouette(Y0,Y1,params,diss, b)
-
-########### old probKMA_silhouette
-probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
-  ### compute silhouette #####################################################################################
-  if(probKMA_results$diss=='d0_L2'){
-    alpha=0
-    use0=TRUE
-    use1=FALSE
-    Y=lapply(probKMA_results$Y0,function(y0) list(y0=y0,y1=NULL))
-  }
-  if(probKMA_results$diss=='d1_L2'){
-    alpha=1
-    use0=FALSE
-    use1=TRUE
-    Y=lapply(probKMA_results$Y1,function(y1) list(y0=NULL,y1=y1))
-  }
-  if(probKMA_results$diss=='d0_d1_L2'){
-    alpha=probKMA_results$alpha
-    use0=TRUE
-    use1=TRUE
-    Y=mapply(function(y0,y1) list(y0=y0,y1=y1),probKMA_results$Y0,probKMA_results$Y1,SIMPLIFY=FALSE)
-  }
-  w=probKMA_results$w
-  d=ncol(probKMA_results$Y0[[1]])
-  N=nrow(probKMA_results$P_clean)
-  K=ncol(probKMA_results$P_clean)
-  V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
-  V_length=unlist(lapply(V_dom,length))
-  
-  # extract pieces of curves that fall in the different motifs
-  curves_in_motifs=apply(probKMA_results$P_clean,2,function(P_clean_k) which(P_clean_k==1))
-  if(!is.null(ncol(curves_in_motifs))){
-    curves_in_motifs=split(curves_in_motifs,rep(seq_len(ncol(curves_in_motifs)),each=nrow(curves_in_motifs)))
-  }
-  curves_in_motifs_number=colSums(probKMA_results$P_clean)
-  S_clean_k=mapply(function(s_k,curves_in_motif) s_k[curves_in_motif],
-                   split(probKMA_results$S_clean,rep(seq_len(K),each=N)),curves_in_motifs,SIMPLIFY=FALSE)
-  
-  # compute distances between pieces of curves
-  Y_in_motifs=unlist(mapply(function(curves_in_motif,s_k,v_dom){
-    Y_in_motif=mapply(function(y,s){
-      if(use0){
-        d=ncol(y$y0) # dimension of curves
-        y_len=nrow(y$y0)
-        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
-        y$y0=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
-                   matrix(y$y0[index[index<=y_len],],ncol=d),
-                   matrix(NA,nrow=sum(index>y_len),ncol=d))
-        y$y0[!v_dom,]=NA
-      }
-      if(use1){
-        d=ncol(y$y1) # dimension of curves
-        y_len=nrow(y$y1)
-        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
-        y$y1=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
-                   matrix(y$y1[index[index<=y_len],],ncol=d),
-                   matrix(NA,nrow=sum(index>y_len),ncol=d))
-        y$y1[!v_dom,]=NA
-      }
-      return(y)
-    },Y[curves_in_motif],s_k,SIMPLIFY=FALSE)
-  },curves_in_motifs,S_clean_k,V_dom,SIMPLIFY=FALSE),recursive=FALSE)
-  Y_motifs=rep.int(1:K,curves_in_motifs_number)
-  YY=combn(Y_in_motifs,2,simplify=FALSE)
-  YY=array(unlist(YY,recursive=FALSE),dim=c(2,length(YY)))
-  YY_lengths=combn(V_length[Y_motifs],2)
-  swap=YY_lengths[1,]<YY_lengths[2,]
-  YY[,swap]=rbind(YY[2,swap],YY[1,swap])
-  if(align){
-    # find distance between the two pieces of curves
-    # no alignment for pieces corresponding to motifs with the same length
-    # alignment for pieces corresponding to motifs with different lengths (requiring one piece inside the other)
-    equal_length=(YY_lengths[1,]==YY_lengths[2,])
-    SD=mapply(.find_diss,YY[1,],YY[2,],equal_length,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
-  }else{
-    # find minimum distance between the two pieces of curves, allowing alignment
-    # minimum overlap required: minimum motif length
-    cc_motifs=apply(combn(probKMA_results$c[Y_motifs],2),2,min)
-    SD=mapply(.find_min_diss,YY[1,],YY[2,],cc_motifs,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
-  }
-  YY_D=matrix(0,nrow=length(Y_motifs),ncol=length(Y_motifs))
-  YY_D[lower.tri(YY_D)]=SD[2,]
-  YY_D=YY_D+t(YY_D)
-  
-  # compute intra-cluster distances
-  intra=Reduce(cbind,lapply(Y_motifs,function(motif) Y_motifs==motif))
-  diag(intra)=FALSE
-  a=colSums(intra*YY_D)/(curves_in_motifs_number[Y_motifs]-1)
-  
-  # compute inter-cluster distances
-  b_k=Reduce(rbind,lapply(1:(K-1),
-                          function(k){
-                            inter=Reduce(cbind,lapply(Y_motifs,
-                                                      function(motif) Y_motifs==ifelse(motif+k>K,(motif+k)%%K,motif+k)))
-                            b_k=colSums(inter*YY_D)/(curves_in_motifs_number[ifelse(Y_motifs+1>K,(Y_motifs+1)%%K,Y_motifs+1)])
-                            return(b_k)}))
-  if(is.matrix(b_k)){
-    b=apply(b_k,2,min)
-  }else{
-    b=b_k
-  }
-  
-  # compute silhouette
-  silhouette=(b-a)/pmax(a,b)
-  silhouette[is.nan(silhouette)]=0
-  
-  # compute average silhouette per cluster
-  silhouette_average=rep(NA,K)
-  for(k in seq_len(K)){
-    silhouette_k=silhouette[Y_motifs==k]
-    curves_in_motifs[[k]]=curves_in_motifs[[k]][order(silhouette_k,decreasing=TRUE)]
-    silhouette[Y_motifs==k]=sort(silhouette_k,decreasing=TRUE)
-    silhouette_average[k]=mean(silhouette_k)
-  }
-  
-  ### plot silhouette ########################################################################################
-  if(plot){
-    n=length(silhouette)
-    sil=rev(silhouette)
-    y=barplot(sil,space=c(0,rev(diff(Y_motifs))),xlab='Silhouette index',names='',
-              xlim=c(min(0,min(sil)-0.05),1.2),horiz=TRUE,las=1,mgp=c(2.5,1,0),col='gray')
-    text(ifelse(sil>=0,sil+0.03,sil-0.03),ifelse(sil>0,y,y+0.2),labels=rev(unlist(curves_in_motifs)),cex=0.5)
-    title(main='Silhouette plot')
-    title(sub=paste("Average silhouette width:",round(mean(silhouette_average),2)),adj=0)
-    mtext(paste("n =",n),adj=0)
-    mtext(substitute(K~~"motifs",list(K=K)),adj=1)
-    mtext(expression(paste(j," : ",n[j]," | avg ",s[i])),adj=1.04,line=-1.2)
-    y=rev(y)
-    for(k in seq_len(K)){
-      y_k=mean(y[Y_motifs==k])
-      text(1,y_k,
-           paste0(k,": ",curves_in_motifs_number[k]," | ",format(silhouette_average[k],digits=1,nsmall=2)),xpd=NA,adj=0.1)
-    }
-  }
-  
-  return(list(silhouette=silhouette,motifs=Y_motifs,curves=unlist(curves_in_motifs),
-              silhouette_average=silhouette_average))
-}
-
-sil_prof <- probKMA_silhouette(z)
-
-
-# debugging part for find_candidate_motifs
-params$c = 39
-params$K = 3
-params$quantile4clean = 1/3
-# add an option for the seed, maybe P0 and S0 have to change
-params$c_max = c_max
-checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,1)
-params <- checked_data$Parameters
-data <- checked_data$FuncData
-prok$reinit_motifs(params$c,ncol(Y0[[1]]))
-prok$set_P0(data$P0)
-prok$set_S0(data$S0)
-prok$set_parameters(params)
-probKMA_results = prok$probKMA_run()
 silhouette=probKMA_silhouette(Y0,
                               Y1,
                               params,
                               diss,
-                              probKMA_results,
+                              b,
                               align=FALSE,
                               plot=TRUE) 
-probKMA_plot(Y0, Y1, probKMA_results,cleaned=FALSE) 

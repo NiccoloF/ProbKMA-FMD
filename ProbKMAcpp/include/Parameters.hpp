@@ -9,6 +9,7 @@ struct Parameters
     Parameters() = delete;
     Parameters(const Parameters&) = default;
     Parameters(const Rcpp::List& params);
+    Rcpp::List to_list();
 
     bool _standardize;
     unsigned int _K;
