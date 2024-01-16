@@ -196,7 +196,13 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
       dev.off()
       pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
-      silhouette=probKMA_silhouette(probKMA_results,align=silhouette_align,plot=TRUE) # da adattare con i nuovi results
+      silhouette=probKMA_silhouette(Y0,
+                                    Y1,
+                                    params,
+                                    probKMA_options$diss,
+                                    probKMA_results,
+                                    align=silhouette_align,
+                                    plot=TRUE) 
       dev.off()
       save(probKMA_results,time,silhouette,
            file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
@@ -204,12 +210,9 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                   time=time,silhouette=silhouette))
     }
   },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
-  # cosa fa questo?
+  # browser() to see how results is
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
-  # cosa fa questo?
   results=split(results,rep(K,each=length(c)))
-  
-  ## to watch this part
   
   ### plot silhouette average #################################################################################
   silhouette_average_sd=lapply(results,

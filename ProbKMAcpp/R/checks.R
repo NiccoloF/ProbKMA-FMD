@@ -1,3 +1,13 @@
+#' @title initialChecks
+#'
+#' @description checks all the inputs provided by the user for running ProbKMA
+#'
+#' @param Y0 curves
+#' @param Y1 derivatives
+#' @param P0 initial membership probabilities 
+#' @return \item{silhouette}{ vector of silhouette indices} to be modified
+#' @return \item{motifs}{ vector of motifs numbers} to be modified 
+#' @export
 .initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
