@@ -1059,7 +1059,7 @@ n_init = 10 # number of random initializations to try
 
 library(ProbKMAcpp)
 find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y0, Y1, K, c, n_init,
-                                                                  name = './results/len200_sd0.1', names_var = 'x(t)',
+                                                                  name = '../TempForRcpp/results/len200_sd0.1', names_var = 'x(t)',
                                                                   probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
                                                                                          iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                                          return_options = TRUE, return_init = TRUE,
@@ -2824,7 +2824,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
 set.seed(1)
 library(parallel)
 find_candidate_motifs_results_prof = find_candidate_motifs(Y0, Y1, K, c, n_init,
-                                                           name = './results/len200_sd0.1', names_var = 'x(t)',
+                                                           name = '../TempForRcpp/results/len200_sd0.1', names_var = 'x(t)',
                                                            probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
                                                                              iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                              return_options = TRUE, return_init = TRUE,

@@ -162,45 +162,45 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
   results=mapply_custom(NULL,function(K,c,i,params,data,prok,diss,seed){ #cl_find
-    #dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
-    #files=list.files(paste0(name,"_K",K,"_c",c))
-    #message("K",K,"_c",c,'_random',i)
-    #if(paste0('random',i,'.RData') %in% files){
-    #  load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-    #  return(list(probKMA_results=probKMA_results,
-    #              time=time,silhouette=silhouette))
-    #}else{
-    iter=iter_max=1
-    while(iter==iter_max){
-      set.seed(seed)
-      start=proc.time()
-      params$c = c
-      params$K = K
-      params$w = 1
-      params$quantile4clean = 1/K
-      params$c_max = probKMA_options$c_max
-      checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,seed)
-      params <- checked_data$Parameters
-      data <- checked_data$FuncData
-      prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
-      prok$set_P0(data$P0)
-      prok$set_S0(data$S0)
-      prok$set_parameters(params)
-      probKMA_results = prok$probKMA_run() # new run for probKMA with updated parameters
-      end=proc.time()
-      time=end-start
-      iter=probKMA_results$iter
-      iter_max=params$iter_max
-      if(iter==iter_max)
-        warning('Maximum number of iteration reached. Re-starting.')
+    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+    files=list.files(paste0(name,"_K",K,"_c",c))
+    message("K",K,"_c",c,'_random',i)
+    if(paste0('random',i,'.RData') %in% files){
+      load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+      return(list(probKMA_results=probKMA_results,
+                  time=time,silhouette=silhouette))
+    }else{
+      iter=iter_max=1
+      while(iter==iter_max){
+        set.seed(seed)
+        start=proc.time()
+        params$c = c
+        params$K = K
+        params$w = 1
+        params$quantile4clean = 1/K
+        params$c_max = probKMA_options$c_max
+        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,seed)
+        params <- checked_data$Parameters
+        data <- checked_data$FuncData
+        prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
+        prok$set_P0(data$P0)
+        prok$set_S0(data$S0)
+        prok$set_parameters(params)
+        probKMA_results = prok$probKMA_run() # new run for probKMA with updated parameters
+        end=proc.time()
+        time=end-start
+        iter=probKMA_results$iter
+        iter_max=params$iter_max
+        if(iter==iter_max)
+          warning('Maximum number of iteration reached. Re-starting.')
     }
-    #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
+    pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
     probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
     dev.off()
-    #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
+    pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
     probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
     dev.off()
-    #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
+    pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
     silhouette=probKMA_silhouette(Y0,
                                   Y1,
                                   params,
@@ -209,13 +209,12 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                   align=silhouette_align,
                                   plot=TRUE) 
     dev.off()
-    #save(probKMA_results,time,silhouette,
-    #     file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+    save(probKMA_results,time,silhouette,
+         file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
     return(list(probKMA_results=probKMA_results,
                 time=time,silhouette=silhouette))
   }
-  #}
-  ,i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,data,prok,diss,seed))
+  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,data,prok,diss,seed))
   
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
@@ -235,7 +234,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                                            })
                                })
   if(plot){
-    #pdf(paste0(name,'_silhouette.pdf'),width=7,height=5)
+    pdf(paste0(name,'_silhouette.pdf'),width=7,height=5)
     for(i in seq_along(K)){
       silhouette_average_plot=matrix(unlist(lapply(silhouette_average_sd[[i]],function(average_sd) average_sd[order(average_sd[,1],decreasing=TRUE),1])),ncol=length(c))
       silhouette_sd_plot=matrix(unlist(lapply(silhouette_average_sd[[i]],function(average_sd) average_sd[order(average_sd[,1],decreasing=TRUE),2])),ncol=length(c))
@@ -269,7 +268,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                 times=unlist(lapply(results,function(results) results$time[3])))
                })
   if(plot){
-    #pdf(paste0(name,'_times.pdf'),width=7,height=5)
+    pdf(paste0(name,'_times.pdf'),width=7,height=5)
     y_max=max(unlist(times))*1.2
     times_plot=vector('list',length(K))
     for(i in seq_along(K)){
@@ -309,7 +308,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                    })
                         })
              })
-    #pdf(paste0(name,'_dissimilarities.pdf'),width=7,height=5)
+    pdf(paste0(name,'_dissimilarities.pdf'),width=7,height=5)
     y_max=max(unlist(D))
     for(i in seq_along(K)){
       D_plot=matrix(unlist(D[[i]]),ncol=length(c))
@@ -338,7 +337,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                                      })
                                     })
                    })
-    #pdf(paste0(name,'_dissimilarities_clean.pdf'),width=7,height=5)
+    pdf(paste0(name,'_dissimilarities_clean.pdf'),width=7,height=5)
     y_max=max(unlist(D_clean))
     for(i in seq_along(K)){
       D_plot=matrix(unlist(D_clean[[i]]),ncol=length(c))
@@ -369,7 +368,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(as.matrix(motif_length))
       },results,SIMPLIFY=FALSE)
     },results,SIMPLIFY=FALSE)
-    #pdf(paste0(name,'_lengths.pdf'),width=7,height=5)
+    pdf(paste0(name,'_lengths.pdf'),width=7,height=5)
     motif_length_plot=lapply(motif_length,
                              function(motif_length){
                                lapply(motif_length,
@@ -404,7 +403,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(as.matrix(motif_length))
       },results,SIMPLIFY=FALSE)
     },results,SIMPLIFY=FALSE)
-    #pdf(paste0(name,'_lengths_clean.pdf'),width=7,height=5)
+    pdf(paste0(name,'_lengths_clean.pdf'),width=7,height=5)
     motif_length_plot=lapply(motif_clean_length,
                              function(motif_length){
                                lapply(motif_length,
@@ -430,7 +429,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
     
-    #pdf(paste0(name,'_lengths_perc.pdf'),width=7,height=5)
+    pdf(paste0(name,'_lengths_perc.pdf'),width=7,height=5)
     motif_length_perc=mapply(function(results){
       motif_length=mapply(function(results){
         motif_length=as.matrix(Reduce(cbind,lapply(results,
@@ -465,7 +464,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
     
-    #pdf(paste0(name,'_lengths_clean_perc.pdf'),width=7,height=5)
+    pdf(paste0(name,'_lengths_clean_perc.pdf'),width=7,height=5)
     motif_clean_length_perc=mapply(function(results){
       motif_length=mapply(function(results){
         motif_length=as.matrix(Reduce(cbind,lapply(results,
