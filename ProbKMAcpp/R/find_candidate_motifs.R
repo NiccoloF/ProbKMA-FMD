@@ -32,7 +32,6 @@
 #' @import parallel
 find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',
                                   probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL){
-  
   ### check input #############################################################################################
   # check required input
   if(missing(K))
@@ -77,6 +76,46 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       probKMA_options$return_options=TRUE
     }
   }
+  
+  params = list(standardize=probKMA_options$standardize,
+                c_max = probKMA_options$c_max,
+                iter_max = probKMA_options$iter_max,
+                iter4elong = probKMA_options$iter4elong,
+                trials_elong = probKMA_options$trials_elong,
+                return_options = probKMA_options$return_options,
+                alpha = probKMA_options$alpha,
+                quantile = 0.25, #argument
+                stopCriterion = 'max', #argument
+                tol = 1e-8, #argument
+                tol4elong = 1e-3, #argument
+                max_elong = 0.5, #argument
+                deltaJK_elong = 0.05, #argument
+                max_gap = 0.2, #argument
+                iter4clean = 50, #argument
+                tol4clean = 1e-4, #argument
+                quantile4clean = 1/2, #argument
+                m = 2, #argument
+                w = 1, #argument
+                seed = 1, #argument
+                K = 2, #argument
+                c = 40) #argument
+  
+  checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,
+                                            matrix(),
+                                            matrix(),
+                                            params,
+                                            probKMA_options$diss,
+                                            1)
+  
+  params <- checked_data$Parameters
+  data <- checked_data$FuncData
+  
+  if (alpha == 0 || alpha == 1){
+    prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
+  } else {
+    prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
+  }
+  
   ### set parallel jobs #############################################################################
   core_number <- parallel::detectCores()
   # check worker number
@@ -105,112 +144,83 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     probKMA_options$worker_number=1
     if(worker_number>1){
       cl_find=parallel::makeCluster(worker_number,timeout=60*60*24*30)
+      parallel::clusterEvalQ(cl_find, library(ProbKMAcpp))
       parallel::clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA_options',
-                              'probKMA','probKMA_plot','probKMA_silhouette','compute_motif', # delete these in the package
-                              'mapply_custom','diss_d0_d1_L2','domain','select_domain','find_min_diss','compute_Jk'),envir=environment()) 
-      parallel::clusterCall(cl_find,function()library(parallel,combinat))
+                                        'probKMA_plot','probKMA_silhouette','compute_motif', 
+                                        'mapply_custom','diss_d0_d1_L2','domain',
+                                        'select_domain','find_min_diss','compute_Jk',
+                                        'params','prok','data'),envir=environment()) 
+      parallel::clusterCall(cl_find,function()library(parallel,combinat)) # here is the problem
       on.exit(parallel::stopCluster(cl_find))
     }else{
       cl_find=NULL
     }
   }
   
-  params = list(standardize=probKMA_options$standardize,
-                c_max = probKMA_options$c_max,
-                iter_max = probKMA_options$iter_max,
-                iter4elong = probKMA_options$iter4elong,
-                trials_elong = probKMA_options$trials_elong,
-                return_options = probKMA_options$return_options ,
-                quantile = 0.25,
-                stopCriterion = 'max',
-                tol = 1e-8,
-                tol4elong = 1e-3,
-                max_elong = 0.5,
-                deltaJK_elong = 0.05,
-                max_gap = 0.2,
-                iter4clean = 50,
-                tol4clean = 1e-4,
-                quantile4clean = 1/2,
-                m = 2,
-                w = 1,
-                alpha = probKMA_options$alpha,
-                seed = 1, # to add seed and setting for no using seed
-                K = 2,
-                c = 40) 
-
-  checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,
-                                            matrix(),matrix(),
-                                            params,
-                                            probKMA_options$diss,
-                                            seed)
-  
-  params <- checked_data$Parameters
-  data <- checked_data$FuncData
-  
-  if (alpha == 0 || alpha == 1){
-    prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
-  } else {
-    prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
-  }
+  browser()
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(cl_find,function(K,c,i){
-    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
-    files=list.files(paste0(name,"_K",K,"_c",c))
-    message("K",K,"_c",c,'_random',i)
-    if(paste0('random',i,'.RData') %in% files){
-      load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-      return(list(probKMA_results=probKMA_results,
-                  time=time,silhouette=silhouette))
-    }else{
-      iter=iter_max=1
-      while(iter==iter_max){
-        start=proc.time()
-        # the next line commented is the old version
-        # probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
-        params$c = c
-        params$K = K
-        params$quantile4clean = 1/K
-        # add an option for the seed, maybe P0 and S0 have to change
-        params$c_max = probKMA_options$c_max
-        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,seed)
-        params <- checked_data$Parameters
-        data <- checked_data$FuncData
-        prob$reinit_motifs(params$c,ncol(data$Y$Y0[[1]]))
-        prob$set_P0(data$P0)
-        prob$set_S0(data$S0)
-        prok$set_parameters(params)
-        probKMA_results = prok$probKMA_run() # new run for probKMA with updated parameters
-        end=proc.time()
-        time=end-start
-        iter=probKMA_results$iter
-        iter_max=probKMA_results$iter_max
-        if(iter==iter_max)
-          warning('Maximum number of iteration reached. Re-starting.')
-      }
-      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
-      probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
-      dev.off()
-      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
-      probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
-      dev.off()
-      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
-      silhouette=probKMA_silhouette(Y0,
-                                    Y1,
-                                    params,
-                                    probKMA_options$diss,
-                                    probKMA_results,
-                                    align=silhouette_align,
-                                    plot=TRUE) 
-      dev.off()
-      save(probKMA_results,time,silhouette,
-           file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-      return(list(probKMA_results=probKMA_results,
-                  time=time,silhouette=silhouette))
+  results=mapply_custom(NULL,function(K,c,i,params,prok,data,Y0,Y1,diss,probKMA_options,silhouette_align){ #cl_find
+    #dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+    #files=list.files(paste0(name,"_K",K,"_c",c))
+    #message("K",K,"_c",c,'_random',i)
+    #if(paste0('random',i,'.RData') %in% files){
+    #  load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+    #  return(list(probKMA_results=probKMA_results,
+    #              time=time,silhouette=silhouette))
+    #}else{
+    iter=iter_max=1
+    while(iter==iter_max){
+      start=proc.time()
+      # the next line commented is the old version
+      # probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
+      params$c = c
+      params$K = K
+      params$w = 1
+      params$quantile4clean = 1/K
+      # add an option for the seed, maybe P0 and S0 have to change
+      params$c_max = probKMA_options$c_max
+      checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,1)
+      params <- checked_data$Parameters
+      data <- checked_data$FuncData
+      prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
+      prok$set_P0(data$P0)
+      prok$set_S0(data$S0)
+      prok$set_parameters(params)
+      probKMA_results = prok$probKMA_run() # new run for probKMA with updated parameters
+      end=proc.time()
+      time=end-start
+      iter=probKMA_results$iter
+      iter_max=params$iter_max
+      if(iter==iter_max)
+        warning('Maximum number of iteration reached. Re-starting.')
     }
-  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
-  # browser() to see how results is
+    #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
+    #probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
+    #dev.off()
+    #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
+    #probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
+    #dev.off()
+    #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
+    silhouette=probKMA_silhouette(Y0,
+                                  Y1,
+                                  params,
+                                  probKMA_options$diss,
+                                  probKMA_results,
+                                  align=silhouette_align,
+                                  plot=TRUE) 
+    #dev.off()
+    #save(probKMA_results,time,silhouette,
+    #     file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+    return(list(probKMA_results=probKMA_results,
+                time=time,silhouette=silhouette))
+  }
+  #}
+  ,i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,prok,data,Y0,Y1,diss,probKMA_options,silhouette_align))
+  
+  browser() 
+  
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
   

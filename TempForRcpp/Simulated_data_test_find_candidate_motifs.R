@@ -623,13 +623,13 @@ probKMA_silhouette <- function(Y0, Y1, params, diss, probKMA_results,align=FALSE
     # no alignment for pieces corresponding to motifs with the same length
     # alignment for pieces corresponding to motifs with different lengths (requiring one piece inside the other)
     equal_length=(YY_lengths[1,]==YY_lengths[2,])
-    SD=mapply(.find_diss,YY[1,],YY[2,],equal_length,
+    SD=mapply(find_diss,YY[1,],YY[2,],equal_length,
               MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
   }else{
     # find minimum distance between the two pieces of curves, allowing alignment
     # minimum overlap required: minimum motif length
     cc_motifs=apply(combn(probKMA_results$c[Y_motifs],2),2,min)
-    SD=mapply(.find_min_diss,YY[1,],YY[2,],cc_motifs,
+    SD=mapply(find_min_diss,YY[1,],YY[2,],cc_motifs,
               MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
   }
   YY_D=matrix(0,nrow=length(Y_motifs),ncol=length(Y_motifs))
@@ -822,7 +822,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(NULL,function(K,c,i){ #cl_find
+  results=mapply_custom(NULL,function(K,c,i,params,prok,data,Y0,Y1,diss,probKMA_options,silhouette_align){ #cl_find
     #dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
     #files=list.files(paste0(name,"_K",K,"_c",c))
     #message("K",K,"_c",c,'_random',i)
@@ -838,10 +838,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         # probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
         params$c = c
         params$K = K
+        params$w = 1
         params$quantile4clean = 1/K
         # add an option for the seed, maybe P0 and S0 have to change
         params$c_max = probKMA_options$c_max
-        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,probKMA_options$diss,1)
+        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,1)
         params <- checked_data$Parameters
         data <- checked_data$FuncData
         prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
@@ -857,11 +858,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
           warning('Maximum number of iteration reached. Re-starting.')
       }
       #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
-      probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
-      dev.off()
+      #probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
+      #dev.off()
       #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
-      probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
-      dev.off()
+      #probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
+      #dev.off()
       #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
       silhouette=probKMA_silhouette(Y0,
                                     Y1,
@@ -870,14 +871,14 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                     probKMA_results,
                                     align=silhouette_align,
                                     plot=TRUE) 
-      dev.off()
-      save(probKMA_results,time,silhouette,
-           file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+      #dev.off()
+      #save(probKMA_results,time,silhouette,
+      #     file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
       return(list(probKMA_results=probKMA_results,
                   time=time,silhouette=silhouette))
     }
   #}
-  ,i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
+  ,i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,prok,data,Y0,Y1,diss,probKMA_options,silhouette_align))
   
   browser() 
   
@@ -1176,6 +1177,19 @@ setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMA
 devtools::load_all()
 
 load("../TempForRcpp/len200_sd0.1.RData")
+
+# convert the data to a list of matrices also in the vectorial case
+Y0_f <- function(y0)
+{
+  return(as.matrix(y0))
+}
+Y1_f <- function(y1)
+{
+  return(as.matrix(y1))
+}
+
+Y0 <- lapply(Y0,Y0_f)
+Y1 <- lapply(Y1,Y1_f)
 
 diss = 'd0_d1_L2' 
 alpha = 0.5

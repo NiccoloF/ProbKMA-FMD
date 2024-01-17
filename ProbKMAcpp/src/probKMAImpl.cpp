@@ -300,6 +300,8 @@ public:
       _dissfac -> computeDissimilarityClean(D_clean,S_clean,V_dom_new,V_clean,_Y);
 
       /// return output //////////////////////////////////////////////////////
+      J_iter.resize(iter);
+      BC_dist_iter.resize(iter);
       return toR(V_clean,P_clean,S_clean,_D,D_clean,J_iter,BC_dist_iter,iter);
 
     }

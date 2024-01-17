@@ -182,7 +182,7 @@ params = list(standardize=probKMA_options$standardize,
 
 load("../TempForRcpp/len200_sd0.1.RData")
 
-
+# convert the data to a list of matrices also in the vectorial case
 Y0_f <- function(y0)
 {
   return(as.matrix(y0))
