@@ -31,7 +31,11 @@
 #' @export
 #' @import parallel
 find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',
-                                  probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL){
+                                  probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL,
+                                  quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3, 
+                                  max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50, 
+                                  tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1, 
+                                  seed = 1){
   ### check input #############################################################################################
   # check required input
   if(missing(K))
@@ -84,28 +88,28 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 trials_elong = probKMA_options$trials_elong,
                 return_options = probKMA_options$return_options,
                 alpha = probKMA_options$alpha,
-                quantile = 0.25, #argument
-                stopCriterion = 'max', #argument
-                tol = 1e-8, #argument
-                tol4elong = 1e-3, #argument
-                max_elong = 0.5, #argument
-                deltaJK_elong = 0.05, #argument
-                max_gap = 0.2, #argument
-                iter4clean = 50, #argument
-                tol4clean = 1e-4, #argument
-                quantile4clean = 1/2, #argument
-                m = 2, #argument
-                w = 1, #argument
-                seed = 1, #argument
-                K = 2, #argument
-                c = 40) #argument
+                max_gap = probKMA_options$max_gap,
+                quantile = quantile, 
+                stopCriterion = stopCriterion, 
+                tol = tol, 
+                tol4elong = tol4elong, 
+                max_elong = max_elong, 
+                deltaJK_elong = deltaJK_elong, 
+                iter4clean = iter4clean, 
+                tol4clean = tol4clean,
+                quantile4clean = quantile4clean, 
+                m = m,
+                w = w, 
+                seed = seed, 
+                K = 2, 
+                c = 40)
   
   checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,
                                             matrix(),
                                             matrix(),
                                             params,
                                             probKMA_options$diss,
-                                            1)
+                                            seed)
   
   params <- checked_data$Parameters
   data <- checked_data$FuncData
@@ -136,9 +140,6 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   len_mean=mean(unlist(lapply(Y0,nrow)))
   c_mean=mean(c)
   if(((len_mean/c_mean>10)&(length(K)*length(c)*n_init<40))|(length(K)*length(c)*n_init==1)){
-    ## parallelism inside probKMA is managed by C++ and not by R, the next 2 lines not necessary
-    ## if(is.null(probKMA_options$worker_number))
-    ##  probKMA_options$worker_number=worker_number
     cl_find=NULL
   }else{
     probKMA_options$worker_number=1
@@ -149,8 +150,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                         'probKMA_plot','probKMA_silhouette', 
                                         'mapply_custom','.diss_d0_d1_L2','.domain',
                                         '.select_domain','.find_min_diss',
-                                        'params','prok','data',
-                                        'diss','silhouette_align'),envir=environment()) 
+                                        'silhouette_align'),envir=environment()) 
       parallel::clusterCall(cl_find,function()library(parallel,combinat)) # here is the problem
       on.exit(parallel::stopCluster(cl_find))
     }else{
@@ -158,11 +158,10 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
   }
   
-  browser()
-  
+  set.seed(seed)
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(NULL,function(K,c,i,params,prok,data,Y0,Y1,diss,probKMA_options,silhouette_align){ #cl_find
+  results=mapply_custom(NULL,function(K,c,i,params,data,prok,diss,seed){ #cl_find
     #dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
     #files=list.files(paste0(name,"_K",K,"_c",c))
     #message("K",K,"_c",c,'_random',i)
@@ -173,16 +172,14 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     #}else{
     iter=iter_max=1
     while(iter==iter_max){
+      set.seed(seed)
       start=proc.time()
-      # the next line commented is the old version
-      # probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
       params$c = c
       params$K = K
       params$w = 1
       params$quantile4clean = 1/K
-      # add an option for the seed, maybe P0 and S0 have to change
       params$c_max = probKMA_options$c_max
-      checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,1)
+      checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,seed)
       params <- checked_data$Parameters
       data <- checked_data$FuncData
       prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
@@ -218,9 +215,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 time=time,silhouette=silhouette))
   }
   #}
-  ,i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,prok,data,Y0,Y1,diss,probKMA_options,silhouette_align))
-  
-  browser() 
+  ,i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,data,prok,diss,seed))
   
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))

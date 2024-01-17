@@ -113,7 +113,7 @@ public:
       Rcpp::Function setSeed = base["set.seed"];
       unsigned int seed = _parameters._seed;
       setSeed(seed);
-
+      
       /// Initialization parameters ////////////////////////
       std::size_t iter = 0;
       std::string_view criterion = _parameters._stopCriterion;
@@ -143,6 +143,8 @@ public:
       KMA::umatrix D0(_n_rows_Y,_n_rows_V);
       KMA::matrix temp_DP(_n_rows_Y,_n_rows_V);
       KMA::umatrix keep;
+      KMA::matrix P(_P0); // debugging
+      KMA::imatrix S(_S0); // debugging
 
       /// Iterate ////////////////////////////////////
       while(iter < iter_max and BC_dist > _parameters._tol)
@@ -151,15 +153,15 @@ public:
         Rcpp::Rcout<<"Iter = "<<iter<<std::endl;
 
         ///// clean motifs //////////////////////////
-        P_old = _P0;
+        P_old = P;
         if((iter>1)&&(!(iter%iter4clean))&&(BC_dist<tol4clean))
         {
           keep = _D < Rcpp::as<double>(quantile(_D,quantile4clean));
           const KMA::uvector & empty_k = arma::find(arma::sum(keep,0)==0);
           for(arma::uword k : empty_k)
             keep(arma::index_min(_D.col(k)),k) = 1;
-          _P0.zeros();
-          _P0.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
+          P.zeros();
+          P.elem(arma::find(keep==1)).fill(1); // set one where values of keep are true
         }
 
         ///// compute motifs ///////////////////////
@@ -167,13 +169,13 @@ public:
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
           const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,
-                                                             _S0.col(i),
-                                                             _P0.col(i),_Y,
+                                                             S.col(i),
+                                                             P.col(i),_Y,
                                                              _parameters._m);
           if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
           {
             const arma::sword& index = ptr_1->second;
-            _S0.col(i) += index;
+            S.col(i) += index;
             _V.row(i) = ptr_1->first;
           }
           else
@@ -186,7 +188,7 @@ public:
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           Rcpp::Rcout<<"Trying to elongate at iter:"<<iter<<std::endl;
-          _motfac -> elongate_motifs(_V,V_dom,_S0,_P0,
+          _motfac -> elongate_motifs(_V,V_dom,S,P,
                                      _Y,_D, _parameters,
                                      _perfac,_dissfac,quantile);
         }
@@ -204,7 +206,7 @@ public:
         for (arma::uword i = 0; i < _n_rows_V; ++i)
           for (arma::uword j = 0; j < _n_rows_Y; ++j){
             sd = _dissfac->find_diss(_Y.row(j),_V.row(i),w,alpha,c_k(i));
-            _S0(j,i) = sd(0);
+            S(j,i) = sd(0);
             _D(j,i) = sd(1);
           }
 
@@ -221,25 +223,25 @@ public:
         const KMA::uvector & D0_index = arma::find(arma::sum(D0,1) == 1);
         for(arma::uword i : D0_index) {
           const KMA::uvector & col = arma::find(D0.row(i)==1);
-          _P0(i,col(0)) = 1;
+          P(i,col(0)) = 1;
         }
 
         const KMA::uvector & not_D0_index = arma::find(arma::sum(D0,1) !=1);
         const KMA::matrix & Dm = arma::pow(_D.rows(not_D0_index),1/(_parameters._m-1));
-        _P0.rows(not_D0_index) = 1 / (Dm % arma::repmat(arma::sum(1/Dm,1),1,Dm.n_cols));
-        const KMA::uvector & deg_indexes = arma::find(arma::sum(_P0,0)==0);
+        P.rows(not_D0_index) = 1 / (Dm % arma::repmat(arma::sum(1/Dm,1),1,Dm.n_cols));
+        const KMA::uvector & deg_indexes = arma::find(arma::sum(P,0)==0);
         for (arma::uword k : deg_indexes) {
           Rcpp::warning("Motif is degenerate (zero membership). Selecting a new center...");
-          _P0(index_min(_D.col(k)),k) = 1;
+          P(index_min(_D.col(k)),k) = 1;
         }
 
         /// evaluate objective functions ////////////////
-        temp_DP = _D % (arma::pow(_P0,_parameters._m));
+        temp_DP = _D % (arma::pow(P,_parameters._m));
         temp_DP.replace(arma::datum::nan,0);
         J_iter(iter-1) = arma::accu(temp_DP);
 
         /// compute Bhattacharyya distance between P_old and P_new ///////////////
-        const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % _P0),1));
+        const arma::colvec & BC_dist_k = -arma::log(arma::sum(arma::sqrt(P_old % P),1));
         if (criterion == "max")
           BC_dist = arma::max(BC_dist_k);
         else if (criterion == "mean")
@@ -257,12 +259,12 @@ public:
 
       /////  prepare output //////////////////////////////////
       KMA::matrix  P_clean(_n_rows_Y,_n_rows_V,arma::fill::zeros);
-      KMA::imatrix S_clean(_S0);
+      KMA::imatrix S_clean(S);
       KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
 
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto& pair_motif_shift = _motfac->compute_motif(V_dom[k], _S0.col(k),
-                                                              _P0.col(k), _Y,
+        const auto& pair_motif_shift = _motfac->compute_motif(V_dom[k], S.col(k),
+                                                              P.col(k), _Y,
                                                               _parameters._m);
         _V.row(k) = *(std::get_if<KMA::Mfield>(&pair_motif_shift));
       }
@@ -277,7 +279,7 @@ public:
       KMA::Mfield V_clean(_n_rows_V,_V.n_cols);
       std::map<arma::sword,arma::sword> shift_s;
       for(arma::uword k=0; k < _n_rows_V; ++k){
-        const auto& new_motif =  _motfac->compute_motif(V_dom[k], _S0.col(k),
+        const auto& new_motif =  _motfac->compute_motif(V_dom[k], S.col(k),
                                                          P_clean.col(k), _Y,
                                                          _parameters._m);
         if (auto ptr = std::get_if<KMA::Mfield>(&new_motif)){
@@ -302,7 +304,7 @@ public:
       /// return output //////////////////////////////////////////////////////
       J_iter.resize(iter);
       BC_dist_iter.resize(iter);
-      return toR(V_clean,P_clean,S_clean,_D,D_clean,J_iter,BC_dist_iter,iter);
+      return toR(V_clean,P_clean,S_clean,_D,D_clean,J_iter,BC_dist_iter,iter,P,S);
 
     }
 
@@ -368,7 +370,9 @@ public:
                    const KMA::matrix& D_clean,
                    const KMA::vector& J_iter,
                    const KMA::vector& BC_dist_iter,
-                   std::size_t iter) const
+                   std::size_t iter,
+                   const KMA::matrix& P,
+                   const KMA::imatrix& S) const
     {
         // conv to Rcpp::List of V0,V1,V0_clean,V1_clean
         Rcpp::List V0(_V.n_rows);
@@ -394,9 +398,9 @@ public:
                                     Rcpp::Named("V1") = V1,
                                     Rcpp::Named("V0_clean") = V0_clean,
                                     Rcpp::Named("V1_clean") = V1_clean,
-                                    Rcpp::Named("P") = _P0,
+                                    Rcpp::Named("P") = P,
                                     Rcpp::Named("P_clean") = P_clean,
-                                    Rcpp::Named("S") = _S0,
+                                    Rcpp::Named("S") = S,
                                     Rcpp::Named("S_clean") = S_clean,
                                     Rcpp::Named("D") = _D,
                                     Rcpp::Named("D_clean") = D_clean,
@@ -408,7 +412,7 @@ public:
                             V0_clean,V1_clean,
                             V_clean,P_clean,
                             S_clean,_D,D_clean,
-                            J_iter,BC_dist_iter,iter);
+                            J_iter,BC_dist_iter,iter,P,S);
         }
     }
 
@@ -424,14 +428,16 @@ public:
                           const KMA::matrix & D_clean,
                           const KMA::vector & J_iter,
                           const KMA::vector & BC_dist_iter,
-                          std::size_t iter) const
+                          std::size_t iter,
+                          const KMA::matrix & P,
+                          const KMA::imatrix & S) const
     {
-      Rcpp::CharacterVector names(30);
-      Rcpp::List result(30);
+      Rcpp::CharacterVector names(32);
+      Rcpp::List result(32);
       names[0] = "V0";
       result[0] = V0;
       names[1] = "V1";
-      result[1] = V0;
+      result[1] = V1;
       names[2] = "V0_clean";
       result[2] = V0_clean;
       names[3] = "V1_clean";
@@ -488,6 +494,10 @@ public:
       result[28] = _parameters._iter4clean;
       names[29] = "tol4clean";
       result[29] = _parameters._tol4clean;
+      names[30] = "P";
+      result[30] = P;
+      names[31] = "S";
+      result[31] = S;
 
       result.attr("names") = Rcpp::wrap(names);
       return result;

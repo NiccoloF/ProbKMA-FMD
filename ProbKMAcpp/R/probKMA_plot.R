@@ -15,8 +15,8 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
   N=nrow(probKMA_results$P0)
   K=ncol(probKMA_results$P0)
   V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
-  S_k=split(probKMA_results$S0,rep(seq_len(K),each=N))
-  P_k=split(probKMA_results$P0,rep(seq_len(K),each=N)) 
+  S_k=split(probKMA_results$S,rep(seq_len(K),each=N))
+  P_k=split(probKMA_results$P,rep(seq_len(K),each=N)) 
   
   ### plot motifs with matched curves ########################################################################
   if(cleaned){
