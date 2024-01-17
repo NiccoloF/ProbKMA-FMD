@@ -146,10 +146,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       cl_find=parallel::makeCluster(worker_number,timeout=60*60*24*30)
       parallel::clusterEvalQ(cl_find, library(ProbKMAcpp))
       parallel::clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA_options',
-                                        'probKMA_plot','probKMA_silhouette','compute_motif', 
-                                        'mapply_custom','diss_d0_d1_L2','domain',
-                                        'select_domain','find_min_diss','compute_Jk',
-                                        'params','prok','data'),envir=environment()) 
+                                        'probKMA_plot','probKMA_silhouette', 
+                                        'mapply_custom','.diss_d0_d1_L2','.domain',
+                                        '.select_domain','.find_min_diss',
+                                        'params','prok','data',
+                                        'diss','silhouette_align'),envir=environment()) 
       parallel::clusterCall(cl_find,function()library(parallel,combinat)) # here is the problem
       on.exit(parallel::stopCluster(cl_find))
     }else{
@@ -197,11 +198,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         warning('Maximum number of iteration reached. Re-starting.')
     }
     #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
-    #probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
-    #dev.off()
+    probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
+    dev.off()
     #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
-    #probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
-    #dev.off()
+    probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
+    dev.off()
     #pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
     silhouette=probKMA_silhouette(Y0,
                                   Y1,
@@ -210,7 +211,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                   probKMA_results,
                                   align=silhouette_align,
                                   plot=TRUE) 
-    #dev.off()
+    dev.off()
     #save(probKMA_results,time,silhouette,
     #     file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
     return(list(probKMA_results=probKMA_results,
@@ -239,7 +240,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                                            })
                                })
   if(plot){
-    pdf(paste0(name,'_silhouette.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_silhouette.pdf'),width=7,height=5)
     for(i in seq_along(K)){
       silhouette_average_plot=matrix(unlist(lapply(silhouette_average_sd[[i]],function(average_sd) average_sd[order(average_sd[,1],decreasing=TRUE),1])),ncol=length(c))
       silhouette_sd_plot=matrix(unlist(lapply(silhouette_average_sd[[i]],function(average_sd) average_sd[order(average_sd[,1],decreasing=TRUE),2])),ncol=length(c))
@@ -273,7 +274,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                 times=unlist(lapply(results,function(results) results$time[3])))
                })
   if(plot){
-    pdf(paste0(name,'_times.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_times.pdf'),width=7,height=5)
     y_max=max(unlist(times))*1.2
     times_plot=vector('list',length(K))
     for(i in seq_along(K)){
@@ -313,7 +314,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                    })
                         })
              })
-    pdf(paste0(name,'_dissimilarities.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_dissimilarities.pdf'),width=7,height=5)
     y_max=max(unlist(D))
     for(i in seq_along(K)){
       D_plot=matrix(unlist(D[[i]]),ncol=length(c))
@@ -342,7 +343,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                                      })
                                     })
                    })
-    pdf(paste0(name,'_dissimilarities_clean.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_dissimilarities_clean.pdf'),width=7,height=5)
     y_max=max(unlist(D_clean))
     for(i in seq_along(K)){
       D_plot=matrix(unlist(D_clean[[i]]),ncol=length(c))
@@ -373,7 +374,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(as.matrix(motif_length))
       },results,SIMPLIFY=FALSE)
     },results,SIMPLIFY=FALSE)
-    pdf(paste0(name,'_lengths.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_lengths.pdf'),width=7,height=5)
     motif_length_plot=lapply(motif_length,
                              function(motif_length){
                                lapply(motif_length,
@@ -408,7 +409,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(as.matrix(motif_length))
       },results,SIMPLIFY=FALSE)
     },results,SIMPLIFY=FALSE)
-    pdf(paste0(name,'_lengths_clean.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_lengths_clean.pdf'),width=7,height=5)
     motif_length_plot=lapply(motif_clean_length,
                              function(motif_length){
                                lapply(motif_length,
@@ -434,7 +435,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
     
-    pdf(paste0(name,'_lengths_perc.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_lengths_perc.pdf'),width=7,height=5)
     motif_length_perc=mapply(function(results){
       motif_length=mapply(function(results){
         motif_length=as.matrix(Reduce(cbind,lapply(results,
@@ -469,7 +470,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
     
-    pdf(paste0(name,'_lengths_clean_perc.pdf'),width=7,height=5)
+    #pdf(paste0(name,'_lengths_clean_perc.pdf'),width=7,height=5)
     motif_clean_length_perc=mapply(function(results){
       motif_length=mapply(function(results){
         motif_length=as.matrix(Reduce(cbind,lapply(results,

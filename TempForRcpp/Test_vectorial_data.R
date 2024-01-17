@@ -1046,3 +1046,25 @@ silhouette = ProbKMAcpp::probKMA_silhouette(Y0,
 
 # prot of probKMA funziona per il nuovo pacchetto 
 ProbKMAcpp::probKMA_plot(Y0, Y1, b)
+
+# find_candidate_motifs test part
+diss = 'd0_d1_L2' 
+alpha = 0.5
+max_gap = 0 # no gaps allowed
+iter4elong = 1 # perform elongation
+trials_elong = 201 # try all possible elongations
+c_max = 71 # maximum motif length 70
+### run probKMA multiple times (2x3x10=60 times)
+K = c(2, 3) # number of clusters to try
+c = c(61, 51, 41) # minimum motif lengths to try
+n_init = 10 # number of random initializations to try
+
+
+find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y0, Y1, K, c, n_init,
+                                                                  name = './results/len200_sd0.1', names_var = 'x(t)',
+                                                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                                         iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                                         return_options = TRUE, return_init = TRUE,
+                                                                                         diss = diss, alpha = alpha),
+                                                                  plot = TRUE, worker_number = NULL)
+
