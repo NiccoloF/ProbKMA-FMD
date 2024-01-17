@@ -101,7 +101,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 m = m,
                 w = w, 
                 seed = seed, 
-                K = 2, 
+                K = 2, #tanto vengono modificati ad ogni iterazione
                 c = 40)
   
   checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,
@@ -151,7 +151,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                         'mapply_custom','.diss_d0_d1_L2','.domain',
                                         '.select_domain','.find_min_diss',
                                         'silhouette_align'),envir=environment()) 
-      parallel::clusterCall(cl_find,function()library(parallel,combinat)) # here is the problem
+      parallel::clusterCall(cl_find,function()library(parallel,combinat)) 
       on.exit(parallel::stopCluster(cl_find))
     }else{
       cl_find=NULL
