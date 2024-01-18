@@ -33,6 +33,8 @@ struct Parameters
     double _quantile4clean;
     bool _return_options;
     unsigned int _seed;
+    bool _exe_print;
+    bool _set_seed;
 };
 
 #endif // PARAMETERS_HPP

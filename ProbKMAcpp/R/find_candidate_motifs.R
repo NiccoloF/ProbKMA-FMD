@@ -35,7 +35,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                   quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3, 
                                   max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50, 
                                   tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1, 
-                                  seed = 1){
+                                  seed = 1,exe_print = FALSE,set_seed = TRUE){
   ### check input #############################################################################################
   # check required input
   if(missing(K))
@@ -101,68 +101,34 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 m = m,
                 w = w, 
                 seed = seed, 
-                K = 2, # its value is irrelevant
-                c = 40) # its value is irrelevant
-  
-  checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,
-                                            matrix(),
-                                            matrix(),
-                                            params,
-                                            probKMA_options$diss,
-                                            seed)
+                K = 2, 
+                c = 40,
+                exe_print = exe_print,
+                set_seed = set_seed) 
+
+
+  checked_data <- initialChecks(Y0,Y1,
+                                matrix(),
+                                matrix(),
+                                params,
+                                probKMA_options$diss,
+                                seed)
   
   params <- checked_data$Parameters
   data <- checked_data$FuncData
-  
   # initialization of probKMA 
-  if ( probKMA_options$alpha == 0 ||  probKMA_options$alpha == 1){
-    prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
-  } else {
-    prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
+  if ( probKMA_options$alpha == 0 ||  probKMA_options$alpha == 1)
+  {
+    prok = new(ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
+  } 
+  else 
+  {
+    prok = new(ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
   }
-  
-  ### set parallel jobs #############################################################################
-  core_number <- parallel::detectCores()
-  # check worker number
-  if(!is.null(worker_number)){
-    if(!is.numeric(worker_number)){
-      warning('Worker number not valid. Selecting default number.')
-      worker_number=NULL
-    }else{
-      if((worker_number%%1!=0)|(worker_number<1)|(worker_number>core_number)){
-        warning('Worker number not valid. Selecting default number.')
-        worker_number=NULL
-      }
-    }
-  }
-  if(is.null(worker_number))
-    worker_number <- core_number-1
-  rm(core_number)
-  len_mean=mean(unlist(lapply(Y0,nrow)))
-  c_mean=mean(c)
-  if(((len_mean/c_mean>10)&(length(K)*length(c)*n_init<40))|(length(K)*length(c)*n_init==1)){
-    cl_find=NULL
-  }else{
-    probKMA_options$worker_number=1
-    if(worker_number>1){
-      cl_find=parallel::makeCluster(worker_number,timeout=60*60*24*30)
-      parallel::clusterEvalQ(cl_find, library(ProbKMAcpp))
-      parallel::clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA_options',
-                                        'probKMA_plot','probKMA_silhouette', 
-                                        'mapply_custom','.diss_d0_d1_L2','.domain',
-                                        '.select_domain','.find_min_diss',
-                                        'silhouette_align'),envir=environment()) 
-      parallel::clusterCall(cl_find,function()library(parallel,combinat)) 
-      on.exit(parallel::stopCluster(cl_find))
-    }else{
-      cl_find=NULL
-    }
-  }
-  
-  set.seed(seed)
+ 
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(NULL,function(K,c,i,params,data,prok,seed){ #cl_find
+  results=mapply(function(K,c,i,params,prok,data){ #cl_find
     dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
     files=list.files(paste0(name,"_K",K,"_c",c))
     message("K",K,"_c",c,'_random',i)
@@ -180,10 +146,10 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         params$w = 1
         params$quantile4clean = 1/K
         params$c_max = probKMA_options$c_max
-        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,probKMA_options$diss,seed)
+        checked_data <- initialChecks(Y0,Y1,matrix(5),matrix(6),params,probKMA_options$diss,params$seed)
         params <- checked_data$Parameters
         data <- checked_data$FuncData
-        prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
+        prok$reinit_motifs(params$c,ncol(Y0[[1]]))
         prok$set_P0(data$P0)
         prok$set_S0(data$S0)
         prok$set_parameters(params)
@@ -218,7 +184,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     return(list(probKMA_results=probKMA_results,
                 time=time,silhouette=silhouette))
   }
-  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,data,prok,seed))
+  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE, MoreArgs = list(params,prok,data))
   
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))

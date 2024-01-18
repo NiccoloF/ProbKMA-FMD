@@ -71,6 +71,8 @@
   quantile4clean = params$quantile4clean
   return_options = params$return_options
   seed = params$seed
+  exe_print = params$exe_print
+  set_seed = params$set_seed
   
   
   ### check input ####################################################################################
@@ -414,6 +416,8 @@
                                   "iter4clean"=iter4clean,"tol4clean"=tol4clean,
                                   "quantile4clean"=quantile4clean,
                                   "seed"=seed,
-                                  "return_options"=return_options) ) )
+                                  "return_options"=return_options,
+                                  "exe_print"= exe_print,
+                                  "set_seed" = set_seed) ) )
 }
 

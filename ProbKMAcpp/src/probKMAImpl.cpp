@@ -106,13 +106,19 @@ public:
 
     Rcpp::List probKMA_run()
     {
-      Rcpp::Rcout << "############## STARTING ITERATIONS... ##############" << std::endl;
+      bool exe_print = _parameters._exe_print;
+      if (exe_print)
+        Rcpp::Rcout << "############## STARTING ITERATIONS... ##############" << std::endl;
 
       /// Set Seed ////////////////////////////////////
-      Rcpp::Environment base("package:base");
-      Rcpp::Function setSeed = base["set.seed"];
-      unsigned int seed = _parameters._seed;
-      setSeed(seed);
+      bool set_seed = _parameters._set_seed;
+      if (set_seed) 
+      {
+        Rcpp::Environment base("package:base");
+        Rcpp::Function setSeed = base["set.seed"];
+        unsigned int seed = _parameters._seed;
+        setSeed(seed);
+      }
       
       /// Initialization parameters ////////////////////////
       std::size_t iter = 0;
@@ -150,7 +156,8 @@ public:
       while(iter < iter_max and BC_dist > _parameters._tol)
       {
         iter++;
-        Rcpp::Rcout<<"Iter = "<<iter<<std::endl;
+        if (exe_print)
+          Rcpp::Rcout<<"Iter = "<<iter<<std::endl;
 
         ///// clean motifs //////////////////////////
         P_old = P;
@@ -187,7 +194,8 @@ public:
 
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
-          Rcpp::Rcout<<"Trying to elongate at iter:"<<iter<<std::endl;
+          if (exe_print)
+            Rcpp::Rcout<<"Trying to elongate at iter:"<<iter<<std::endl;
           _motfac -> elongate_motifs(_V,V_dom,S,P,
                                      _Y,_D, _parameters,
                                      _perfac,_dissfac,quantile);
@@ -250,7 +258,8 @@ public:
           BC_dist = Rcpp::as<double>(quantile(BC_dist_k,_parameters._quantile));
 
         BC_dist_iter(iter-1) = BC_dist;
-        Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
+        if (exe_print)
+          Rcpp::Rcout<<"BC_dist="<<BC_dist<<std::endl;
 
       }
 

@@ -24,12 +24,14 @@
     _quantile4clean = params["quantile4clean"];
     _return_options = params["return_options"];
     _seed = params["seed"];
+    _exe_print = params["exe_print"];
+    _set_seed = params["set_seed"];
   }
 
 Rcpp::List Parameters::to_list()
 {
-  Rcpp::CharacterVector names(22);
-  Rcpp::List result(22);
+  Rcpp::CharacterVector names(24);
+  Rcpp::List result(24);
   names[0] = "standardize";
   result[0] = _standardize;
   names[1] = "K";
@@ -74,6 +76,10 @@ Rcpp::List Parameters::to_list()
   result[20] = _tol4clean;
   names[21] = "seed";
   result[21] = _seed;
+  names[22] = "exe_print";
+  result[22] = _exe_print;
+  names[23] = "set_seed";
+  result[23] = _set_seed;
   result.attr("names") = Rcpp::wrap(names);
   return result;
 }

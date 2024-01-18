@@ -34,6 +34,8 @@ tol4clean=1e-4 #1e-4
 quantile4clean=1/K
 return_options=TRUE
 seed <- 1
+exe_print = FALSE
+set_seed = TRUE
 
 load("../TempForRcpp/len200_sd0.1.RData")
 
@@ -46,6 +48,7 @@ Y_f <- function(y0)
 Y0 <- lapply(Y0,Y_f)
 Y1 <- lapply(Y1,Y_f)
 
+
 params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_max,
                quantile = quantile,stopCriterion = stop_criterion,tol = tol,
                iter4elong = iter4elong,tol4elong = tol4elong,max_elong = max_elong,
@@ -53,7 +56,7 @@ params <- list(standardize=standardize, K=K,c = c,c_max = c_max,iter_max = iter_
                deltaJK_elong = deltaJk_elong,max_gap = max_gap,iter4clean = iter4clean,
                tol4clean = tol4clean,
                quantile4clean = quantile4clean,return_options = return_options,
-               m = m,w = w,alpha = alpha,seed = seed)
+               m = m,w = w,alpha = alpha,seed = seed,exe_print = exe_print,set_seed = set_seed)
 
 
 library(ProbKMAcpp)
@@ -63,8 +66,10 @@ params <- a$Parameters
 data <- a$FuncData
 
 prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
-b <- prok$probKMA_run()
+output <- prok$probKMA_run()
 
+
+########## previous R code ##############
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
   if(is.null(cl)){
     mapply(FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
@@ -1020,18 +1025,18 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
 }
 
 library(parallel)
-z <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=params$c,c_max=params$c_max,
-             P0=data$P0,S0=data$S0,
-             diss=diss,alpha=params$alpha,w=params$w,m=params$m,iter_max=params$iter_max,
-             stop_criterion=params$stopCriterion,
-             quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
-             tol4elong=params$tol4elong,max_elong=params$max_elong,
-             trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
-             max_gap=params$max_gap,params$iter4clean,params$tol4clean,
-             params$quantile4clean,params$return_options,TRUE,NULL)
+true_output <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=params$c,c_max=params$c_max,
+                       P0=data$P0,S0=data$S0,
+                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,iter_max=params$iter_max,
+                       stop_criterion=params$stopCriterion,
+                       quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
+                       tol4elong=params$tol4elong,max_elong=params$max_elong,
+                       trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
+                       max_gap=params$max_gap,params$iter4clean,params$tol4clean,
+                       params$quantile4clean,params$return_options,TRUE,NULL)
 
 
-# probKMA_si funziona for the new package
+# probKMA_si works for the new package
 silhouette = ProbKMAcpp::probKMA_silhouette(Y0,
                                             Y1,
                                             params,
@@ -1042,10 +1047,10 @@ silhouette = ProbKMAcpp::probKMA_silhouette(Y0,
 
 probKMA_silhouette(z,align=FALSE,plot=TRUE)
 
-# prot of probKMA funziona per il nuovo pacchetto 
+# probKMA_Plot works for the new package
 ProbKMAcpp::probKMA_plot(Y0, Y1, b)
 
-# find_candidate_motifs test part
+############## find_candidate_motifs test part ##########
 diss = 'd0_d1_L2' 
 alpha = 0.5
 max_gap = 0 # no gaps allowed
@@ -1066,7 +1071,7 @@ find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y0, Y1, K, c, 
                                                                                          diss = diss, alpha = alpha),
                                                                   plot = FALSE, worker_number = NULL)
 
-# output_prof of find_candidate_motifs
+# true output of find_candidate_motifs
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
   if(is.null(cl)){
     mapply(FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
