@@ -101,8 +101,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 m = m,
                 w = w, 
                 seed = seed, 
-                K = 2, #tanto vengono modificati ad ogni iterazione
-                c = 40)
+                K = 2, # its value is irrelevant
+                c = 40) # its value is irrelevant
   
   checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,
                                             matrix(),
@@ -114,7 +114,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   params <- checked_data$Parameters
   data <- checked_data$FuncData
   
-  if (alpha == 0 || alpha == 1){
+  # initialization of probKMA 
+  if ( probKMA_options$alpha == 0 ||  probKMA_options$alpha == 1){
     prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
   } else {
     prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
@@ -161,7 +162,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   set.seed(seed)
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(NULL,function(K,c,i,params,data,prok,diss,seed){ #cl_find
+  results=mapply_custom(NULL,function(K,c,i,params,data,prok,seed){ #cl_find
     dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
     files=list.files(paste0(name,"_K",K,"_c",c))
     message("K",K,"_c",c,'_random',i)
@@ -179,14 +180,17 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         params$w = 1
         params$quantile4clean = 1/K
         params$c_max = probKMA_options$c_max
-        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,diss,seed)
+        checked_data <- ProbKMAcpp::initialChecks(Y0,Y1,matrix(),matrix(),params,probKMA_options$diss,seed)
         params <- checked_data$Parameters
         data <- checked_data$FuncData
         prok$reinit_motifs(params$c,ncol(as.matrix(Y0[[1]])))
         prok$set_P0(data$P0)
         prok$set_S0(data$S0)
         prok$set_parameters(params)
-        probKMA_results = prok$probKMA_run() # new run for probKMA with updated parameters
+        probKMA_results_1 = list(Y0 = Y0,Y1 = Y1,diss = probKMA_options$diss,w = params$w,alpha = probKMA_options$alpha)
+        probKMA_results_2 = prok$probKMA_run() # new run for probKMA with updated parameters
+        probKMA_results = c(probKMA_results_1,probKMA_results_2)
+        # add to probKMA_results all the info it hasn't untile now
         end=proc.time()
         time=end-start
         iter=probKMA_results$iter
@@ -214,7 +218,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     return(list(probKMA_results=probKMA_results,
                 time=time,silhouette=silhouette))
   }
-  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,data,prok,diss,seed))
+  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE,MoreArgs = list(params,data,prok,seed))
   
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
