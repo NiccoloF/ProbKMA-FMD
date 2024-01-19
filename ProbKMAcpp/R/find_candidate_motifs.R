@@ -22,8 +22,6 @@
 #' @param silhouette_align True or False. If True, try all possible alignments between the curve pieces
 #' when calculating the adapted silhouette index on the results of probKMA
 #' @param plot if TRUE, summary plots are drawn.
-#' @param worker_number number of CPU cores to be used for parallelization (default number of CPU cores -1).
-#' If worker_number=1, the function is run sequentially.
 #' @return A list containing: K, c, n_init and name;...
 #' @return \item{times}{ list of execution times of ProbKMA for each combination of K, c, and n_init}
 #' @return \item{silhouette_average_sd}{ list of the mean (silhouette_average) and standard deviation (silhouette_sd) of the silhouette indices for each execution of the ProbKMA function}
@@ -31,7 +29,7 @@
 #' @export
 #' @import parallel
 find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',
-                                  probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL,
+                                  probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,
                                   quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3, 
                                   max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50, 
                                   tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1, 

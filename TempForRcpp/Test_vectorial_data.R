@@ -1034,7 +1034,7 @@ true_output <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,K=params$K,c=p
                        trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
                        max_gap=params$max_gap,params$iter4clean,params$tol4clean,
                        params$quantile4clean,params$return_options,TRUE,NULL)
-
+trueOutputSim200 = true_output
 
 # probKMA_si works for the new package
 silhouette = ProbKMAcpp::probKMA_silhouette(Y0,

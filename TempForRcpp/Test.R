@@ -1,5 +1,11 @@
 setwd("C:/Users/buldo/OneDrive/Desktop/progetto pacs/probKMA/ProbKMA-FMD/ProbKMAcpp")
 devtools::load_all()
+
+library(tinytest)
+setwd("./tests")
+out1 <-run_test_file("test_ProbKMA.R", verbose=1)
+out2 <-run_test_file("test_find_candidate_motifs.R", verbose=1)
+
 set.seed(1)
 standardize = TRUE
 diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
