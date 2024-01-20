@@ -73,6 +73,7 @@
   seed = params$seed
   exe_print = params$exe_print
   set_seed = params$set_seed
+  n_threads = params$n_threads
   
   
   ### check input ####################################################################################
@@ -418,6 +419,7 @@
                                   "seed"=seed,
                                   "return_options"=return_options,
                                   "exe_print"= exe_print,
-                                  "set_seed" = set_seed) ) )
+                                  "set_seed" = set_seed,
+                                  "n_threads" = n_threads) ) )
 }
 

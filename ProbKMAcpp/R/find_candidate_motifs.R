@@ -27,13 +27,12 @@
 #' @return \item{silhouette_average_sd}{ list of the mean (silhouette_average) and standard deviation (silhouette_sd) of the silhouette indices for each execution of the ProbKMA function}
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
 #' @export
-#' @import parallel
 find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',
                                   probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,
                                   quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3, 
                                   max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50, 
                                   tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1, 
-                                  seed = 1,exe_print = FALSE,set_seed = TRUE){
+                                  seed = 1,exe_print = FALSE,set_seed = TRUE, n_threads = 4){
   ### check input #############################################################################################
   # check required input
   if(missing(K))
@@ -102,7 +101,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 K = 2, 
                 c = 40,
                 exe_print = exe_print,
-                set_seed = set_seed) 
+                set_seed = set_seed,
+                n_threads = n_threads) 
 
 
   checked_data <- initialChecks(Y0,Y1,

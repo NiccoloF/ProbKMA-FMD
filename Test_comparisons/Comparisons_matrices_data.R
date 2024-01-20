@@ -8,6 +8,7 @@ set.seed(seed)
 
 # set type of distance
 diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
+# recall: distance has to be compatible with parameter alpha
 
 # null matrix for random initialization
 P0= matrix() 
@@ -15,14 +16,15 @@ S0= matrix()
 
 load("../Test_comparisons/Y.RData")
 
-params <- list(standardize=TRUE, K=2,c = 40,c_max = 53,iter_max = 2,
+params <- list(standardize=FALSE, K=2,c = 40,c_max = 53,iter_max = 16,
                quantile = 0.25,stopCriterion = 'max',tol = 1e-8,
-               iter4elong = 2,tol4elong = 10,max_elong = 0.5,
-               trials_elong = 30,
-               deltaJK_elong = 0.05,max_gap = 0,iter4clean = 2,
-               tol4clean = 1,
+               iter4elong = 2,tol4elong = 1e-3,max_elong = 0.5,
+               trials_elong = 200,
+               deltaJK_elong = 0.05,max_gap = 0,iter4clean = 1000,
+               tol4clean = 1e-4,
                quantile4clean = 1/2,return_options = TRUE,
-               m = 2,w = c(0.5,0.5),alpha = 0.5,seed = seed,exe_print = TRUE, set_seed= TRUE)
+               m = 2,w = c(0.5,0.5),alpha = 0.5,seed = seed,exe_print = FALSE, 
+               set_seed= TRUE, n_threads = 7)
 
 # checks the parameters
 a <- ProbKMAcpp::initialChecks(Y$Y0,Y$Y1,P0,S0,params,diss,seed)
@@ -48,6 +50,24 @@ true_output <- probKMA(Y0=Y$Y0,Y1=Y$Y1,standardize=params$standardize,K=params$K
                        max_gap=params$max_gap,params$iter4clean,params$tol4clean,
                        params$quantile4clean,params$return_options,TRUE,NULL)
 
+# computational time comparison probKMA
+
+# rinitialize motifs for a new run
+prok$reinit_motifs(params$c,ncol(Y$Y0[[1]]))
+
+# computational time c++ imp.
+system.time(prok$probKMA_run())
+
+# computational time R imp.
+system.time(probKMA(Y0=Y$Y0,Y1=Y$Y1,standardize=params$standardize,K=params$K,c=params$c,c_max=params$c_max,
+                    P0=data$P0,S0=data$S0,
+                    diss=diss,alpha=params$alpha,w=params$w,m=params$m,iter_max=params$iter_max,
+                    stop_criterion=params$stopCriterion,
+                    quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
+                    tol4elong=params$tol4elong,max_elong=params$max_elong,
+                    trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
+                    max_gap=params$max_gap,params$iter4clean,params$tol4clean,
+                    params$quantile4clean,params$return_options,TRUE,NULL))
 
 ###############################################################
 ############## find_candidate_motifs test part ################

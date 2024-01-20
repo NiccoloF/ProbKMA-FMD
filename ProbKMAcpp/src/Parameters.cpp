@@ -26,6 +26,7 @@
     _seed = params["seed"];
     _exe_print = params["exe_print"];
     _set_seed = params["set_seed"];
+    _n_threads = params["n_threads"];
   }
 
 Rcpp::List Parameters::to_list()
@@ -80,6 +81,8 @@ Rcpp::List Parameters::to_list()
   result[22] = _exe_print;
   names[23] = "set_seed";
   result[23] = _set_seed;
+  names[24] = "n_threads";
+  result[24] = _n_threads;
   result.attr("names") = Rcpp::wrap(names);
   return result;
 }

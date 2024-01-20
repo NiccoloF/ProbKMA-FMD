@@ -136,6 +136,7 @@ public:
       const arma::uword _n_rows_Y = _Y.n_rows;
       Rcpp::Environment stats("package:stats");
       Rcpp::Function quantile = stats["quantile"];
+      const unsigned int n_threads = _parameters._n_threads;
 
       // Initialization data structures ////////////////////////
       KMA::vector J_iter(iter_max,arma::fill::zeros);
@@ -149,8 +150,8 @@ public:
       KMA::umatrix D0(_n_rows_Y,_n_rows_V);
       KMA::matrix temp_DP(_n_rows_Y,_n_rows_V);
       KMA::umatrix keep;
-      KMA::matrix P(_P0); // debugging
-      KMA::imatrix S(_S0); // debugging
+      KMA::matrix P(_P0); 
+      KMA::imatrix S(_S0); 
 
       /// Iterate ////////////////////////////////////
       while(iter < iter_max and BC_dist > _parameters._tol)
@@ -175,6 +176,7 @@ public:
         for(arma::uword i = 0;i < _n_rows_V;++i)
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
+    
           const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,
                                                              S.col(i),
                                                              P.col(i),_Y,
@@ -191,7 +193,7 @@ public:
           }
           V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
-
+        
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           if (exe_print)
@@ -209,7 +211,7 @@ public:
         }
 
         #ifdef _OPENMP
-          #pragma omp parallel for collapse(2) firstprivate(sd)
+          #pragma omp parallel for collapse(2) firstprivate(sd) num_threads(n_threads)
         #endif
         for (arma::uword i = 0; i < _n_rows_V; ++i)
           for (arma::uword j = 0; j < _n_rows_Y; ++j){

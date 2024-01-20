@@ -219,6 +219,9 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         const std::shared_ptr<Dissimilarity>& diss,
                                         const Rcpp::Function & quantile_func) const
 {
+  // number of threads 
+  const unsigned int n_threads = param._n_threads;
+
 	std::size_t V_dom_size = V_dom.size();
 
 	arma::uvec len_dom(V_dom_size);
@@ -245,7 +248,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
      	// fill the domains of the motifs with gaps and recompute the motifs with the filled domains
      	// and compute the perf.indexes before and after the filling
 		  #ifdef _OPENMP
-		  #pragma omp parallel for
+		  #pragma omp parallel for num_threads(n_threads)
 		  #endif
       for (unsigned int i = 0; i < with_gaps_size; ++i){
 
@@ -310,7 +313,7 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
     }
 
     #ifdef _OPENMP
-    	#pragma omp parallel for
+    	#pragma omp parallel for num_threads(n_threads)
     #endif
     for (unsigned int i = 0; i < V_dom_size; ++i){
       elongation<use1>(V_new,V_dom,S_k,P_k.col(i),
