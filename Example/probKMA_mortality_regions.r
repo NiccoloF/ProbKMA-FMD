@@ -50,7 +50,7 @@ ncurves=ncol(istat_decessi_reg_smooth$mat$deceduti_diff)
 c_min <- 65 # max 10 days of shift between each pair of curves
 
 ## K=2 (try 10 different initializations, select the best clustering)
-seed <- 123
+seed <- 13
 set.seed(seed)
 K=2
 
@@ -85,9 +85,13 @@ J_K2_d0_c65 <- rep(NA, 10)
 probKMA_K2_d0_c65_all <- vector('list', 10)
 
 for(i in 1:10){ 
-  prok$reinit_motifs(params$c,ncol(Y0[[1]]))
   probKMA_K2_d0_c65_all[[i]] <- prok$probKMA_run()
   J_K2_d0_c65[i] <- probKMA_K2_d0_c65_all[[i]]$J_iter[probKMA_K2_d0_c65_all[[i]]$iter]
+  a <- ProbKMAcpp::initialChecks(Y0,NULL,matrix(),matrix(),params,diss,seed)
+  data <- a$FuncData
+  prok$reinit_motifs(params$c,ncol(Y0[[1]]))
+  prok$set_P0(data$P0)
+  prok$set_S0(data$S0)
 }
 save(J_K2_d0_c65, probKMA_K2_d0_c65_all, file="../Example/results/probKMA_K2_d0_c65_results.RData")
 

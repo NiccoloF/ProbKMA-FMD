@@ -1,4 +1,4 @@
-#' @title initialChecks
+#' @title .initialChecks
 #'
 #' @description checks all the inputs provided by the user for running ProbKMA
 #'
