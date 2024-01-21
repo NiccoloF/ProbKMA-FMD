@@ -194,6 +194,7 @@ public:
           V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
         
+        
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           if (exe_print)
@@ -203,6 +204,7 @@ public:
                                      _perfac,_dissfac,quantile);
         }
 
+      
         ////// find shift warping minimizing dissimilarities /////////////
         for(arma::uword i = 0;i<_n_rows_V;++i)
         {
@@ -594,7 +596,6 @@ Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
     Rcpp::Function checks = base[".initialChecks"];
     // Call R checks and updata data and parameters
     return checks(Y0,Y1,P0,S0,params,diss,seed);
-
   }catch (Rcpp::exception& e) {
     // Handle the Rcpp exception
     Rcpp::Rcerr << "Caught exception: " << e.what() << std::endl;
