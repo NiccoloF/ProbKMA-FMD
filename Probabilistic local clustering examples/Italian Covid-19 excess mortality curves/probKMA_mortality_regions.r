@@ -1,8 +1,6 @@
-# Set working directory to the folder of this script
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+library(ProbKMA.package)
 
 require(fda)
-source("../../probKMA-FMD_functions.r")
 
 plot_P <- function(probKMA_results,labels,col,names.arg){
   d=ncol(probKMA_results$Y0[[1]])
@@ -31,12 +29,11 @@ plot_P <- function(probKMA_results,labels,col,names.arg){
 }
 
 
-
-
-
 ##############################
 ##### ISTAT SURPLUS DATA #####
 ##############################
+# Set working directory to the folder of this script
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 load('istat_mortality_rates_smoothed.Rdata')
 
@@ -60,12 +57,12 @@ set.seed(13)
 K=2
 J_K2_d0_c65 <- rep(NA, 10)
 probKMA_K2_d0_c65_all <- vector('list', 10)
-#for(i in 1:10){
-#  probKMA_K2_d0_c65_all[[i]] <- probKMA(Y0 = lapply(1:ncurves, function(i) istat_decessi_reg_smooth$mat$deceduti_diff[,i]), Y1 = NULL, 
-#                                           K = K, c = c_min, c_max = c_min, diss = 'd0_L2', iter4clean=1000, worker_number = 1)
-#  J_K2_d0_c65[i] <- probKMA_K2_d0_c65_all[[i]]$J_iter[probKMA_K2_d0_c65_all[[i]]$iter]
-#}
-#save(J_K2_d0_c65, probKMA_K2_d0_c65_all, file="./results/probKMA_K2_d0_c65_results.RData")
+for(i in 1:10){
+  probKMA_K2_d0_c65_all[[i]] <- ProbKMA.package::probKMA(Y0 = lapply(1:ncurves, function(i) istat_decessi_reg_smooth$mat$deceduti_diff[,i]), Y1 = NULL, 
+                                                         K = K, c = c_min, c_max = c_min, diss = 'd0_L2', iter4clean=1000, worker_number = 1)
+  J_K2_d0_c65[i] <- probKMA_K2_d0_c65_all[[i]]$J_iter[probKMA_K2_d0_c65_all[[i]]$iter]
+}
+save(J_K2_d0_c65, probKMA_K2_d0_c65_all, file="./results/probKMA_K2_d0_c65_results.RData")
 
 load("./results/probKMA_K2_d0_c65_results.RData")
 probKMA_K2_d0_c65 <- probKMA_K2_d0_c65_all[[which.min(J_K2_d0_c65)]]
@@ -81,7 +78,7 @@ dev.off()
 ### silhouette plot
 pdf('./results/probKMA_K2_d0_c65_silhouette.pdf', width = 7, height = 8.5)
 par(mfrow=c(1,1))
-probKMA_silhouette(probKMA_K2_d0_c65, plot = TRUE)
+ProbKMA.package::probKMA_silhouette(probKMA_K2_d0_c65, plot = TRUE)
 
 ### silhouette plot after dicotomizing membership based on probability>0.5
 probKMA_K2_d0_c65$P_clean <- (probKMA_K2_d0_c65$P > 0.5) * 1

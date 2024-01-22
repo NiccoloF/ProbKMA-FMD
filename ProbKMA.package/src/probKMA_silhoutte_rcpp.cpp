@@ -25,7 +25,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
   }
   
   Rcpp::List Y(Y_size);
-  // @TODO: declare as external functions and used also in probKMA
   if (diss == "d0_L2") {
     alpha = 0;
     use0 = true;
@@ -76,13 +75,12 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
   arma::ivec V_length(K);
   
   // V_dom for each centroid contains an uvec with 0 if all the elements of the row of the centroid are NA
-  // #TODO: testare con domini bucati
   for(unsigned int i = 0; i < K; ++i){
     const arma::mat & v = motifs[i];
     arma::uvec v_dom_k(v.n_rows);
     for (unsigned int j = 0; j < v.n_rows; ++j){
       const arma::uvec & nan_v_row_j = arma::find_nan(v.row(j));
-      v_dom_k[j] = (nan_v_row_j.n_elem != d); // I am assuming that curves in R^d have centroids in R^d
+      v_dom_k[j] = (nan_v_row_j.n_elem != d); 
     }
     V_length(i) = v.n_rows;
     V_dom[i] = v_dom_k;
@@ -93,7 +91,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  std::vector<arma::uvec> curves_in_motifs(P_clean.n_cols); 
  for (unsigned int k = 0; k < P_clean.n_cols; ++k) {
    const arma::ivec & P_clean_k = P_clean.col(k);
-   const arma::uvec & P_clean_1 = find(P_clean_k == 1); // to check in case 1 doesn't exist in the col
+   const arma::uvec & P_clean_1 = find(P_clean_k == 1); 
    curves_in_motifs[k] = P_clean_1;
  }
  

@@ -1,8 +1,5 @@
-# Set working directory to the folder of this script
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-
+library(ProbKMA.package)
 require(fda)
-source("../../probKMA-FMD_functions.r")
 
 cer <- function(P,Q){
   # classification error rate (0=perfect agree 1=complete disagreement)
@@ -20,10 +17,17 @@ cer <- function(P,Q){
 ### BERKLEY GROWTH CURVES ###
 #############################
 
+# Set working directory to the folder of this script
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
 load("growth_smoothed.RData")
 
+to_matrix <- function(y0){
+  return(as.matrix(y0))
+}
 
-
+Y0=lapply(Y0,to_matrix)
+Y1=lapply(Y1,to_matrix)
 
 ###################
 ### prob k-mean ###
@@ -38,11 +42,11 @@ c_min <- 101 # minimum motif length (entire curves)
 # Try 10 different initializations, select the best clustering
 J_d1 <- rep(NA, 10)
 probKMA_results_d1_all <- vector('list', 10)
-#for(i in 1:10){
-#   probKMA_results_d1_all[[i]] <- probKMA(Y0 = Y0, Y1 = Y1, K = 2, c = c_min, c_max = c_min, diss = 'd1_L2', iter4clean=1000, worker_number = 1)
-#   J_d1[i] <- probKMA_results_d1_all[[i]]$J_iter[probKMA_results_d1_all[[i]]$iter]
-#}
-#save(J_d1, probKMA_results_d1_all, file="./results/probKMA_d1_results.RData")
+for(i in 1:10){
+   probKMA_results_d1_all[[i]] <- ProbKMA.package::probKMA(Y0 = Y0, Y1 = Y1, K = 2, c = c_min, c_max = c_min, diss = 'd1_L2', iter4clean=1000, alpha = 1,worker_number = 1)
+   J_d1[i] <- probKMA_results_d1_all[[i]]$J_iter[probKMA_results_d1_all[[i]]$iter]
+}
+save(J_d1, probKMA_results_d1_all, file="./results/probKMA_d1_results.RData")
 
 load("./results/probKMA_d1_results.RData")
 
@@ -150,11 +154,11 @@ c_min <- 51 # Allow a shift of around 8.5 years
 # Try 10 different initializations, select the best clustering
 J_d1_shift_c51 <- rep(NA, 10)
 probKMA_results_d1_shift_c51_all <- vector('list', 10)
-#for(i in 1:10){
-#  probKMA_results_d1_shift_c51_all[[i]] <- probKMA(Y0 = Y0, Y1 = Y1, K = 2, c = c_min, c_max = c_min, diss = 'd1_L2', iter4clean=1000, worker_number = 1)
-#  J_d1_shift_c51[i] <- probKMA_results_d1_shift_c51_all[[i]]$J_iter[probKMA_results_d1_shift_c51_all[[i]]$iter]
-#}
-#save(J_d1_shift_c51, probKMA_results_d1_shift_c51_all, file="./results/probKMA_d1_shift_c51_results.RData")
+for(i in 1:10){
+  probKMA_results_d1_shift_c51_all[[i]] <- probKMA(Y0 = Y0, Y1 = Y1, K = 2, c = c_min, c_max = c_min, diss = 'd1_L2', iter4clean=1000, worker_number = 1)
+  J_d1_shift_c51[i] <- probKMA_results_d1_shift_c51_all[[i]]$J_iter[probKMA_results_d1_shift_c51_all[[i]]$iter]
+}
+save(J_d1_shift_c51, probKMA_results_d1_shift_c51_all, file="./results/probKMA_d1_shift_c51_results.RData")
 
 load("./results/probKMA_d1_shift_c51_results.RData")
 

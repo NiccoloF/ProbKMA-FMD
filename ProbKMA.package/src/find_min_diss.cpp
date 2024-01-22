@@ -1,8 +1,5 @@
 #include "find_min_diss.h"
 
-// via the depends attribute we tell Rcpp to create hooks for
-// RcppArmadillo so that the build process will know what to do
-//
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 // [[Rcpp::export(.find_diss)]]
@@ -18,7 +15,7 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     Rcpp::LogicalVector v_dom = Rcpp::as<Rcpp::LogicalVector>(domain(v,use0));
     Rcpp::List v_new = select_domain(v, v_dom, use0, use1);
     int v_len = v_dom.size();
-    int y_len = Rcpp::as<arma::mat>(y[0]).n_rows;
+    int y_len = use0? Rcpp::as<arma::mat>(y[0]).n_rows :  Rcpp::as<arma::mat>(y[1]).n_rows;
     arma::ivec s_rep = arma::regspace<arma::ivec>(1 - (v_len - c_k), y_len - v_len + 1 + (v_len - c_k));
     std::size_t s_rep_size = s_rep.size();
     Rcpp::List y_rep(s_rep_size);
@@ -34,19 +31,19 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     }
     auto index_range = std::views::iota(0,index_size);
     
+    arma::mat new_y0(v_len, d);
     for (unsigned int i = 0; i < s_rep_size; ++i) {
       arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
       Rcpp::List y_rep_i = Rcpp::List::create(Rcpp::Named("y0") = R_NilValue, Rcpp::Named("y1") = R_NilValue);
       auto j_true = index_range
       | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len));});
       if (use0) {
-        arma::mat new_y0(index_size, d);
         new_y0.fill(arma::datum::nan);
         std::for_each(j_true.begin(),j_true.end(),[&new_y0,&temp_y0,&index](int j){new_y0.row(j) = temp_y0.row(index[j] - 1);});
         y_rep_i["y0"] = new_y0;
       }
       if (use1) {
-        arma::mat new_y1(index_size, d);
+        arma::mat new_y1(v_len, d);
         new_y1.fill(arma::datum::nan);
         std::for_each(j_true.begin(),j_true.end(),[&new_y1,&temp_y1,&index](int j){new_y1.row(j) = temp_y1.row(index[j] - 1);});
         y_rep_i["y1"] = new_y1;
@@ -184,9 +181,10 @@ Rcpp::List find_shift_warp_min(const Rcpp::List & Y, // @TODO: void function
   arma::vec sd(2);
   arma::imat S_new(Y_size,V_new_size);
   arma::mat  D_new(Y_size,V_new_size);
-  for (unsigned int i = 0; i < V_new_size; ++i) // @TODO: parallelize
-    for (unsigned int j = 0; j < Y_size; ++j){ 
-      sd = find_diss(Y[j],V_new[i],w,alpha,c_k(i),d,use0,use1,domain,select_domain,diss_d0_d1_L2); // @TODO: modify output to a vec 
+  for (unsigned int i = 0; i < V_new_size; ++i) 
+    for (unsigned int j = 0; j < Y_size; ++j)
+    { 
+      sd = find_diss(Y[j],V_new[i],w,alpha,c_k(i),d,use0,use1,domain,select_domain,diss_d0_d1_L2);  
       S_new(j,i) = sd(0);
       D_new(j,i) = sd(1);
     }
