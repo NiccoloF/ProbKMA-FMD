@@ -22,7 +22,7 @@ find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(simulated200$Y
                                                                                          iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                                          return_options = TRUE, return_init = TRUE,
                                                                                          diss = diss, alpha = alpha),
-                                                                  plot = FALSE)
+                                                                  plot = FALSE,set_seed = TRUE)
 
 
 # tests

@@ -16,14 +16,14 @@ S0= matrix()
 
 load("../Test_comparisons/Y.RData")
 
-params <- list(standardize=FALSE, K=2,c = 40,c_max = 53,iter_max = 16,
+params <- list(standardize=FALSE, K=2,c = 40,c_max = 53,iter_max = 100,
                quantile = 0.25,stopCriterion = 'max',tol = 1e-8,
                iter4elong = 2,tol4elong = 1e-3,max_elong = 0.5,
                trials_elong = 200,
                deltaJK_elong = 0.05,max_gap = 0,iter4clean = 1000,
                tol4clean = 1e-4,
                quantile4clean = 1/2,return_options = TRUE,
-               m = 2,w = c(0.5,0.5),alpha = 0.5,seed = seed,exe_print = FALSE, 
+               m = 2,w = c(0.5,0.5),alpha = 0.5,seed = seed,exe_print = TRUE, 
                set_seed= TRUE, n_threads = 7)
 
 # checks the parameters
@@ -38,7 +38,7 @@ prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
 output <- prok$probKMA_run()
 
 # comparison with previous implementation
-source(file ="../Test_comparisons/previous_ProbKMA.R") # @TODO: load using the library
+source(file ="../Test_comparisons/previous_ProbKMA.R") 
 
 true_output <- probKMA(Y0=Y$Y0,Y1=Y$Y1,standardize=params$standardize,K=params$K,c=params$c,c_max=params$c_max,
                        P0=data$P0,S0=data$S0,
@@ -73,16 +73,22 @@ system.time(probKMA(Y0=Y$Y0,Y1=Y$Y1,standardize=params$standardize,K=params$K,c=
 ############## find_candidate_motifs test part ################
 ###############################################################
 
+# set the directory of the package, otherwise initialChecks does not work
+setwd("../ProbKMAcpp")
+devtools::load_all()
+
 diss = 'd0_d1_L2' 
 alpha = 0.5
 max_gap = 0 # no gaps allowed
-iter4elong = 20 # perform elongation
-trials_elong = 30 
+iter4elong = 2 # perform elongation
+trials_elong = 200
 c_max = 53 
 ### run probKMA multiple times (2x3x10=60 times)
 K = c(2, 3) # number of clusters to try
-c = c(40, 45, 50) # minimum motif lengths to try
+c = c(40, 45, 48) # minimum motif lengths to try
 n_init = 10 # number of random initializations to try
+
+load("../Test_comparisons/Y.RData")
 
 find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y$Y0, Y$Y1, K, c, n_init,
                                                                   name = '../Test_comparisons/results/our/matrix_data.1', names_var = 'x(t)',
@@ -92,8 +98,18 @@ find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y$Y0, Y$Y1, K,
                                                                                          diss = diss, alpha = alpha),
                                                                   plot = FALSE,exe_print=TRUE)
 
+# time c++:
+system.time(ProbKMAcpp::find_candidate_motifs(Y$Y0, Y$Y1, K, c, n_init,
+                                              name = '../Test_comparisons/results/our/matrix_data.1', names_var = 'x(t)',
+                                              probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 100,
+                                                                     iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                     return_options = TRUE, return_init = TRUE,
+                                                                     diss = diss, alpha = alpha),
+                                              plot = FALSE,exe_print=FALSE))
 
 
+# comparison with previous implementation
+source(file ="../Test_comparisons/previous_ProbKMA.R") 
 
 true_find_candidate_motifs_results = find_candidate_motifs(Y$Y0, Y$Y1, K, c, n_init,
                                                            name = '../Test_comparisons/results/prof/matrix_data.1', names_var = 'x(t)',
@@ -101,8 +117,14 @@ true_find_candidate_motifs_results = find_candidate_motifs(Y$Y0, Y$Y1, K, c, n_i
                                                                                   iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                                   return_options = TRUE, return_init = TRUE,
                                                                                   diss = diss, alpha = alpha),
-                                                           plot = TRUE, worker_number = NULL)
+                                                           plot = FALSE, worker_number = NULL)
 
-
-
+# time R previous imp:
+system.time(find_candidate_motifs(Y$Y0, Y$Y1, K, c, n_init,
+                                  name = '../Test_comparisons/results/prof/matrix_data.1', names_var = 'x(t)',
+                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 100,
+                                                         iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                         return_options = TRUE, return_init = TRUE,
+                                                         diss = diss, alpha = alpha),
+                                  plot = FALSE, worker_number = NULL))
 

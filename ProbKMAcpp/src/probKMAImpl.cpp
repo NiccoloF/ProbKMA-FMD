@@ -556,18 +556,18 @@ void ProbKMA::set_parameters(const Rcpp::List& newParameters)
     _probKMA -> set_parameters(newParameters);
 }
 
-void ProbKMA::reinit_motifs(const arma::ivec & c, // to be implemented 
+void ProbKMA::reinit_motifs(const arma::ivec & c, 
                             arma::sword d)
 { 
     _probKMA -> reinit_motifs(c,d); 
 }
 
-void ProbKMA::set_P0(const KMA::matrix& P0) // to be implemented 
+void ProbKMA::set_P0(const KMA::matrix& P0) 
 {  
     _probKMA -> set_P0(P0);
 }
 
-void ProbKMA::set_S0(const KMA::imatrix& S0) // to be implemented
+void ProbKMA::set_S0(const KMA::imatrix& S0) 
 {
     _probKMA -> set_S0(S0);
 }

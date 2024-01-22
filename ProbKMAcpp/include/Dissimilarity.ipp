@@ -6,7 +6,6 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
                                         const KMA::vector& w, 
                                         double alpha, unsigned int c_k) const
     {
-      // Convert domain and select_domain
       unsigned int d = Y(0,0).n_cols;
       arma::urowvec v_dom = util::findDomain(V(0,0));
       const KMA::Mfield& v_new = util::selectDomain<use1,arma::urowvec>(v_dom,V);
@@ -20,7 +19,7 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       KMA::ivector index;
       KMA::uvector filtered_j;
       KMA::uvector neg_index;
-
+      
       for (unsigned int i = 0; i < s_rep_size; ++i) {
         index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
         filtered_j = arma::find((index > 0) && (index <= y_len));

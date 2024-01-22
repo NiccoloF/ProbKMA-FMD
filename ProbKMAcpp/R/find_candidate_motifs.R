@@ -32,7 +32,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                   quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3, 
                                   max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50, 
                                   tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1, 
-                                  seed = 1,exe_print = FALSE,set_seed = TRUE, n_threads = 4){
+                                  seed = 1,exe_print = FALSE,set_seed = FALSE, n_threads = 7){
   ### check input #############################################################################################
   # check required input
   if(missing(K))
@@ -144,13 +144,13 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         params$w = 1
         params$quantile4clean = 1/K
         params$c_max = probKMA_options$c_max
-        checked_data <- initialChecks(Y0,Y1,matrix(5),matrix(6),params,probKMA_options$diss,params$seed)
+        checked_data <- initialChecks(Y0,Y1,matrix(),matrix(),params,probKMA_options$diss,params$seed)
         params <- checked_data$Parameters
-        data <- checked_data$FuncData
         prok$reinit_motifs(params$c,ncol(Y0[[1]]))
+        prok$set_parameters(params)
+        data <- checked_data$FuncData
         prok$set_P0(data$P0)
         prok$set_S0(data$S0)
-        prok$set_parameters(params)
         probKMA_results_1 = list(Y0 = Y0,Y1 = Y1,diss = probKMA_options$diss,w = params$w,alpha = probKMA_options$alpha)
         probKMA_results_2 = prok$probKMA_run() # new run for probKMA with updated parameters
         probKMA_results = c(probKMA_results_1,probKMA_results_2)
