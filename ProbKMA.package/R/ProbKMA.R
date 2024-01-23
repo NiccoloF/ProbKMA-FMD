@@ -90,7 +90,8 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   rm(core_number)
   if(worker_number>1){
     cl_probKMA=parallel::makeCluster(worker_number,timeout=60*60*24*30)
-    parallel::clusterExport(cl_probKMA,c('diss_d0_d1_L2','domain','select_domain'),envir = environment())
+    parallel::clusterExport(cl_probKMA,c('diss_d0_d1_L2','domain','select_domain','find_min_diss',
+                                         'find_shift_warp_min','.elongate_motifs'),envir = environment())
     on.exit(parallel::stopCluster(cl_probKMA))
   }else{
     cl_probKMA=NULL
@@ -412,7 +413,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   #message('initialize: ',round((end-start)[3],2))
   
   ### iterate #############################################################################################
-  browser()
   iter=0
   J_iter=c()
   BC_dist_iter=c()
@@ -472,7 +472,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     c_k=floor(unlist(lapply(V_new,function(v_new) unlist(lapply(v_new,nrow))[1]))*(1-max_gap))
     c_k[c_k<c]=c
     if(worker_number==1){
-      SD <- .find_shift_warp_min(Y,V_new,w,c_k,K,d,max_gap,
+      SD <- find_shift_warp_min(Y,V_new,w,c_k,K,d,max_gap,
                                  alpha,use0,use1,
                                  domain,
                                  select_domain,

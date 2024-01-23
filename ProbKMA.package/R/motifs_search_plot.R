@@ -1,4 +1,4 @@
-#' motifs_search_plot
+#' @title motifs_search_plot
 #'
 #' Plot the results of motifs_search.
 #'

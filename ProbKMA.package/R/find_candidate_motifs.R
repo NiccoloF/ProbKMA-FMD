@@ -105,9 +105,9 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     probKMA_options$worker_number=1
     if(worker_number>1){
       cl_find=parallel::makeCluster(worker_number,timeout=60*60*24*30)
-      parallel::clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA_options',
-                              'probKMA','probKMA_plot','probKMA_silhouette','compute_motif', # delete these in the package
-                              'mapply_custom','diss_d0_d1_L2','domain','select_domain','find_min_diss','compute_Jk'),envir=environment()) 
+      parallel::clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA','probKMA_options',
+                                        'probKMA_plot','probKMA_silhouette','compute_motif',
+                                        'mapply_custom','diss_d0_d1_L2','domain','select_domain','find_min_diss','compute_Jk','find_shift_warp_min'),envir=environment()) 
       parallel::clusterCall(cl_find,function()library(parallel,combinat))
       on.exit(parallel::stopCluster(cl_find))
     }else{
@@ -118,7 +118,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
   results=mapply_custom(cl_find,function(K,c,i){ #cl_find
-    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE,recursive = TRUE)
     files=list.files(paste0(name,"_K",K,"_c",c))
     message("K",K,"_c",c,'_random',i)
     if(paste0('random',i,'.RData') %in% files){

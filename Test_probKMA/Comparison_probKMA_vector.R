@@ -2,8 +2,8 @@
 library(ProbKMA.package)
 
 # set seed
-#seed = 123
-#set.seed(seed)
+seed = 123
+set.seed(seed)
 
 # load data
 data(sim_clusters)
@@ -24,7 +24,7 @@ my_output = ProbKMA.package::probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,
                                      iter4elong=1,tol4elong=1e-3,max_elong=0.5,trials_elong=trials_elong,
                                      deltaJk_elong=0.05,max_gap=max_gap,
                                      iter4clean=50,tol4clean=1e-4,quantile4clean=1/K,
-                                     return_options=TRUE,return_init=TRUE,worker_number=NULL)
+                                     return_options=TRUE,return_init=TRUE,worker_number=1)
 
 
 # load previous R implementation source file

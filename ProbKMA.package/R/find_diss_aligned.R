@@ -1,4 +1,4 @@
-#' @title .find_diss
+#' @title .find_diss_aligned
 #'
 #' @description Find dissimilarity between multidimensional curves (dimension=d), without alignment unless
 #' their lengths are different. To be used by probKMA_silhouette fucntion.

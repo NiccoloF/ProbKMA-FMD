@@ -4,7 +4,7 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # load the package
 library(ProbKMA.package)
 
-set.seed(123)
+set.seed(4321)
 #############################
 ### SIMULATION SCENARIO 1 ###
 #############################
@@ -76,15 +76,8 @@ if('len200_sd0.1_candidate.RData' %in% files){
                                                                                                iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                                                return_options = TRUE, return_init = TRUE,
                                                                                                diss = diss, alpha = alpha),
-                                                                        plot = TRUE) # ,worker_number
+                                                                        plot = TRUE) 
   
-  system.time(ProbKMA.package::find_candidate_motifs(Y0, Y1, K, c, n_init,
-                                                    name = './results/len200_sd0.1', names_var = 'x(t)',
-                                                    probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                           iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                           return_options = TRUE, return_init = TRUE,
-                                                                           diss = diss, alpha = alpha),
-                                                    plot = FALSE, worker_number = NULL))
   
   save(find_candidate_motifs_results, file = './results/len200_sd0.1_candidate.RData')
 }

@@ -1,4 +1,4 @@
-#' @title find_min_diss
+#' @title find_shift_warp_min
 #'
 #' @description Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
 #'
@@ -10,8 +10,7 @@
 #' @return Shift warping and dissimilarity
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
 #' @export
-find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1){
-
-  out<-.find_diss(y,v,w,alpha,c_k,d,use0,use1,domain,select_domain,diss_d0_d1_L2)
+find_shift_warp_min <- function(y,v,w,c_k,K,d,max_gap,alpha,use0,use1,domain,select_domain,diss_d0_d1_L2){
+  
+  out<-.find_shift_warp_min(y,v,w,c_k,K,d,max_gap,alpha,use0,use1,domain,select_domain,diss_d0_d1_L2)
 }
-
