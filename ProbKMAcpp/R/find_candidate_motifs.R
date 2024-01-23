@@ -29,9 +29,9 @@
 #' @export
 find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',
                                   probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,
-                                  quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3, 
-                                  max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50, 
-                                  tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1, 
+                                  quantile = 0.25, stopCriterion = 'max', tol = 1e-8, tol4elong = 1e-3,
+                                  max_elong = 0.5, deltaJK_elong = 0.05, iter4clean = 50,
+                                  tol4clean = 1e-4, quantile4clean = 1/2, m = 2, w = 1,
                                   seed = 1,exe_print = FALSE,set_seed = FALSE, n_threads = 7){
   ### check input #############################################################################################
   # check required input
@@ -69,7 +69,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   if(N<5)
     stop('More curves y_i(x) needed.')
   Y0=lapply(Y0,as.matrix)
-  
+
   # set return_options=TRUE
   if(!is.null(probKMA_options$return_options)){
     if(probKMA_options$return_options==FALSE){
@@ -77,7 +77,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       probKMA_options$return_options=TRUE
     }
   }
-  
+
   params = list(standardize=probKMA_options$standardize,
                 c_max = probKMA_options$c_max,
                 iter_max = probKMA_options$iter_max,
@@ -86,23 +86,23 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 return_options = probKMA_options$return_options,
                 alpha = probKMA_options$alpha,
                 max_gap = probKMA_options$max_gap,
-                quantile = quantile, 
-                stopCriterion = stopCriterion, 
-                tol = tol, 
-                tol4elong = tol4elong, 
-                max_elong = max_elong, 
-                deltaJK_elong = deltaJK_elong, 
-                iter4clean = iter4clean, 
+                quantile = quantile,
+                stopCriterion = stopCriterion,
+                tol = tol,
+                tol4elong = tol4elong,
+                max_elong = max_elong,
+                deltaJK_elong = deltaJK_elong,
+                iter4clean = iter4clean,
                 tol4clean = tol4clean,
-                quantile4clean = quantile4clean, 
+                quantile4clean = quantile4clean,
                 m = m,
-                w = w, 
-                seed = seed, 
-                K = 2, 
+                w = w,
+                seed = seed,
+                K = 2,
                 c = 40,
                 exe_print = exe_print,
                 set_seed = set_seed,
-                n_threads = n_threads) 
+                n_threads = n_threads)
 
 
   checked_data <- initialChecks(Y0,Y1,
@@ -111,19 +111,19 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                 params,
                                 probKMA_options$diss,
                                 seed)
-  
+
   params <- checked_data$Parameters
   data <- checked_data$FuncData
-  # initialization of probKMA 
+  # initialization of probKMA
   if ( probKMA_options$alpha == 0 ||  probKMA_options$alpha == 1)
   {
     prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"L2")
-  } 
-  else 
+  }
+  else
   {
     prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
   }
- 
+
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
   results=mapply(function(K,c,i,params,prok,data){ #cl_find
@@ -163,10 +163,10 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
           warning('Maximum number of iteration reached. Re-starting.')
     }
     pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
-    probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE) 
+    probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=FALSE)
     dev.off()
     pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
-    probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE) 
+    probKMA_plot(Y0, Y1, probKMA_results,ylab=names_var,cleaned=TRUE)
     dev.off()
     pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
     silhouette=probKMA_silhouette(Y0,
@@ -175,7 +175,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                   probKMA_options$diss,
                                   probKMA_results,
                                   align=silhouette_align,
-                                  plot=TRUE) 
+                                  plot=TRUE)
     dev.off()
     save(probKMA_results,time,silhouette,
          file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
@@ -183,10 +183,10 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                 time=time,silhouette=silhouette))
   }
   },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE, MoreArgs = list(params,prok,data))
-  
+
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
-  
+
   ### plot silhouette average #################################################################################
   silhouette_average_sd=lapply(results,
                                function(results){
@@ -227,7 +227,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-  
+
   ### plot processing time ####################################################################################
   times=lapply(results,
                function(results){
@@ -263,7 +263,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-  
+
   ### plot dissimilarities ####################################################################################
   if(plot){
     D=lapply(results,
@@ -294,7 +294,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       }
     }
     dev.off()
-    
+
     D_clean=lapply(results,
                    function(results){
                      D_clean=lapply(results,
@@ -324,7 +324,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-  
+
   ### plot motif lengths ######################################################################################
   if(plot){
     motif_length=mapply(function(results){
@@ -361,7 +361,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       legend('bottomleft',legend=paste0('c=',c),col=1+seq_along(c),pch=8)
     }
     dev.off()
-    
+
     motif_clean_length=mapply(function(results){
       motif_length=mapply(function(results){
         motif_length=as.matrix(Reduce(cbind,lapply(results,
@@ -396,7 +396,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       legend('bottomleft',legend=paste0('c=',c),col=1+seq_along(c),pch=8)
     }
     dev.off()
-    
+
     pdf(paste0(name,'_lengths_perc.pdf'),width=7,height=5)
     motif_length_perc=mapply(function(results){
       motif_length=mapply(function(results){
@@ -431,7 +431,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       legend('bottomleft',legend=paste0('c=',c),col=1+seq_along(c),pch=8)
     }
     dev.off()
-    
+
     pdf(paste0(name,'_lengths_clean_perc.pdf'),width=7,height=5)
     motif_clean_length_perc=mapply(function(results){
       motif_length=mapply(function(results){
@@ -467,7 +467,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-  
+
   ### output ##################################################################################################
   return(list(name=name,K=K,c=c,n_init=n_init,silhouette_average_sd=silhouette_average_sd,times=times))
 }

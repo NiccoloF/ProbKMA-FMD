@@ -19,15 +19,15 @@ class _probKMAImp;
 class ProbKMA
 {
  public:
-    
+
     // Y: a list containing two list -> Y0 and Y1
     ProbKMA(const Rcpp::List& Y,
             const Rcpp::List& parameters,
             const KMA::matrix& P0,const KMA::imatrix& S0,
             const std::string& diss);
-   
+
     virtual ~ProbKMA() = default;
-    
+
     // run probKMA's algorithm
     Rcpp::List probKMA_run() const;
 
@@ -56,7 +56,3 @@ class ProbKMA
 
 
 #endif // PROBKMA_HPP
-
-
-
-
