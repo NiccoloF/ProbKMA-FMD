@@ -68,7 +68,7 @@ namespace util
       size_t nas = 0;
       for (size_t i = 0; i < n; ++i, ++nas)
         if (!Rcpp::Vector<REALSXP>::is_na(x[idx[i] - 1])) break;
-        std::rotate(idx.begin(), idx.begin() + nas, idx.end());
+      std::rotate(idx.begin(), idx.begin() + nas, idx.end()); // it was under if
     }
     return idx;
   }

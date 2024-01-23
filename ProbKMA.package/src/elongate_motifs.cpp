@@ -97,15 +97,15 @@ void elongation_rcpp(Rcpp::List & V_new,
   double Jk_before = compute_Jk_rcpp(v_new_k, s_k, p_k, Y, alpha, w, m, use0, use1, domain, select_domain, diss_d0_d1_L2);
   
   // compute performance indexes for all possible elongations
-  arma::vec c_k_after(v_elong_left_right_size);
-  arma::vec Jk_after(v_elong_left_right_size);
+  arma::uword new_v_elong_left_right_size = v_elong_left_right.size();
+  arma::vec c_k_after(new_v_elong_left_right_size);
+  arma::vec Jk_after(new_v_elong_left_right_size);
   
-  for (arma::uword i = 0; i < v_elong_left_right_size; i++) {
+  for (arma::uword i = 0; i < new_v_elong_left_right_size; i++) {
     const arma::uvec& domain_elong = Rcpp::as<arma::uvec>(domain(v_elong_left_right[i], use0));
     int c_i =  std::max(floor(domain_elong.n_elem*(1 - max_gap)),c); 
-    c_k_after[i] = c_i; // avoid if, next line
+    c_k_after[i] = c_i; 
     const Rcpp::List& v_i = v_elong_left_right[i];
-    //const arma::ivec& s_i = s_k_elong_left_right[i];
     Jk_after[i] = compute_Jk_rcpp(v_i, s_k_elong_left_right[i], p_k, Y, alpha, w, m,use0 , use1,domain, select_domain, diss_d0_d1_L2, Rcpp::wrap(c_i),Rcpp::as<Rcpp::LogicalVector>(Rcpp::wrap(keep_k)));
   }
   
@@ -115,7 +115,7 @@ void elongation_rcpp(Rcpp::List & V_new,
   
   // check that the min really exists
   bool elongate = false;
-  if (best_elong < v_elong_left_right_size)
+  if (best_elong < new_v_elong_left_right_size and arma::conv_to<arma::Col<double>>::from(arma::find_nan(diff_perc)).size() != diff_perc.size())
     elongate = diff_perc(best_elong) < deltaJk_elong;
   
   // evaluate if elongate or not
@@ -129,7 +129,7 @@ void elongation_rcpp(Rcpp::List & V_new,
 }
 
 
-// function which returns V_new, V_dom, S_k after the elongation
+// elongate V_new, V_dom, S_k 
 //[[Rcpp::export(.elongate_motifs)]]
 void elongate_motifs(Rcpp::List & V_new,
                      Rcpp::List & V_dom,
@@ -168,7 +168,6 @@ void elongate_motifs(Rcpp::List & V_new,
   Rcpp::NumericVector with_gaps(filtered_j.begin(),filtered_j.end());
   int with_gaps_size = with_gaps.size(); 
   
-  // @TODO: check this part for domains with Na
   if (with_gaps_size != 0){
     Rcpp::List V_filled(with_gaps_size);
     Rcpp::List V_dom_filled(with_gaps_size);
@@ -177,7 +176,7 @@ void elongate_motifs(Rcpp::List & V_new,
     
     // fill the domains of the motifs with gaps and recompute the motifs with the filled domains
     // and compute the perf.indexes before and after the filling
-    for (unsigned int i = 0; i < with_gaps_size; ++i){
+    for (int i = 0; i < with_gaps_size; ++i){
       const Rcpp::LogicalVector& v_dom = V_dom[with_gaps[i]];
       V_dom_filled[i] = Rcpp::rep(true,v_dom.size());
       V_filled[i] = Rcpp::as<Rcpp::List>(compute_motif(V_dom_filled[i],
@@ -222,7 +221,7 @@ void elongate_motifs(Rcpp::List & V_new,
   }
 
     Rcpp::List len_elong(V_dom_size);
-    for (unsigned int i = 0; i < V_dom_size; ++i){
+    for (int i = 0; i < V_dom_size; ++i){
       const int len_max_elong_i = std::min<int>(std::floor(len_dom[i]*max_elong)
                                               ,c_max[i] - len_dom[i]);
       if (len_max_elong_i == 0){
@@ -236,12 +235,12 @@ void elongate_motifs(Rcpp::List & V_new,
       
     }
     
-    // vector of probabilities for the quantile function , to be checked this part
-    arma::vec prob(1,arma::fill::value(0.25));
+    Rcpp::Environment stats("package:stats");
+    Rcpp::Function quantile_func = stats["quantile"];
     // compute the quantile of the distance matrix
-    arma::vec quantile = arma::quantile(vectorise(D), prob);
+    double quantile = Rcpp::as<double>(quantile_func(D, 0.25));
     // keep will be a matrix whose value i,j will be D(i,j) < quantile(0)
-    arma::umat keep = D < quantile(0);
+    arma::umat keep = D < quantile;
     // col-wise sum of the matrix keep
     const arma::uvec& col_sum_keep = (sum(keep, 0)).t();
     // vector of bool = true iff col_sum_keep[i]==0
@@ -255,12 +254,12 @@ void elongate_motifs(Rcpp::List & V_new,
     } 
     
     
-    for (unsigned int i = 0; i < V_dom_size; ++i){
+    for (int i = 0; i < V_dom_size; ++i){
       
       const arma::vec& p_k_i = P_k[i];
       const arma::ivec& len_elong_k_i = len_elong[i];
       const arma::uvec& keep_k_i = keep.col(i);
-      const int&  c_i = c[i];
+      const int  c_i = c[i];
     
       elongation_rcpp(V_new,
                       V_dom,

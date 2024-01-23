@@ -17,18 +17,18 @@ arma::mat find_occurrences_cpp(const Rcpp::List& v,
                                Rcpp::Function select_domain)
 {
   arma::uvec v_dom = Rcpp::as<arma::uvec>(domain(v,use0));
-  std::size_t v_len = v_dom.size();
+  arma::uword v_len = v_dom.size();
   arma::mat SD_motif(0,2);
   std::list<arma::uword> index_list;
   const Rcpp::List& temp_domain = select_domain(v,Rcpp::as<Rcpp::LogicalVector>(Rcpp::wrap(v_dom)),use0,use1);
   int t = 0;
-  for(int i = 0,z = 1;i < Y.size();++i)
+  for(arma::uword i = 0,z = 1;i < Y.size();++i)
   {
     const Rcpp::List& Y_i = Y[i];
-    std::size_t y_len = as<arma::mat>(Y_i[0]).n_rows;
+    arma::uword y_len = as<arma::mat>(Y_i[0]).n_rows;
     Rcpp::List y_rep(y_len-v_len+1);
     arma::ivec s_rep = arma::regspace<arma::ivec>(1,y_len-v_len+1);
-    for(int j = 0;j<y_len-v_len+1;++j)
+    for(arma::uword j = 0;j<y_len-v_len+1;++j)
     {
       arma::mat y0;
       arma::mat y1;
@@ -46,7 +46,7 @@ arma::mat find_occurrences_cpp(const Rcpp::List& v,
                                                   Rcpp::as<Rcpp::LogicalVector>(Rcpp::wrap(v_dom)),use0,use1);
     }
     Rcpp::NumericVector valid; 
-    for(int k = 0;k<y_rep.size();++k)
+    for(arma::uword k = 0;k<y_rep.size();++k)
     {
       const arma::uvec& temp = Rcpp::as<arma::uvec>(domain(y_rep[k],use0));
       if(accu(temp) >= c_k) valid.push_back(k);
@@ -67,7 +67,7 @@ arma::mat find_occurrences_cpp(const Rcpp::List& v,
     
     t = 0; 
     arma::mat local_SD_motif(std::min(start.size(),end.size()),2);
-    for(int k = 0;k<std::min(start.size(),end.size());++k) // NON SO SE SERVE STD::min NEL CASO GENERALE
+    for(int k = 0;k<std::min<int>(start.size(),end.size());++k) // NON SO SE SERVE STD::min NEL CASO GENERALE
     {
       const arma::vec& temp_d_rep = arma::conv_to<arma::vec>::from(d_rep(arma::span(start[k],end[k]))); 
       arma::uword index = arma::index_min(temp_d_rep);

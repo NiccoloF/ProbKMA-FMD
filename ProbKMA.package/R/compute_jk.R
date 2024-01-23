@@ -14,7 +14,7 @@
 #' @return The value of the objective function J
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
 #' @export
-compute_jk <- function(v,s_k, p_k,Y,
+compute_Jk <- function(v,s_k, p_k,Y,
                        alpha,w,m,use0, use1,
                        domain,select_domain,diss_d0_d1_L2,
                        c_k = NULL,

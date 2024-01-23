@@ -453,6 +453,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     #message('  compute motifs: ',round((end-start)[3],2))
     
     ##### elongate motifs #################################################################################
+    print("elongate")
     start=proc.time()
     if((iter>1)&&(!(iter%%iter4elong))&&(BC_dist<tol4elong)){
       
@@ -471,6 +472,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     c_k=floor(unlist(lapply(V_new,function(v_new) unlist(lapply(v_new,nrow))[1]))*(1-max_gap))
     c_k[c_k<c]=c
     if(worker_number==1){
+      print("find shift warp min")
       SD <- .find_shift_warp_min(Y,V_new,w,c_k,K,d,max_gap,
                                  alpha,use0,use1,
                                  domain,
@@ -480,6 +482,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       D_new=SD[[2]]
       rm(SD)
     } else {
+      print("find shift warp min")
       c_k=rep(c_k,each=length(Y))
       YV=expand.grid(Y,V_new)
       SD=mapply_custom(cl_probKMA,find_min_diss,YV[,1],YV[,2],c_k,
@@ -490,6 +493,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     }
     end=proc.time()
     #message('  find shift: ',round((end-start)[3],2))
+  
     
     ##### compute memberships #############################################################################
     start=proc.time()
@@ -540,6 +544,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   if(iter==iter_max){
     warning('maximum number of iterations reached, method stops')
   }
+ 
   # compute motifs
   S_k=split(S,rep(seq_len(K),each=N))
   P_k=split(P,rep(seq_len(K),each=N))

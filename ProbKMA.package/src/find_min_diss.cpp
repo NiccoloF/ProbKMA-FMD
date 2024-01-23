@@ -29,8 +29,8 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     if (use1) {
       temp_y1 = Rcpp::as<arma::mat>(y[1]);
     }
-    auto index_range = std::views::iota(0,index_size);
     
+    auto index_range = std::views::iota(0,index_size);
     arma::mat new_y0(v_len, d);
     for (unsigned int i = 0; i < s_rep_size; ++i) {
       arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
@@ -67,7 +67,7 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     
     arma::uvec valid = length_inter >= c_k;
     if (arma::accu(valid) == 0) {        
-      valid.elem(arma::find(length_inter == arma::max(length_inter)))+= 1;  
+      valid.elem(arma::find(length_inter == arma::max(length_inter))).fill(1);  
     }
     
     s_rep = s_rep.elem(find(valid==1));
@@ -104,14 +104,14 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     Rcpp::LogicalVector v_dom = Rcpp::as<Rcpp::LogicalVector>(domain(v,use0));
     Rcpp::List v_new = select_domain(v, v_dom, use0, use1);
     int v_len = v_dom.size();
-    int y_len = Rcpp::as<arma::mat>(y[0]).n_rows;
+    int y_len = use0? Rcpp::as<arma::mat>(y[0]).n_rows :  Rcpp::as<arma::mat>(y[1]).n_rows;
     arma::ivec s_rep;
     if (aligned){
       s_rep = 1;
     } else {
       s_rep = arma::regspace<arma::ivec>(1, y_len - v_len + 1);
     }
-    std::size_t s_rep_size = s_rep.size();
+    arma::uword s_rep_size = s_rep.size();
     Rcpp::List y_rep(s_rep_size);
     
     // Convert y[0] and y[1] to mat objects
@@ -125,9 +125,9 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     }
     
     auto index_range = std::views::iota(0,index_size);
-    
-    for (unsigned int i = 0; i < s_rep_size; ++i) {
-      arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
+    arma::ivec index;
+    for (arma::uword i = 0; i < s_rep_size; ++i) {
+      index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
       Rcpp::List y_rep_i = Rcpp::List::create(Rcpp::Named("y0") = R_NilValue, Rcpp::Named("y1") = R_NilValue);
       auto j_true = index_range
       | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len));});
@@ -150,7 +150,7 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     double min_d = std::numeric_limits<double>::max();
     int min_s = 0;
     
-    for (unsigned int i = 0; i < s_rep_size; i++) {
+    for (arma::uword i = 0; i < s_rep_size; i++) {
       double dist = Rcpp::as<double>(diss_d0_d1_L2(y_rep[i], v_new, w, alpha));
       if (dist < min_d){
         min_d = dist;
@@ -161,7 +161,7 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
   }
 
 // [[Rcpp::export(.find_shift_warp_min)]]
-Rcpp::List find_shift_warp_min(const Rcpp::List & Y, // @TODO: void function 
+Rcpp::List find_shift_warp_min(const Rcpp::List & Y, 
                                const Rcpp::List & V_new,
                                const arma::vec & w,
                                const arma::ivec & c_k,

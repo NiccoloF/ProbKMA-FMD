@@ -10,11 +10,11 @@ data(sim_clusters)
 
 diss = 'd0_d1_L2' 
 alpha = 0.5
-max_gap = 0.2
+max_gap = 0
 trials_elong = 201
 c_max = 71
-K = 2
-c = 61 
+K = 3
+c = 41
 
 my_output = ProbKMA.package::probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=NULL,S0=NULL,
                                      diss=diss,alpha=alpha,w=1,m=2,

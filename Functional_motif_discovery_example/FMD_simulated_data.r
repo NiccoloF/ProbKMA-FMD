@@ -1,11 +1,10 @@
 # Set working directory to the folder of this script
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
-source("../ProbKMA-FMD_functions.r")
+# load the package
+library(ProbKMA.package)
 
-
-
-
+set.seed(123)
 #############################
 ### SIMULATION SCENARIO 1 ###
 #############################
@@ -39,12 +38,10 @@ load(paste0('len200_sd0.1.RData'))
 # use Sobolev-like distance d_0.5
 diss = 'd0_d1_L2' 
 alpha = 0.5
-
 max_gap = 0 # no gaps allowed
 iter4elong = 1 # perform elongation
 trials_elong = 201 # try all possible elongations
 c_max = 71 # maximum motif length 70
-
 
 
 ### run probKMA multiple times (2x3x10=60 times)
@@ -72,13 +69,22 @@ if('len200_sd0.1_candidate.RData' %in% files){
   #     Must be provided when diss='d1_L2' or diss='d0_d1_L2'.
 
   # find candidate motifs
-  find_candidate_motifs_results = find_candidate_motifs(Y0, Y1, K, c, n_init,
-                                                        name = './results/len200_sd0.1', names_var = 'x(t)',
-                                                        probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                               iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                               return_options = TRUE, return_init = TRUE,
-                                                                               diss = diss, alpha = alpha),
-                                                        plot = TRUE, worker_number = NULL)
+  find_candidate_motifs_results = ProbKMA.package::find_candidate_motifs(Y0, Y1, K, c, n_init,
+                                                                        name = './results/len200_sd0.1', names_var = 'x(t)',
+                                                                        probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                                               iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                                               return_options = TRUE, return_init = TRUE,
+                                                                                               diss = diss, alpha = alpha),
+                                                                        plot = TRUE, worker_number = 1)
+  
+  system.time(ProbKMA.package::find_candidate_motifs(Y0, Y1, K, c, n_init,
+                                                    name = './results/len200_sd0.1', names_var = 'x(t)',
+                                                    probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                           iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                           return_options = TRUE, return_init = TRUE,
+                                                                           diss = diss, alpha = alpha),
+                                                    plot = FALSE, worker_number = NULL))
+  
   save(find_candidate_motifs_results, file = './results/len200_sd0.1_candidate.RData')
 }
 

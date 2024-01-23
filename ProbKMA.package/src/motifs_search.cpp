@@ -28,23 +28,23 @@ public:
 };
 
 // [[Rcpp::export(.motifs_search_cpp)]]
-Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
-                             const Rcpp::List& V,  // list of list of matrices 
+Rcpp::List motifs_search_cpp(const Rcpp::List& Y, 
+                             const Rcpp::List& V,  
                              const Rcpp::List& V0_clean,
                              const Rcpp::List& V1_clean,
-                             const Rcpp::List& V_dom, // list of LogicalVector
-                             const arma::vec& V_length, // vector of V_dom_i's length 
+                             const Rcpp::List& V_dom, 
+                             const arma::vec& V_length,  
                              const arma::mat& P_clean,
                              const arma::mat& D_clean,
-                             arma::uvec V_hclust, //vector of indices related to clusters 
+                             arma::uvec V_hclust,  
                              const double alpha, 
                              const bool use0, const bool use1,
                              const arma::vec& w, 
                              const arma::vec& c,
                              const double max_gap,  
-                             const double d, // n_col of Y[[0]]
-                             const double N, // n_row of D
-                             const double K, // n_col of D
+                             const double d, 
+                             const double N, 
+                             const double K, 
                              const double R_all,
                              const arma::vec& R_m,
                              bool use_real_occurrences,
@@ -54,12 +54,12 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
                              Rcpp::Function select_domain) 
 {
   // transform index from R to C++
-  unsigned int n_hclust = V_hclust.max();
+  arma::uword n_hclust = V_hclust.max();
   V_hclust -= 1;
   
   // prepare output data_structure
   arma::uvec select(n_hclust*V_hclust.size()); // TODO:C'è da controllare che select non sia nullo altrimenti è un vettore vuoto e quindi restituisco risultati nulli 
-  std::size_t V_size = V.size();
+  arma::uword V_size = V.size();
   Rcpp::List V_final;
   Rcpp::List V_occurrences(V_size);
   arma::vec V_length_final;
@@ -73,12 +73,12 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
   {
     arma::uvec c_k = arma::conv_to<arma::uvec>::from(arma::floor(V_length*(1-max_gap)));
     arma::uvec index = find(c_k < c);
-    std::for_each(index.begin(),index.end(),[&c_k,&c](arma::uword i){c_k[i] = c[i];}); // provare togliere return
+    std::for_each(index.begin(),index.end(),[&c_k,&c](arma::uword i){c_k[i] = c[i];}); 
     V_R_m = arma::conv_to<arma::vec>::from(R_m.elem(V_hclust));
   
   // find occurrences
     arma::uvec not_null(V_size);
-    for(int i = 0; i < V_size;++i) // i am assuming that V_R_m has not necessary the same length of V and c_k
+    for(arma::uword i = 0; i < V_size;++i) // i am assuming that V_R_m has not necessary the same length of V and c_k
     {
       V_occurrences[i] = find_occurrences_cpp(V[i],Y,
                                           V_R_m[i],
@@ -99,10 +99,10 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
   
     // select candidate motifs in each group
     count = 0;
-    for(int i = 0;i < n_hclust;++i)
+    for(arma::uword i = 0;i < n_hclust;++i)
     {
       arma::uvec index_i = arma::find(V_hclust==i);
-      std::size_t index_i_size = index_i.size();
+      arma::uword index_i_size = index_i.size();
       auto range_rows = index_i | std::views::transform([&V_occurrences](arma::uword j)
       {return as<arma::mat>(V_occurrences[j]).n_rows;});
       auto range_mean = index_i | std::views::transform([&V_occurrences](arma::uword j)
@@ -121,7 +121,7 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
       
       // select motifs to keep
       arma::uvec keep(index_i_size,arma::fill::ones);
-      for(int i = 0;i<index_i_size;++i)
+      for(arma::uword i = 0;i<index_i_size;++i)
       {
         if(keep[i])
         {
@@ -161,7 +161,7 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
   }
   else
   {
-    for(int i_hclust = 0;i_hclust < n_hclust;++i_hclust)
+    for(arma::uword i_hclust = 0;i_hclust < n_hclust;++i_hclust)
     {
       const arma::uvec& index_i = find(V_hclust==i_hclust);
       std::size_t index_i_size = index_i.size();
@@ -181,7 +181,7 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
       
       // select motifs to keep
       arma::uvec keep(index_i_size,arma::fill::ones);
-      for(int i = 0;i<index_i_size;++i)
+      for(arma::uword i = 0;i<index_i_size;++i)
       {
         if(keep[i])
         {
@@ -207,7 +207,7 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y, // list of list of matrices
       // find occurrences
       count = 0;
       arma::uvec not_null(V_size); 
-      for(int i = 0; i < V_size;++i) 
+      for(arma::uword i = 0; i < V_size;++i) 
       {
         V_occurrences[i] = find_occurrences_cpp(V_final[i],Y,
                                                 V_R_m[i],
