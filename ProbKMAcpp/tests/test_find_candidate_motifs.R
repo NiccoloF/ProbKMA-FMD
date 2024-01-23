@@ -26,7 +26,7 @@ find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(simulated200$Y
 
 
 # tests
-expect_equal(length(find_candidate_motifs_results),6)
+tinytest::expect_equal(length(find_candidate_motifs_results),6)
 
-expect_true(sum(colSums(find_candidate_motifs_results$silhouette_average_sd[[1]][[1]] 
+tinytest::expect_true(sum(colSums(find_candidate_motifs_results$silhouette_average_sd[[1]][[1]] 
                         - true_find_candidate_motifs_results$silhouette_average_sd[[1]][[1]])) == 0)

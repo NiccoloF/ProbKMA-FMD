@@ -219,8 +219,10 @@ void MotifSobol::elongate_motifs_helper(KMA::Mfield& V_new,
                                         const std::shared_ptr<Dissimilarity>& diss,
                                         const Rcpp::Function & quantile_func) const
 {
-  // number of threads 
-  const unsigned int n_threads = param._n_threads;
+#ifdef _OPENMP
+      // number of threads 
+      const unsigned int n_threads = param._n_threads;
+#endif
 
 	std::size_t V_dom_size = V_dom.size();
 

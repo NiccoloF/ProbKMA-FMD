@@ -21,8 +21,7 @@ class ProbKMA
  public:
     
     // Y: a list containing two list -> Y0 and Y1
-    // V: a list containing two list -> V0 and V1
-    ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
+    ProbKMA(const Rcpp::List& Y,
             const Rcpp::List& parameters,
             const KMA::matrix& P0,const KMA::imatrix& S0,
             const std::string& diss);
@@ -34,13 +33,11 @@ class ProbKMA
 
     void set_parameters(const Rcpp::List& parameters);
 
-    Rcpp::List get_parameters();
+    Rcpp::List get_motifs() const;
 
-    Rcpp::List get_motifs();
+    void reinit_motifs(const arma::ivec& c, arma::sword d);
 
-    void reinit_motifs(const arma::ivec & c, arma::sword d);
-
-    void set_P0(const KMA::matrix & P0);
+    void set_P0(const KMA::matrix& P0);
 
     void set_S0(const KMA::imatrix& S0);
 

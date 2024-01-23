@@ -10,7 +10,7 @@ License: GPL (>= 2)
 Suggests: tinytest
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: Rcpp (>= 1.0.11), methods
+Imports: Rcpp (>= 1.0.11), methods,tinytest
 LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++20
 Depends: 

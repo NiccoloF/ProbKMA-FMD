@@ -8,14 +8,14 @@ class ProbKMA::_probKMAImp
 {
 public:
 
-    _probKMAImp(const Rcpp::List& Y,const Rcpp::List& V,
+    _probKMAImp(const Rcpp::List& Y,
                 const Rcpp::List& parameters,
                 const KMA::matrix& P0,const KMA::imatrix& S0,
                 const std::string_view diss):
                 _parameters(parameters),_P0(P0),_S0(S0)
                {
                     // Initialize c++ Data structure
-                    Initialize(Y,V,diss);
+                    Initialize(Y,diss);
 
                     // Create Dissimilarity factory
                     util::SharedFactory<Dissimilarity> dissfac;
@@ -42,65 +42,49 @@ public:
 
     ~_probKMAImp() = default;
 
-    void Initialize(const Rcpp::List& Y,const Rcpp::List& V,std::string_view diss)
+    void Initialize(const Rcpp::List& Y,std::string_view diss)
     {
       // Convert Rcpp Data Structure(List) into Armadillo data Structure(field)
       const Rcpp::List& Y0 = Y[0];
       const Rcpp::List& Y1 = Y[1];
-      const Rcpp::List& V0 = V[0];
-      const Rcpp::List& V1 = V[1];
 
       if (diss == "H1") {
-        handleCaseH1(Y0, Y1, V0, V1);
+        handleCaseH1(Y0, Y1);
       } else if (diss == "L2") {
-        handleCaseL2(Y0, Y1, V0, V1);
+        handleCaseL2(Y0, Y1);
       }
+      reinit_motifs(_parameters._c,_Y.front().n_cols);
     }
 
       // Support function for the case "H1"
-      void handleCaseH1(const Rcpp::List& Y0, const Rcpp::List& Y1,
-                        const Rcpp::List& V0, const Rcpp::List& V1) {
+      void handleCaseH1(const Rcpp::List& Y0, const Rcpp::List& Y1) {
         const arma::uword Y_size = Y0.size();
-        const arma::uword V_size = V0.size();
         _Y.set_size(Y_size, 2);
-        _V.set_size(V_size,2);
 
         for (arma::uword i = 0; i < Y_size; i++) {
           _Y(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
           _Y(i, 1) = Rcpp::as<KMA::matrix>(Y1[i]);
         }
-
-        for (arma::uword i = 0; i < V_size; i++) {
-          _V(i, 0) = Rcpp::as<KMA::matrix>(V0[i]);
-          _V(i, 1) = Rcpp::as<KMA::matrix>(V1[i]);
-        }
       }
 
       // Support function for the case "L2"
-      void handleCaseL2(const Rcpp::List& Y0, const Rcpp::List& Y1,
-                        const Rcpp::List& V0, const Rcpp::List& V1) {
+      void handleCaseL2(const Rcpp::List& Y0, const Rcpp::List& Y1) {
         if (!Rf_isNull(Y0[0])) {
           _isY1 = false;
-          handleNonNullY(Y0, V0);
+          handleNonNullY(Y0);
         } else {
           _isY0 = false;
-          handleNonNullY(Y1, V1);
+          handleNonNullY(Y1);
         }
       }
 
       // Support function for the case "L2"
-      void handleNonNullY(const Rcpp::List& Y, const Rcpp::List& V) {
+      void handleNonNullY(const Rcpp::List& Y) {
         const arma::uword Y_size = Y.size();
-        const arma::uword V_size = V.size();
         _Y.set_size(Y_size, 1);
-        _V.set_size(V_size, 1);
 
         for (arma::uword i = 0; i < Y_size; i++) {
           _Y(i, 0) = Rcpp::as<KMA::matrix>(Y[i]);
-        }
-
-        for (arma::uword i = 0; i < V_size; i++) {
-          _V(i, 0) = Rcpp::as<KMA::matrix>(V[i]);
         }
       }
 
@@ -112,14 +96,14 @@ public:
 
       /// Set Seed ////////////////////////////////////
       bool set_seed = _parameters._set_seed;
-      if (set_seed) 
+      if (set_seed)
       {
         Rcpp::Environment base("package:base");
         Rcpp::Function setSeed = base["set.seed"];
         unsigned int seed = _parameters._seed;
         setSeed(seed);
       }
-      
+
       /// Initialization parameters ////////////////////////
       std::size_t iter = 0;
       std::string_view criterion = _parameters._stopCriterion;
@@ -136,7 +120,9 @@ public:
       const arma::uword _n_rows_Y = _Y.n_rows;
       Rcpp::Environment stats("package:stats");
       Rcpp::Function quantile = stats["quantile"];
+#ifdef _OPENMP
       const unsigned int n_threads = _parameters._n_threads;
+#endif
 
       // Initialization data structures ////////////////////////
       KMA::vector J_iter(iter_max,arma::fill::zeros);
@@ -150,8 +136,8 @@ public:
       KMA::umatrix D0(_n_rows_Y,_n_rows_V);
       KMA::matrix temp_DP(_n_rows_Y,_n_rows_V);
       KMA::umatrix keep;
-      KMA::matrix P(_P0); 
-      KMA::imatrix S(_S0); 
+      KMA::matrix P(_P0);
+      KMA::imatrix S(_S0);
 
       /// Iterate ////////////////////////////////////
       while(iter < iter_max and BC_dist > _parameters._tol)
@@ -176,7 +162,7 @@ public:
         for(arma::uword i = 0;i < _n_rows_V;++i)
         {
           const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
-    
+
           const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,
                                                              S.col(i),
                                                              P.col(i),_Y,
@@ -193,8 +179,8 @@ public:
           }
           V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
-        
-        
+
+
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
           if (exe_print)
@@ -204,7 +190,7 @@ public:
                                      _perfac,_dissfac,quantile);
         }
 
-      
+
         ////// find shift warping minimizing dissimilarities /////////////
         for(arma::uword i = 0;i<_n_rows_V;++i)
         {
@@ -329,22 +315,17 @@ public:
       _dissfac -> set_parameters(_parameters);
     }
 
-    // to be removed
-    Rcpp::List get_parameters() {
-      return _parameters.to_list();
-    }
 
-
-    void reinit_motifs(const arma::ivec & c, 
+    void reinit_motifs(const arma::ivec& c,
                        arma::sword d)
-    { 
+    {
       arma::uword K = c.size();
-      _V.set_size(K, _isY0 + _isY1); 
+      _V.set_size(K, _isY0 + _isY1);
       for(arma::uword k=0; k < K; ++k){
         if (_isY0) {
           _V(k,0).set_size(c(k),d);
           _V(k,0).fill(arma::fill::zeros);
-        } 
+        }
         if (_isY1) {
           _V(k,1).set_size(c(k),d);
           _V(k,1).fill(arma::fill::zeros);
@@ -352,7 +333,7 @@ public:
       }
     }
 
-    Rcpp::List get_motifs(){
+    Rcpp::List get_motifs() const{
       Rcpp::List V0(_V.n_rows);
       Rcpp::List V1(_V.n_rows);
       for(arma::uword k = 0; k < _V.n_rows; ++k)
@@ -365,12 +346,12 @@ public:
       return Rcpp::List::create(V0,V1);
     }
 
-    void set_P0(const KMA::matrix & P0) 
+    void set_P0(const KMA::matrix& P0)
     {
         _P0 = P0;
     }
 
-    void set_S0(const KMA::imatrix & S0) 
+    void set_S0(const KMA::imatrix& S0)
     {
         _S0 = S0;
     }
@@ -539,11 +520,11 @@ public:
 
 ///////// Implementation of funtions declared in the HEADER file ///////////////
 
-ProbKMA::ProbKMA(const Rcpp::List& Y,const Rcpp::List& V,
+ProbKMA::ProbKMA(const Rcpp::List& Y,
                  const Rcpp::List& parameters,
                  const KMA::matrix& P0,const KMA::imatrix& S0,
                  const std::string& diss):
-                 _probKMA(std::make_unique<_probKMAImp>(Y,V,parameters,P0,S0,diss)) {};
+                 _probKMA(std::make_unique<_probKMAImp>(Y,parameters,P0,S0,diss)) {};
 
 
 Rcpp::List ProbKMA::probKMA_run() const
@@ -556,28 +537,24 @@ void ProbKMA::set_parameters(const Rcpp::List& newParameters)
     _probKMA -> set_parameters(newParameters);
 }
 
-void ProbKMA::reinit_motifs(const arma::ivec & c, 
+void ProbKMA::reinit_motifs(const arma::ivec & c,
                             arma::sword d)
-{ 
-    _probKMA -> reinit_motifs(c,d); 
+{
+    _probKMA -> reinit_motifs(c,d);
 }
 
-void ProbKMA::set_P0(const KMA::matrix& P0) 
-{  
+void ProbKMA::set_P0(const KMA::matrix& P0)
+{
     _probKMA -> set_P0(P0);
 }
 
-void ProbKMA::set_S0(const KMA::imatrix& S0) 
+void ProbKMA::set_S0(const KMA::imatrix& S0)
 {
     _probKMA -> set_S0(S0);
 }
 
-Rcpp::List ProbKMA::get_parameters()
-{
-  return _probKMA -> get_parameters();
-}
 
-Rcpp::List ProbKMA::get_motifs()
+Rcpp::List ProbKMA::get_motifs() const
 {
   return _probKMA -> get_motifs();
 }
@@ -612,11 +589,10 @@ RCPP_EXPOSED_CLASS(ProbKMA);
 
 RCPP_MODULE(ProbKMAModule) {
   Rcpp::class_<ProbKMA>("ProbKMA")
-  .constructor<Rcpp::List,Rcpp::List,Rcpp::List,
+  .constructor<Rcpp::List,Rcpp::List,
                KMA::matrix,KMA::imatrix,std::string>()
   .method("probKMA_run",&ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters)
-  .method("get_parameters", &ProbKMA::get_parameters)
   .method("get_motifs", &ProbKMA::get_motifs)
   .method("reinit_motifs", &ProbKMA::reinit_motifs)
   .method("set_P0", &ProbKMA::set_P0)

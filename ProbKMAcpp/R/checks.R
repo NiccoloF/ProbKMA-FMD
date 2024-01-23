@@ -1,12 +1,17 @@
-#' @title .initialChecks
+#' @title InitialChecks
 #'
-#' @description checks all the inputs provided by the user for running ProbKMA
+#' @description checks inputs provided by the user for running ProbKMA
 #'
 #' @param Y0 curves
 #' @param Y1 derivatives
 #' @param P0 initial membership probabilities 
-#' @return \item{silhouette}{ vector of silhouette indices} to be modified
-#' @return \item{motifs}{ vector of motifs numbers} to be modified 
+#' @param S0 description
+#' @param params Parameters Object
+#' @param diss dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'
+#' @param seed for reproducibility
+#' 
+#' @return \item{List} {returns a list containing FuncData and Parameters useful for initializing the probKMA object}
+
 #' @export
 .initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
   # Probabilistic k-mean with local alignment to find candidate motifs.
@@ -394,19 +399,9 @@
     return(Y_i$y1)
   }
   
-  V0_f <- function(Y_i)
-  {
-    return(Y_i$v0)
-  }
-  V1_f <- function(Y_i)
-  {
-    return(Y_i$v1)
-  }
-  
   Y <- list("Y0" = lapply(Y,Y0_f),"Y1" = lapply(Y,Y1_f))
-  V <- list("V0"=lapply(V,V0_f),"V1"=lapply(V,V1_f))
-  
-  return(list("FuncData" = list("Y"=Y,"V"=V,"P0"=P0,"S0"=S0),
+
+  return(list("FuncData" = list("Y"=Y,"P0"=P0,"S0"=S0),
               "Parameters" = list("standardize"=standardize,"K"=K,"c"=c,"c_max"=c_max,
                                   "iter_max"=iter_max,"quantile"=quantile,
                                   "stopCriterion"=stop_criterion,"m"=m,"w"=w,

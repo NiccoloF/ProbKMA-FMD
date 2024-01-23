@@ -117,17 +117,17 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   # initialization of probKMA 
   if ( probKMA_options$alpha == 0 ||  probKMA_options$alpha == 1)
   {
-    prok = new(ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
+    prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"L2")
   } 
   else 
   {
-    prok = new(ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
+    prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
   }
  
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
   results=mapply(function(K,c,i,params,prok,data){ #cl_find
-    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=TRUE,recursive = TRUE)
     files=list.files(paste0(name,"_K",K,"_c",c))
     message("K",K,"_c",c,'_random',i)
     if(paste0('random',i,'.RData') %in% files){
