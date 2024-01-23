@@ -74,7 +74,7 @@
 #' 
 #' ##################
 #' ## Initialize Motifs
-#' prok$reinit_motifs(c,d) # reinitialize(empty) c motifs with dimension d
+#' prok$reinit_motifs(c,d) # reinitialize(empty) K motifs with dimension c_k x d
 #' 
 #' ##################
 #' ## Run ProbKMA algo

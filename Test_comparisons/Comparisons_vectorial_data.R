@@ -1,6 +1,4 @@
-# set the directory of the package, otherwise initialChecks does not work
-setwd("../ProbKMAcpp")
-devtools::load_all()
+library(ProbKMAcpp)
 
 # seed for random initialization of P0 and S0
 seed = 1
@@ -23,18 +21,17 @@ params <- list(standardize=TRUE, K=2,c = 61,c_max = 71,iter_max = 1000,
                set_seed = TRUE, n_threads = 3) 
 
 # check input data are correct
-a <- ProbKMAcpp::initialChecks(simulated200$Y0,simulated200$Y1,P0,S0,params,diss,seed)
+a <- initialChecks(simulated200$Y0,simulated200$Y1,P0,S0,params,diss,seed)
 
 # take checked data and parameters  
 params <- a$Parameters
 data <- a$FuncData
 
 # create an object of the class ProbKMA 
-prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"H1")
+prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
 
 # run the probKMA algorithm 
 output <- prok$probKMA_run()
-
 
 # comparison with previous implementation
 source(file ="../Test_comparisons/previous_ProbKMA.R") # @TODO: load using the library
@@ -90,22 +87,22 @@ n_init = 10 # number of random initializations to try
 set.seed(1) # set the seed for compare the two implementations
 
 
-find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
-                                                                  name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
-                                                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                                         iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                                         return_options = TRUE, return_init = TRUE,
-                                                                                         diss = diss, alpha = alpha),
-                                                                  plot = FALSE,exe_print = FALSE,set_seed = FALSE)
+find_candidate_motifs_results = find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
+                                                      name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
+                                                      probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                             iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                             return_options = TRUE, return_init = TRUE,
+                                                                             diss = diss, alpha = alpha),
+                                                      plot = FALSE,exe_print = FALSE,set_seed = FALSE)
 
 # time c++:
-system.time(ProbKMAcpp::find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
-                                              name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
-                                              probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                     iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                     return_options = TRUE, return_init = TRUE,
-                                                                     diss = diss, alpha = alpha),
-                                              plot = FALSE,exe_print=FALSE,set_seed = FALSE))
+system.time(find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
+                                  name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
+                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                         iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                         return_options = TRUE, return_init = TRUE,
+                                                         diss = diss, alpha = alpha),
+                                  plot = FALSE,exe_print=FALSE,set_seed = FALSE))
 
 
 

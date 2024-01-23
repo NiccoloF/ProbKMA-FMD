@@ -1,7 +1,4 @@
-# set the directory of the package, otherwise initialChecks could give problems
-setwd("../ProbKMAcpp")
-devtools::load_all()
-
+library(ProbKMAcpp)
 require(fda)
 
 plot_P <- function(probKMA_results,labels,col,names.arg){
@@ -75,11 +72,11 @@ to_matrix <- function(y0){
 Y0 = lapply(lapply(1:ncurves, function(i) istat_decessi_reg_smooth$mat$deceduti_diff[,i]),to_matrix)
 
 # checks the parameters
-a <- ProbKMAcpp::initialChecks(Y0,NULL,P0,S0,params,diss,seed)
+a <- initialChecks(Y0,NULL,P0,S0,params,diss,seed)
 params <- a$Parameters
 data <- a$FuncData
 
-prok = new(ProbKMAcpp::ProbKMA,data$Y,data$V,params,data$P0,data$S0,"L2")
+prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"L2")
 
 J_K2_d0_c65 <- rep(NA, 10)
 probKMA_K2_d0_c65_all <- vector('list', 10)
@@ -87,7 +84,7 @@ probKMA_K2_d0_c65_all <- vector('list', 10)
 for(i in 1:10){ 
   probKMA_K2_d0_c65_all[[i]] <- prok$probKMA_run()
   J_K2_d0_c65[i] <- probKMA_K2_d0_c65_all[[i]]$J_iter[probKMA_K2_d0_c65_all[[i]]$iter]
-  a <- ProbKMAcpp::initialChecks(Y0,NULL,matrix(),matrix(),params,diss,seed)
+  a <- initialChecks(Y0,NULL,matrix(),matrix(),params,diss,seed)
   data <- a$FuncData
   prok$reinit_motifs(params$c,ncol(Y0[[1]]))
   prok$set_P0(data$P0)
@@ -109,11 +106,11 @@ dev.off()
 ### silhouette plot
 pdf('../Example/results/probKMA_K2_d0_c65_silhouette.pdf', width = 7, height = 8.5)
 par(mfrow=c(1,1))
-ProbKMAcpp::probKMA_silhouette(Y0, NULL, params, diss, probKMA_K2_d0_c65,plot=TRUE)
+probKMA_silhouette(Y0, NULL, params, diss, probKMA_K2_d0_c65,plot=TRUE)
 
 ### silhouette plot after dicotomizing membership based on probability>0.5
 probKMA_K2_d0_c65$P_clean <- (probKMA_K2_d0_c65$P > 0.5) * 1
-ProbKMAcpp::probKMA_silhouette(Y0, NULL, params, diss, probKMA_K2_d0_c65,plot=TRUE)
+probKMA_silhouette(Y0, NULL, params, diss, probKMA_K2_d0_c65,plot=TRUE)
 dev.off()
 
 ### distances

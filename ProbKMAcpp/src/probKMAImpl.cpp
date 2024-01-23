@@ -569,8 +569,7 @@ Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
 {
   try
   {
-    Rcpp::Environment base("package:ProbKMAcpp");
-    Rcpp::Function checks = base[".initialChecks"];
+    Rcpp::Function checks = Rcpp::Environment::namespace_env("ProbKMAcpp")[".initialChecks"];
     // Call R checks and updata data and parameters
     return checks(Y0,Y1,P0,S0,params,diss,seed);
   }catch (Rcpp::exception& e) {
