@@ -2,8 +2,8 @@
 library(ProbKMA.package)
 
 # set seed
-seed = 123
-set.seed(seed)
+#seed = 123
+#set.seed(seed)
 
 # load data
 data(sim_clusters)
@@ -14,9 +14,11 @@ max_gap = 0
 trials_elong = 201
 c_max = 71
 K = 3
-c = 41
+c = 61
+P0 = NULL
+S0 = NULL
 
-my_output = ProbKMA.package::probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=NULL,S0=NULL,
+my_output = ProbKMA.package::probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=P0,S0=S0,
                                      diss=diss,alpha=alpha,w=1,m=2,
                                      iter_max=1000,stop_criterion='max',quantile=NULL,tol=1e-8,
                                      iter4elong=1,tol4elong=1e-3,max_elong=0.5,trials_elong=trials_elong,

@@ -11,8 +11,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
                                    const Rcpp::Function & diss_d0_d1_L2,
                                    bool align){ 
 
-  Rcpp::Rcout << "ciao1" << std::endl;
-
   double alpha;
   bool use0, use1;
   unsigned int Y_size;
@@ -65,7 +63,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
                    {  return Rcpp::List::create(Rcpp::_["y0"] = y0,
                                             Rcpp::_["y1"] = y1); });
   }
-  Rcpp::Rcout << "ciao2" << std::endl;
 
   const arma::vec & w = probKMA_results["w"];
   const Rcpp::List & first_y = Y[0];
@@ -89,8 +86,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
     V_dom[i] = v_dom_k;
   }
 
- Rcpp::Rcout << "ciao3" << std::endl;
-  
+
  // extract pieces of curves that fall in the different motifs
  const arma::imat & P_clean = probKMA_results["P_clean"];
  std::vector<arma::uvec> curves_in_motifs(P_clean.n_cols); 
@@ -100,7 +96,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    curves_in_motifs[k] = P_clean_1;
  }
 
- Rcpp::Rcout << "ciao4" << std::endl;
 
  // @TODO: check it is not necessary in this implementation
  // if(!is.null(ncol(curves_in_motifs))) this if condition makes no sense since curves_in_motifs is a list
@@ -116,7 +111,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
   S_clean_k[k] = col_S_clean.elem(curves_in_motifs[k]);
  }
  
- Rcpp::Rcout << "ciao5" << std::endl;
  // compute distances between pieces of curves
  std::vector<Rcpp::List> Y_in_motifs(Y_size);
  unsigned int l = 0;
@@ -156,7 +150,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
      Y_in_motifs[l++] = y_temp;
    }
  }
- Rcpp::Rcout << "ciao6" << std::endl;
 
  arma::uvec Y_motifs = util::repLem<arma::uvec>(arma::regspace<arma::uvec>(0,K-1),curves_in_motifs_number);
  const unsigned int Y_motifs_size = Y_motifs.size();
@@ -186,8 +179,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  for (int j : filtered_j_swap){
    std::swap(indeces_YY(0,j),indeces_YY(1,j));
  }
-
- Rcpp::Rcout << "ciao7" << std::endl;
  
  arma::vec SD(YY_length_size);
  
@@ -232,7 +223,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
      
      SD(i) = min_diss(1);
    }
-   Rcpp::Rcout << "ciao8" << std::endl;
  }
 
  
@@ -246,8 +236,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  }
  
  YY_D = YY_D + YY_D.t(); 
-
- Rcpp::Rcout << "ciao9" << std::endl;
    
  // compute intra-cluster distances
  arma::umat intra(Y_motifs_size,Y_motifs_size,arma::fill::zeros);
@@ -278,7 +266,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    b_k.row(k-1) = sum(inter%YY_D,0)/(curves_in_motifs_number_rep.t());
  }
 
- Rcpp::Rcout << "ciao10" << std::endl;
  
  arma::vec b(Y_motifs_size,1);
  if(b_k.n_rows > 1){
@@ -306,7 +293,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    silhouette.elem(indices) = arma::sort(silhouette_k, "descend");
    silhouette_average(k) = mean(silhouette_k);
  }
-  Rcpp::Rcout << "ciao11" << std::endl;
  return Rcpp::List::create(silhouette,Y_motifs,curves_in_motifs,silhouette_average,curves_in_motifs_number);
  
 }

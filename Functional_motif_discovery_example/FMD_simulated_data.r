@@ -25,7 +25,8 @@ set.seed(123)
 #                                                               #
 #################################################################
 
-load(paste0('len200_sd0.1.RData')) 
+#load(paste0('len200_sd0.1.RData')) 
+data(sim_clusters)
 
 # Y0: list of 20 vectors (univariate curves) with the evaluation of the 20 curves in 201 points
 # Y1: list of 20 vectors (univariate curves) with the evaluation of the 20 curve derivatives in 201 points
@@ -75,7 +76,7 @@ if('len200_sd0.1_candidate.RData' %in% files){
                                                                                                iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                                                return_options = TRUE, return_init = TRUE,
                                                                                                diss = diss, alpha = alpha),
-                                                                        plot = TRUE, worker_number = 1)
+                                                                        plot = TRUE) # ,worker_number
   
   system.time(ProbKMA.package::find_candidate_motifs(Y0, Y1, K, c, n_init,
                                                     name = './results/len200_sd0.1', names_var = 'x(t)',

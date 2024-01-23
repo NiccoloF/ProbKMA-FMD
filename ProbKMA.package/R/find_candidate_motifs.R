@@ -117,7 +117,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(cl_find,function(K,c,i){
+  results=mapply_custom(cl_find,function(K,c,i){ #cl_find
     dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
     files=list.files(paste0(name,"_K",K,"_c",c))
     message("K",K,"_c",c,'_random',i)
