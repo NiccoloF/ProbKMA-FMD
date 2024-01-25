@@ -1,0 +1,80 @@
+\doxysection{Motif\+H1 Class Reference}
+\hypertarget{class_motif_h1}{}\label{class_motif_h1}\index{MotifH1@{MotifH1}}
+Inheritance diagram for Motif\+H1\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=3.000000cm]{class_motif_h1}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual std\+::variant$<$ index\+Field, KMA\+::\+Mfield $>$ \mbox{\hyperlink{class_motif_h1_a76d564c52c04936c17432927a4712f9b}{compute\+\_\+motif}} (const arma\+::urowvec \&v\+\_\+dom, const KMA\+::ivector \&s\+\_\+k, const KMA\+::vector \&p\+\_\+k, const KMA\+::\+Mfield \&Y, double m) const override
+\begin{DoxyCompactList}\small\item\em compute motif for \doxylink{class_h1}{H1} norm. See \doxylink{class_motif_sobol_a47e5ba76b22f0b022a82f44b399d25ce}{Motif\+Sobol\+::compute\+\_\+motif\+\_\+helper()} \end{DoxyCompactList}\item 
+virtual void \mbox{\hyperlink{class_motif_h1_a52f9c57b6099ee2646e3d655bd31cfc5}{elongate\+\_\+motifs}} (KMA\+::\+Mfield \&V\+\_\+new, std\+::vector$<$ arma\+::urowvec $>$ \&V\+\_\+dom, KMA\+::imatrix \&S\+\_\+k, const KMA\+::matrix \&P\+\_\+k, const KMA\+::\+Mfield \&Y, const KMA\+::matrix \&D, const \mbox{\hyperlink{struct_parameters}{Parameters}} \&param, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_performance_index_a_b}{Performance\+Index\+AB}} $>$ \&perf, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}} $>$ \&diss, const Rcpp\+::\+Function \&quantile\+\_\+func) const override
+\begin{DoxyCompactList}\small\item\em elongate\+\_\+motifs for \doxylink{class_h1}{H1} norm. See \doxylink{class_motif_sobol_adcda5b364bd6b60462c42388d699333e}{Motif\+Sobol\+::elongation()} \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{class_motif_sobol}{Motif\+Sobol}}}
+\begin{DoxyCompactItemize}
+\item 
+{\footnotesize template$<$bool use1$>$ }\\std\+::variant$<$ Motif\+Pure\+::index\+Field, KMA\+::\+Mfield $>$ \mbox{\hyperlink{class_motif_sobol_a1d373f5c87eecb58d91bc87b9b24919c}{compute\+\_\+motif\+\_\+helper}} (const arma\+::urowvec \&v\+\_\+dom, const KMA\+::ivector \&s\+\_\+k, const KMA\+::vector \&p\+\_\+k, const KMA\+::\+Mfield \&Y, double m) const
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Additional Inherited Members}
+\doxysubsection*{Public Types inherited from \mbox{\hyperlink{class_motif_pure}{Motif\+Pure}}}
+\begin{DoxyCompactItemize}
+\item 
+using \mbox{\hyperlink{class_motif_pure_acb77db0439e2df0ad4e412b6e6a14ac5}{index\+Field}} = std\+::pair$<$KMA\+::\+Mfield,arma\+::sword$>$
+\end{DoxyCompactItemize}
+\doxysubsection*{Protected Member Functions inherited from \mbox{\hyperlink{class_motif_sobol}{Motif\+Sobol}}}
+\begin{DoxyCompactItemize}
+\item 
+KMA\+::matrix \mbox{\hyperlink{class_motif_sobol_a043c48ee6f9c37adae32680d66ee0f14}{compute\+\_\+v\+\_\+new}} (const KMA\+::\+Mfield \&Y\+\_\+inters\+\_\+k, const KMA\+::umatrix \&Y\+\_\+inters\+\_\+supp, const arma\+::urowvec \&v\+\_\+dom, arma\+::uword v\+\_\+len, const KMA\+::vector \&p\+\_\+k, arma\+::uword d, arma\+::uword m) const
+\item 
+{\footnotesize template$<$bool use1$>$ }\\std\+::variant$<$ index\+Field, KMA\+::\+Mfield $>$ \mbox{\hyperlink{class_motif_sobol_a47e5ba76b22f0b022a82f44b399d25ce}{compute\+\_\+motif\+\_\+helper}} (const arma\+::urowvec \&v\+\_\+dom, const KMA\+::ivector \&s\+\_\+k, const KMA\+::vector \&p\+\_\+k, const KMA\+::\+Mfield \&Y, double m) const
+\item 
+{\footnotesize template$<$bool use1$>$ }\\void \mbox{\hyperlink{class_motif_sobol_aa48674c336d64b50336317c21b155e24}{elongate\+\_\+motifs\+\_\+helper}} (KMA\+::\+Mfield \&V\+\_\+new, std\+::vector$<$ arma\+::urowvec $>$ \&V\+\_\+dom, KMA\+::imatrix \&S\+\_\+k, const KMA\+::matrix \&P\+\_\+k, const KMA\+::\+Mfield \&Y, const KMA\+::matrix \&D, const \mbox{\hyperlink{struct_parameters}{Parameters}} \&param, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_performance_index_a_b}{Performance\+Index\+AB}} $>$ \&perf, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}} $>$ \&diss, const Rcpp\+::\+Function \&quantile\+\_\+func) const
+\item 
+{\footnotesize template$<$bool use1$>$ }\\void \mbox{\hyperlink{class_motif_sobol_adcda5b364bd6b60462c42388d699333e}{elongation}} (KMA\+::\+Mfield \&V\+\_\+new, std\+::vector$<$ arma\+::urowvec $>$ \&V\+\_\+dom, KMA\+::imatrix \&S\+\_\+k, const arma\+::vec \&p\+\_\+k, const arma\+::ivec \&len\+\_\+elong\+\_\+k, const arma\+::uvec \&keep\+\_\+k, double c, const KMA\+::\+Mfield Y, const unsigned int index, const \mbox{\hyperlink{struct_parameters}{Parameters}} \&param, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_performance_index_a_b}{Performance\+Index\+AB}} $>$ \&performance, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}} $>$ \&diss) const
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+
+
+Definition at line \mbox{\hyperlink{_motif_8hpp_source_l00198}{198}} of file \mbox{\hyperlink{_motif_8hpp_source}{Motif.\+hpp}}.
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{class_motif_h1_a76d564c52c04936c17432927a4712f9b}\label{class_motif_h1_a76d564c52c04936c17432927a4712f9b} 
+\index{MotifH1@{MotifH1}!compute\_motif@{compute\_motif}}
+\index{compute\_motif@{compute\_motif}!MotifH1@{MotifH1}}
+\doxysubsubsection{\texorpdfstring{compute\_motif()}{compute\_motif()}}
+{\footnotesize\ttfamily virtual std\+::variant$<$ index\+Field, KMA\+::\+Mfield $>$ Motif\+H1\+::compute\+\_\+motif (\begin{DoxyParamCaption}\item[{const arma\+::urowvec \&}]{v\+\_\+dom,  }\item[{const KMA\+::ivector \&}]{s\+\_\+k,  }\item[{const KMA\+::vector \&}]{p\+\_\+k,  }\item[{const KMA\+::\+Mfield \&}]{Y,  }\item[{double}]{m }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+compute motif for \doxylink{class_h1}{H1} norm. See \doxylink{class_motif_sobol_a47e5ba76b22f0b022a82f44b399d25ce}{Motif\+Sobol\+::compute\+\_\+motif\+\_\+helper()} 
+
+
+
+Implements \mbox{\hyperlink{class_motif_pure_aa931ab421e198d641299a0d6e1e78ff0}{Motif\+Pure}}.
+
+\Hypertarget{class_motif_h1_a52f9c57b6099ee2646e3d655bd31cfc5}\label{class_motif_h1_a52f9c57b6099ee2646e3d655bd31cfc5} 
+\index{MotifH1@{MotifH1}!elongate\_motifs@{elongate\_motifs}}
+\index{elongate\_motifs@{elongate\_motifs}!MotifH1@{MotifH1}}
+\doxysubsubsection{\texorpdfstring{elongate\_motifs()}{elongate\_motifs()}}
+{\footnotesize\ttfamily virtual void Motif\+H1\+::elongate\+\_\+motifs (\begin{DoxyParamCaption}\item[{KMA\+::\+Mfield \&}]{V\+\_\+new,  }\item[{std\+::vector$<$ arma\+::urowvec $>$ \&}]{V\+\_\+dom,  }\item[{KMA\+::imatrix \&}]{S\+\_\+k,  }\item[{const KMA\+::matrix \&}]{P\+\_\+k,  }\item[{const KMA\+::\+Mfield \&}]{Y,  }\item[{const KMA\+::matrix \&}]{D,  }\item[{const \mbox{\hyperlink{struct_parameters}{Parameters}} \&}]{param,  }\item[{const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_performance_index_a_b}{Performance\+Index\+AB}} $>$ \&}]{perf,  }\item[{const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}} $>$ \&}]{diss,  }\item[{const Rcpp\+::\+Function \&}]{quantile\+\_\+func }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [virtual]}}
+
+
+
+elongate\+\_\+motifs for \doxylink{class_h1}{H1} norm. See \doxylink{class_motif_sobol_adcda5b364bd6b60462c42388d699333e}{Motif\+Sobol\+::elongation()} 
+
+
+
+Implements \mbox{\hyperlink{class_motif_pure_a2ac5c2ae55dbbf2dc731e78ade7ab472}{Motif\+Pure}}.
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+Motif.\+hpp\end{DoxyCompactItemize}
