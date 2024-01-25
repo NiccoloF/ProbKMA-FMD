@@ -23,7 +23,7 @@ install.packages('devtools')
 and then install the package
 ```
 library(devtools)
-install_github('NiccoloF/ProbKMA-FMD/ProbKMAcpp',ref = "main_3")
+install_github('NiccoloF/ProbKMA-FMD',ref = "main_3",subdir = 'ProbKMAcpp')
 ```
 Several configurations are possible :
 - **main_3** : more performant package with a full C++ design layout for **ProbKMA**.
@@ -33,7 +33,7 @@ Several configurations are possible :
 Usually the clag compiler doesn't support **OpenMP**. For this reason is available a release without -fopenmp.
 ```
 library(devtools)
-install_github('NiccoloF/ProbKMA-FMD/ProbKMAcpp@v1.0.1.nopenmp')
+install_github('NiccoloF/ProbKMA-FMD',ref = 'v1.0.1.nopenmp',subdir = 'ProbKMAcpp')
 ```
 
 Othewise check: https://clang-omp.github.io/.
