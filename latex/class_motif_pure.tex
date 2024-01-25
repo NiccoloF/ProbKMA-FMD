@@ -1,0 +1,104 @@
+\doxysection{Motif\+Pure Class Reference}
+\hypertarget{class_motif_pure}{}\label{class_motif_pure}\index{MotifPure@{MotifPure}}
+
+
+{\ttfamily \#include $<$Motif.\+hpp$>$}
+
+Inheritance diagram for Motif\+Pure\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=3.000000cm]{class_motif_pure}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+using \mbox{\hyperlink{class_motif_pure_acb77db0439e2df0ad4e412b6e6a14ac5}{index\+Field}} = std\+::pair$<$KMA\+::\+Mfield,arma\+::sword$>$
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual std\+::variant$<$ index\+Field, KMA\+::\+Mfield $>$ \mbox{\hyperlink{class_motif_pure_aa931ab421e198d641299a0d6e1e78ff0}{compute\+\_\+motif}} (const arma\+::urowvec \&v\+\_\+dom, const KMA\+::ivector \&s\+\_\+k, const KMA\+::vector \&p\+\_\+k, const KMA\+::\+Mfield \&Y, double m) const =0
+\item 
+virtual void \mbox{\hyperlink{class_motif_pure_a2ac5c2ae55dbbf2dc731e78ade7ab472}{elongate\+\_\+motifs}} (KMA\+::\+Mfield \&V\+\_\+new, std\+::vector$<$ arma\+::urowvec $>$ \&V\+\_\+dom, KMA\+::imatrix \&S\+\_\+k, const KMA\+::matrix \&P\+\_\+k, const KMA\+::\+Mfield \&Y, const KMA\+::matrix \&D, const \mbox{\hyperlink{struct_parameters}{Parameters}} \&param, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_performance_index_a_b}{Performance\+Index\+AB}} $>$ \&perf, const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}} $>$ \&diss, const Rcpp\+::\+Function \&quantile\+\_\+func) const =0
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Compute and eventually elongate motif according to different \doxylink{class_dissimilarity}{Dissimilarity} 
+
+Definition at line \mbox{\hyperlink{_motif_8hpp_source_l00022}{22}} of file \mbox{\hyperlink{_motif_8hpp_source}{Motif.\+hpp}}.
+
+
+
+\doxysubsection{Member Typedef Documentation}
+\Hypertarget{class_motif_pure_acb77db0439e2df0ad4e412b6e6a14ac5}\label{class_motif_pure_acb77db0439e2df0ad4e412b6e6a14ac5} 
+\index{MotifPure@{MotifPure}!indexField@{indexField}}
+\index{indexField@{indexField}!MotifPure@{MotifPure}}
+\doxysubsubsection{\texorpdfstring{indexField}{indexField}}
+{\footnotesize\ttfamily using Motif\+Pure\+::index\+Field = std\+::pair$<$KMA\+::\+Mfield,arma\+::sword$>$}
+
+
+
+Definition at line \mbox{\hyperlink{_motif_8hpp_source_l00025}{25}} of file \mbox{\hyperlink{_motif_8hpp_source}{Motif.\+hpp}}.
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{class_motif_pure_aa931ab421e198d641299a0d6e1e78ff0}\label{class_motif_pure_aa931ab421e198d641299a0d6e1e78ff0} 
+\index{MotifPure@{MotifPure}!compute\_motif@{compute\_motif}}
+\index{compute\_motif@{compute\_motif}!MotifPure@{MotifPure}}
+\doxysubsubsection{\texorpdfstring{compute\_motif()}{compute\_motif()}}
+{\footnotesize\ttfamily virtual std\+::variant$<$ index\+Field, KMA\+::\+Mfield $>$ Motif\+Pure\+::compute\+\_\+motif (\begin{DoxyParamCaption}\item[{const arma\+::urowvec \&}]{v\+\_\+dom,  }\item[{const KMA\+::ivector \&}]{s\+\_\+k,  }\item[{const KMA\+::vector \&}]{p\+\_\+k,  }\item[{const KMA\+::\+Mfield \&}]{Y,  }\item[{double}]{m }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [pure virtual]}}
+
+compute the new motif v\+\_\+new 
+\begin{DoxyParams}{Parameters}
+{\em \mbox{[}v\+\_\+dom\mbox{]}} & TRUE for x in supp(v). \\
+\hline
+{\em \mbox{[}s\+\_\+k\mbox{]}} & shift vector for motif k \\
+\hline
+{\em \mbox{[}p\+\_\+k\mbox{]}} & membership vector for motif k. \\
+\hline
+{\em \mbox{[}\+Y\mbox{]}} & functional data \\
+\hline
+{\em \mbox{[}m\mbox{]}} & weighting exponent in least-\/squares functional. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+the new computed motif and and possibly the index from which the domain begins 
+\end{DoxyReturn}
+
+
+Implemented in \mbox{\hyperlink{class_motif_l2_ac8a7efae5513960f7847087e03d86ee6}{Motif\+L2}}, and \mbox{\hyperlink{class_motif_h1_a76d564c52c04936c17432927a4712f9b}{Motif\+H1}}.
+
+\Hypertarget{class_motif_pure_a2ac5c2ae55dbbf2dc731e78ade7ab472}\label{class_motif_pure_a2ac5c2ae55dbbf2dc731e78ade7ab472} 
+\index{MotifPure@{MotifPure}!elongate\_motifs@{elongate\_motifs}}
+\index{elongate\_motifs@{elongate\_motifs}!MotifPure@{MotifPure}}
+\doxysubsubsection{\texorpdfstring{elongate\_motifs()}{elongate\_motifs()}}
+{\footnotesize\ttfamily virtual void Motif\+Pure\+::elongate\+\_\+motifs (\begin{DoxyParamCaption}\item[{KMA\+::\+Mfield \&}]{V\+\_\+new,  }\item[{std\+::vector$<$ arma\+::urowvec $>$ \&}]{V\+\_\+dom,  }\item[{KMA\+::imatrix \&}]{S\+\_\+k,  }\item[{const KMA\+::matrix \&}]{P\+\_\+k,  }\item[{const KMA\+::\+Mfield \&}]{Y,  }\item[{const KMA\+::matrix \&}]{D,  }\item[{const \mbox{\hyperlink{struct_parameters}{Parameters}} \&}]{param,  }\item[{const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_performance_index_a_b}{Performance\+Index\+AB}} $>$ \&}]{perf,  }\item[{const std\+::shared\+\_\+ptr$<$ \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}} $>$ \&}]{diss,  }\item[{const Rcpp\+::\+Function \&}]{quantile\+\_\+func }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [pure virtual]}}
+
+elongate motifs 
+\begin{DoxyParams}{Parameters}
+{\em \mbox{[}v\+\_\+dom\mbox{]}} & TRUE for x in supp(v). \\
+\hline
+{\em \mbox{[}s\+\_\+k\mbox{]}} & shift vector for motif k \\
+\hline
+{\em \mbox{[}p\+\_\+k\mbox{]}} & membership vector for motif k. \\
+\hline
+{\em \mbox{[}\+Y\mbox{]}} & functional data \\
+\hline
+{\em \mbox{[}m\mbox{]}} & weighting exponent in least-\/squares functional. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+the new computed motif and and possibly the index from which the domain begins 
+\end{DoxyReturn}
+
+
+Implemented in \mbox{\hyperlink{class_motif_l2_a84df78aac1d2194abca0c1792600ac4b}{Motif\+L2}}, and \mbox{\hyperlink{class_motif_h1_a52f9c57b6099ee2646e3d655bd31cfc5}{Motif\+H1}}.
+
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+Motif.\+hpp\end{DoxyCompactItemize}
