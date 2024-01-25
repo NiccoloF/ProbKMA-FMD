@@ -28,7 +28,7 @@ install_github('NiccoloF/ProbKMA-FMD/ProbKMAcpp',ref = "main_3")
 Several configurations are possible :
 - **main_3** : more performant package with a full C++ design layout for **ProbKMA**.
 - **main_2** : full implementation of the **ProbKMA-FMD** package with C++ parallelism(for illustrative purposes only).
-- **mani_1** : full implementation of the **ProbKMA-FMD** package with only R parallelism.
+- **main_1** : full implementation of the **ProbKMA-FMD** package with only R parallelism.
 
 Usually the clag compiler doesn't support **OpenMP**. For this reason is available a release without -fopenmp.
 ```
