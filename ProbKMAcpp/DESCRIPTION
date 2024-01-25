@@ -7,9 +7,15 @@ Author: Niccolò Feresini, Riccardo Lazzarini
 Maintainer: Your Name <your@email.com>
 Description: More about what it does (maybe more than one line).
 License: GPL (>= 2)
-Suggests: tinytest
+Suggests: 
+    testthat (>= 3.0.0),
+    tinytest
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: Rcpp (>= 1.0.11), methods
+Imports: Rcpp (>= 1.0.11), methods,tinytest
 LinkingTo: Rcpp, RcppArmadillo
 SystemRequirements: C++20
+Depends: 
+    R (>= 2.10)
+LazyData: true
+Config/testthat/edition: 3

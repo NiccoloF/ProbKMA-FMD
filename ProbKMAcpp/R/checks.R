@@ -1,3 +1,18 @@
+#' @title InitialChecks
+#'
+#' @description checks inputs provided by the user for running ProbKMA
+#'
+#' @param Y0 curves
+#' @param Y1 derivatives
+#' @param P0 initial membership probabilities 
+#' @param S0 description
+#' @param params Parameters Object
+#' @param diss dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'
+#' @param seed for reproducibility
+#' 
+#' @return \item{List} {returns a list containing FuncData and Parameters useful for initializing the probKMA object}
+
+#' @export
 .initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
@@ -61,6 +76,9 @@
   quantile4clean = params$quantile4clean
   return_options = params$return_options
   seed = params$seed
+  exe_print = params$exe_print
+  set_seed = params$set_seed
+  n_threads = params$n_threads
   
   
   ### check input ####################################################################################
@@ -381,19 +399,9 @@
     return(Y_i$y1)
   }
   
-  V0_f <- function(Y_i)
-  {
-    return(Y_i$v0)
-  }
-  V1_f <- function(Y_i)
-  {
-    return(Y_i$v1)
-  }
-  
   Y <- list("Y0" = lapply(Y,Y0_f),"Y1" = lapply(Y,Y1_f))
-  V <- list("V0"=lapply(V,V0_f),"V1"=lapply(V,V1_f))
-  
-  return(list("FuncData" = list("Y"=Y,"V"=V,"P0"=P0,"S0"=S0),
+
+  return(list("FuncData" = list("Y"=Y,"P0"=P0,"S0"=S0),
               "Parameters" = list("standardize"=standardize,"K"=K,"c"=c,"c_max"=c_max,
                                   "iter_max"=iter_max,"quantile"=quantile,
                                   "stopCriterion"=stop_criterion,"m"=m,"w"=w,
@@ -404,6 +412,9 @@
                                   "iter4clean"=iter4clean,"tol4clean"=tol4clean,
                                   "quantile4clean"=quantile4clean,
                                   "seed"=seed,
-                                  "return_options"=return_options) ) )
+                                  "return_options"=return_options,
+                                  "exe_print"= exe_print,
+                                  "set_seed" = set_seed,
+                                  "n_threads" = n_threads) ) )
 }
 

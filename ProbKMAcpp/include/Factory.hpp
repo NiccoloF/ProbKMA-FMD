@@ -32,7 +32,7 @@ namespace util{
           {return std::make_shared<D>(std::forward<decltype(a)>(a)...);}, std::move(args));
         };
     
-     };
+     }
  };
 
 }

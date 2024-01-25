@@ -6,7 +6,6 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
                                         const KMA::vector& w, 
                                         double alpha, unsigned int c_k) const
     {
-      // Convert domain and select_domain
       unsigned int d = Y(0,0).n_cols;
       arma::urowvec v_dom = util::findDomain(V(0,0));
       const KMA::Mfield& v_new = util::selectDomain<use1,arma::urowvec>(v_dom,V);
@@ -19,18 +18,20 @@ KMA::vector SobolDiss::find_diss_helper(const KMA::Mfield Y,
       KMA::uvector indeces_dom = arma::find(v_dom==0);
       KMA::ivector index;
       KMA::uvector filtered_j;
-
+      KMA::uvector neg_index;
+      
       for (unsigned int i = 0; i < s_rep_size; ++i) {
         index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
         filtered_j = arma::find((index > 0) && (index <= y_len));
+        neg_index = arma::find(index <= 0); 
         y_rep(i,0).set_size(v_len, d);
-        y_rep(i,0).fill(arma::datum::nan);
-        y_rep(i,0).rows(0,filtered_j.n_elem - 1) = Y(0,0).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
+        y_rep(i,0).fill(arma::datum::nan); 
+        y_rep(i,0).rows(neg_index.n_elem,neg_index.n_elem + filtered_j.n_elem - 1) = Y(0,0).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
         y_rep(i,0).shed_rows(indeces_dom); 
         if constexpr(use1) {
           y_rep(i,1).set_size(v_len, d);
           y_rep(i,1).fill(arma::datum::nan);
-          y_rep(i,1).rows(0,filtered_j.n_elem - 1) = Y(0,1).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
+          y_rep(i,1).rows(neg_index.n_elem,neg_index.n_elem + filtered_j.n_elem - 1) = Y(0,1).rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
           y_rep(i,1).shed_rows(indeces_dom);
         }
       }

@@ -9,6 +9,7 @@ struct Parameters
     Parameters() = delete;
     Parameters(const Parameters&) = default;
     Parameters(const Rcpp::List& params);
+    Rcpp::List to_list();
 
     bool _standardize;
     unsigned int _K;
@@ -32,6 +33,9 @@ struct Parameters
     double _quantile4clean;
     bool _return_options;
     unsigned int _seed;
+    bool _exe_print;
+    bool _set_seed;
+    unsigned int _n_threads;
 };
 
 #endif // PARAMETERS_HPP
