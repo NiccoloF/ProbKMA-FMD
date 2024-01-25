@@ -57,10 +57,6 @@ prok <- new(ProbKMA,data$Y,params,data$P0,data$S0,"L2")
 prok$probKMA_run()
 ```
 
-## Documentation
-
-The C++ documentation can be found at [https://niccolof.github.io/ProbKMA-FMD/index.html](https://niccolof.github.io/ProbKMA-FMD/).
-
 ### Code
 
 Starting from R functions **ProbKMA** and **find_candidate_motifs** we have developed a full design layout C++ implementation.
@@ -82,3 +78,7 @@ Probabilitstic local clustering of the Berkley Growth Study dataset, provided wi
 - `growth_curves.pdf`: plot of growth curves and growth velocities
 - `probKMA_growth.r`: script to run the example
 - `results`: probabilistic local clustering results
+
+## Documentation
+
+The C++ documentation can be found at [https://niccolof.github.io/ProbKMA-FMD/index.html](https://niccolof.github.io/ProbKMA-FMD/).
