@@ -2,20 +2,57 @@
 
 R code implementing **ProbKMA** (probabilistic K-means with local alignment) for local clustering of functional data and functional motif discovery, proposed in the paper [Probabilistic K-means with local alignment for clustering and motif discovery in functional data](https://doi.org/10.1080/10618600.2022.2156522), by Marzia A. Cremona and Francesca Chiaromonte. 
 
+## Getting Started
+The source code can be cloned or downloaded directly from Github.
+An R studio project file is provided to open the project in RStudio. --> da fare 
 
-## Code
+### Prerequisites
 
-#### `ProbKMA-FMD_functions.r`
-R functions for ProbKMA, cluster evaluation and functional motif discovery.
-- `probKMA`: probabilistic k-means with local alignment to find candidate motifs
-- `probKMA_plot`: plot the results of `probKMA`
-- `find_candidate_motifs`: run multiple times `probKMA` function with different K, c and initializations, with the aim to find a set of candidate motifs
-- `filter_candidate_motifs`: filter the candidate motifs on the basis of a threshold on the average silhouette index and a threshold on the size of the curves in the motif
-- `cluster_candidate_motifs`: determine a global radius, group candidate motifs based on their distance, and determine a group-specific radius
-- `cluster_candidate_motifs_plot`: plot the results of `cluster_candidate_motifs`
-- `motifs_search`: find occurrences of the candidate motifs in the curves and sort them according to their frequencies and radius
-- `motifs_search_plot`: plot the results of motifs_search
+The package is linked against **OpenMP**, the **BLAS** and **LAPACK** libraries in Makevars.
 
+To install the package locally, **Rcpp** and **RcppArmadillo** packages need to be installed.\
+Using install_github() will install the dependencies (Rcpp and RcppArmadillo) automatically.
+
+### Installing
+
+The package can be installed directly from Github but **Devtools** is required.
+
+If devtools is not installed use the following comand to install it
+```
+install.packages('devtools') 
+```
+and then install the package
+```
+library(devtools)
+install_github('NiccoloF/ProbKMA-FMD',ref = "main_3")
+```
+
+
+Usually the clag compiler doesn't support OpenMP. For this reason is available a release without -fopenmp.
+```
+library(devtools)
+install_github('zitale/fdakmapp@v2.0.2.noomp')
+```
+
+Othewise check: https://clang-omp.github.io/.
+
+### Example
+
+```
+res<-kmap(x=aneurisk65$x, y=aneurisk65$y, n_clust=2)
+kmap_show_results(res,FALSE,FALSE)
+```
+
+## Documentation
+
+The R documentation can be found in the main directory in fdakmapp.pdf.
+The C++ documentation can be found at https://niccolof.github.io/ProbKMA-FMD/index.html.
+
+### Code
+
+Starting from R functions **ProbKMA** and **find_candidate_motifs** we have developed a C++ implementation.
+- `ProbKMA`: central class that handles probabilistic k-means with local alignment to find candidate motifs
+- `find_candidate_motifs`: run multiple times `ProbKMA` function with different K, c and initializations, with the aim to find a set of candidate motifs
 
 ## Functional motif discovery example
 Functional motif discovery on simulated data: 20 curves embedding 2 functional motifs of length 60, each with 12 occurrences. 
