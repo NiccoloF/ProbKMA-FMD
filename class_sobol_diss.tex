@@ -1,0 +1,135 @@
+\doxysection{Sobol\+Diss Class Reference}
+\hypertarget{class_sobol_diss}{}\label{class_sobol_diss}\index{SobolDiss@{SobolDiss}}
+
+
+{\ttfamily \#include $<$Dissimilarity.\+hpp$>$}
+
+Inheritance diagram for Sobol\+Diss\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=3.000000cm]{class_sobol_diss}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{class_sobol_diss_a9f0c9ddda1812ffaad4e7a6b1920996d}{Sobol\+Diss}} (const KMA\+::vector \&w)
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions inherited from \mbox{\hyperlink{class_dissimilarity}{Dissimilarity}}}
+\begin{DoxyCompactItemize}
+\item 
+virtual double \mbox{\hyperlink{class_dissimilarity_af86e73228c22786f2f10197c2ca9fa7e}{compute\+Dissimilarity}} (const KMA\+::\+Mfield \&Y\+\_\+i, const KMA\+::\+Mfield \&V\+\_\+i) const =0
+\item 
+virtual void \mbox{\hyperlink{class_dissimilarity_a3731b6acccce1af740afdcf0a6f8ae11}{set\+\_\+parameters}} (const \mbox{\hyperlink{struct_parameters}{Parameters}} \&new\+Parameters)=0
+\item 
+virtual void \mbox{\hyperlink{class_dissimilarity_a523daf318e459b2ba76ef66a5932dff2}{compute\+Dissimilarity\+Clean}} (KMA\+::matrix \&D\+\_\+clean, const KMA\+::imatrix \&S\+\_\+clean, const std\+::vector$<$ arma\+::urowvec $>$ \&V\+\_\+dom\+\_\+new, const KMA\+::\+Mfield \&V\+\_\+clean, const KMA\+::\+Mfield \&Y) const =0
+\item 
+virtual KMA\+::vector \mbox{\hyperlink{class_dissimilarity_ad978eba8f5c130940cbb348ed52d99aa}{find\+\_\+diss}} (const KMA\+::\+Mfield Y, const KMA\+::\+Mfield V, const KMA\+::vector \&w, double alpha, unsigned int c\+\_\+k) const =0
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+virtual double \mbox{\hyperlink{class_sobol_diss_a246cfd24df435c7a93d16d8bb37adb31}{distance}} (const KMA\+::matrix \&y, const KMA\+::matrix \&v) const override
+\item 
+{\footnotesize template$<$bool use1$>$ }\\KMA\+::vector \mbox{\hyperlink{class_sobol_diss_a351c84d984987ad6a9d95fe25c58fe2a}{find\+\_\+diss\+\_\+helper}} (const KMA\+::\+Mfield Y, const KMA\+::\+Mfield V, const KMA\+::vector \&w, double alpha, unsigned int c\+\_\+k) const
+\begin{DoxyCompactList}\small\item\em Find shift warping minimizing dissimilarity for Sobolev distance between multidimensional curves. True for \doxylink{class_h1}{H1}. See \doxylink{class_dissimilarity_ad978eba8f5c130940cbb348ed52d99aa}{Dissimilarity\+::find\+\_\+diss()} \end{DoxyCompactList}\item 
+{\footnotesize template$<$bool use1$>$ }\\void \mbox{\hyperlink{class_sobol_diss_a30aa9640c7d4534b5cd5d4f08bbc3861}{compute\+Dissimilarity\+Clean\+\_\+helper}} (KMA\+::matrix \&D\+\_\+clean, const KMA\+::imatrix \&S\+\_\+clean, const std\+::vector$<$ arma\+::urowvec $>$ \&V\+\_\+dom\+\_\+new, const KMA\+::\+Mfield \&V\+\_\+clean, const KMA\+::\+Mfield \&Y) const
+\begin{DoxyCompactList}\small\item\em compute dissimilarity from cleaned motifs for Sobolev distance. True for \doxylink{class_h1}{H1}. See \doxylink{class_dissimilarity_a523daf318e459b2ba76ef66a5932dff2}{Dissimilarity\+::compute\+Dissimilarity\+Clean()} \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Protected Attributes}
+\begin{DoxyCompactItemize}
+\item 
+KMA\+::vector \mbox{\hyperlink{class_sobol_diss_afa7075f226a43b32b486b3ac0f7a0472}{\+\_\+w}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Handle Sobolev metric 
+
+Definition at line \mbox{\hyperlink{_dissimilarity_8hpp_source_l00083}{83}} of file \mbox{\hyperlink{_dissimilarity_8hpp_source}{Dissimilarity.\+hpp}}.
+
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{class_sobol_diss_a9f0c9ddda1812ffaad4e7a6b1920996d}\label{class_sobol_diss_a9f0c9ddda1812ffaad4e7a6b1920996d} 
+\index{SobolDiss@{SobolDiss}!SobolDiss@{SobolDiss}}
+\index{SobolDiss@{SobolDiss}!SobolDiss@{SobolDiss}}
+\doxysubsubsection{\texorpdfstring{SobolDiss()}{SobolDiss()}}
+{\footnotesize\ttfamily Sobol\+Diss\+::\+Sobol\+Diss (\begin{DoxyParamCaption}\item[{const KMA\+::vector \&}]{w }\end{DoxyParamCaption})}
+
+creating a Dissimilitude object for the Sobolev metric 
+\begin{DoxyParams}{Parameters}
+{\em \mbox{[}w\mbox{]}} & vector of weights for the dissimilarity index in the different dimensions. \\
+\hline
+\end{DoxyParams}
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{class_sobol_diss_a30aa9640c7d4534b5cd5d4f08bbc3861}\label{class_sobol_diss_a30aa9640c7d4534b5cd5d4f08bbc3861} 
+\index{SobolDiss@{SobolDiss}!computeDissimilarityClean\_helper@{computeDissimilarityClean\_helper}}
+\index{computeDissimilarityClean\_helper@{computeDissimilarityClean\_helper}!SobolDiss@{SobolDiss}}
+\doxysubsubsection{\texorpdfstring{computeDissimilarityClean\_helper()}{computeDissimilarityClean\_helper()}}
+{\footnotesize\ttfamily template$<$bool use1$>$ \\
+void Sobol\+Diss\+::compute\+Dissimilarity\+Clean\+\_\+helper (\begin{DoxyParamCaption}\item[{KMA\+::matrix \&}]{D\+\_\+clean,  }\item[{const KMA\+::imatrix \&}]{S\+\_\+clean,  }\item[{const std\+::vector$<$ arma\+::urowvec $>$ \&}]{V\+\_\+dom\+\_\+new,  }\item[{const KMA\+::\+Mfield \&}]{V\+\_\+clean,  }\item[{const KMA\+::\+Mfield \&}]{Y }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [protected]}}
+
+
+
+compute dissimilarity from cleaned motifs for Sobolev distance. True for \doxylink{class_h1}{H1}. See \doxylink{class_dissimilarity_a523daf318e459b2ba76ef66a5932dff2}{Dissimilarity\+::compute\+Dissimilarity\+Clean()} 
+
+
+
+Definition at line \mbox{\hyperlink{_dissimilarity_8ipp_source_l00067}{67}} of file \mbox{\hyperlink{_dissimilarity_8ipp_source}{Dissimilarity.\+ipp}}.
+
+\Hypertarget{class_sobol_diss_a246cfd24df435c7a93d16d8bb37adb31}\label{class_sobol_diss_a246cfd24df435c7a93d16d8bb37adb31} 
+\index{SobolDiss@{SobolDiss}!distance@{distance}}
+\index{distance@{distance}!SobolDiss@{SobolDiss}}
+\doxysubsubsection{\texorpdfstring{distance()}{distance()}}
+{\footnotesize\ttfamily virtual double Sobol\+Diss\+::distance (\begin{DoxyParamCaption}\item[{const KMA\+::matrix \&}]{y,  }\item[{const KMA\+::matrix \&}]{v }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [override]}, {\ttfamily [protected]}, {\ttfamily [virtual]}}
+
+compute Sobolev distance. 
+\begin{DoxyParams}{Parameters}
+{\em \mbox{[}y\mbox{]}} & curve \\
+\hline
+{\em \mbox{[}v\mbox{]}} & computed motif \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+distance 
+\end{DoxyReturn}
+
+
+Implements \mbox{\hyperlink{class_dissimilarity_a0dbea23debf5dac702b452b592c0aa29}{Dissimilarity}}.
+
+\Hypertarget{class_sobol_diss_a351c84d984987ad6a9d95fe25c58fe2a}\label{class_sobol_diss_a351c84d984987ad6a9d95fe25c58fe2a} 
+\index{SobolDiss@{SobolDiss}!find\_diss\_helper@{find\_diss\_helper}}
+\index{find\_diss\_helper@{find\_diss\_helper}!SobolDiss@{SobolDiss}}
+\doxysubsubsection{\texorpdfstring{find\_diss\_helper()}{find\_diss\_helper()}}
+{\footnotesize\ttfamily template$<$bool use1$>$ \\
+KMA\+::vector Sobol\+Diss\+::find\+\_\+diss\+\_\+helper (\begin{DoxyParamCaption}\item[{const KMA\+::\+Mfield}]{Y,  }\item[{const KMA\+::\+Mfield}]{V,  }\item[{const KMA\+::vector \&}]{w,  }\item[{double}]{alpha,  }\item[{unsigned int}]{c\+\_\+k }\end{DoxyParamCaption}) const\hspace{0.3cm}{\ttfamily [protected]}}
+
+
+
+Find shift warping minimizing dissimilarity for Sobolev distance between multidimensional curves. True for \doxylink{class_h1}{H1}. See \doxylink{class_dissimilarity_ad978eba8f5c130940cbb348ed52d99aa}{Dissimilarity\+::find\+\_\+diss()} 
+
+
+
+Definition at line \mbox{\hyperlink{_dissimilarity_8ipp_source_l00004}{4}} of file \mbox{\hyperlink{_dissimilarity_8ipp_source}{Dissimilarity.\+ipp}}.
+
+
+
+\doxysubsection{Member Data Documentation}
+\Hypertarget{class_sobol_diss_afa7075f226a43b32b486b3ac0f7a0472}\label{class_sobol_diss_afa7075f226a43b32b486b3ac0f7a0472} 
+\index{SobolDiss@{SobolDiss}!\_w@{\_w}}
+\index{\_w@{\_w}!SobolDiss@{SobolDiss}}
+\doxysubsubsection{\texorpdfstring{\_w}{\_w}}
+{\footnotesize\ttfamily KMA\+::vector Sobol\+Diss\+::\+\_\+w\hspace{0.3cm}{\ttfamily [protected]}}
+
+
+
+Definition at line \mbox{\hyperlink{_dissimilarity_8hpp_source_l00119}{119}} of file \mbox{\hyperlink{_dissimilarity_8hpp_source}{Dissimilarity.\+hpp}}.
+
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+Dissimilarity.\+hpp\item 
+Dissimilarity.\+ipp\end{DoxyCompactItemize}

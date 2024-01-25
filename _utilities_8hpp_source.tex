@@ -1,0 +1,64 @@
+\doxysection{Utilities.\+hpp}
+\hypertarget{_utilities_8hpp_source}{}\label{_utilities_8hpp_source}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00001}00001\ \textcolor{preprocessor}{\#ifndef\ \_\_UTILITIES\_HPP\_\_}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00002}00002\ \textcolor{preprocessor}{\#define\ \_\_UTILITIES\_HPP\_\_}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00003}00003\ \textcolor{preprocessor}{\#include\ "{}RcppArmadillo.h"{}}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00004}00004\ \textcolor{preprocessor}{\#include\ "{}TypeTraits.hpp"{}}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00005}00005\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00006}00006\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00007}00007\ \textcolor{comment}{//\ [[Rcpp::depends(RcppArmadillo)]]}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00008}00008\ \textcolor{comment}{//\ [[Rcpp::plugins(cpp20)]]}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00009}00009\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00010}00010\ \textcolor{keyword}{namespace\ }util}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00011}00011\ \{}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00012}00012\ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ T>}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00013}\mbox{\hyperlink{conceptutil_1_1_is_arma_vector}{00013}}\ \textcolor{keyword}{concept\ }\mbox{\hyperlink{conceptutil_1_1_is_arma_vector}{IsArmaVector}}\ =\ std::is\_same\_v<T,\ KMA::uvector>\ ||}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00014}00014\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ arma::urowvec>;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00015}00015\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00022}00022\ \ \ \textcolor{keyword}{template}<\textcolor{keywordtype}{bool}\ use1,IsArmaVector\ T>}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00023}00023\ \ \ KMA::Mfield\ selectDomain(\textcolor{keyword}{const}\ T\&\ v\_dom,\textcolor{keyword}{const}\ KMA::Mfield\&\ V)}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00024}00024\ \ \ \{}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00025}00025\ \ \ \ \ KMA::uvector\ dom\ =\ arma::find(v\_dom==1);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00026}00026\ \ \ \ \ KMA::Mfield\ v(1,V.n\_cols);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00027}00027\ \ \ \ \ v(0,0)\ =\ V(0,0).rows(dom);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00028}00028\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00029}00029\ \ \ \ \ \textcolor{keywordflow}{if}\ \textcolor{keyword}{constexpr}(use1)}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00030}00030\ \ \ \ \ \ \ v(0,1)\ =\ V(0,1).rows(dom);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00031}00031\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00032}00032\ \ \ \ \ \textcolor{keywordflow}{return}\ v;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00033}00033\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00034}00034\ \ \ \}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00035}00035\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00036}00036\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00037}00037\ \ \ \textcolor{comment}{//\ returns\ a\ rowvector}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00043}00043\ \ \ \textcolor{keyword}{template}\ <\textcolor{keyword}{typename}\ MatType>}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00044}00044\ \ \ arma::urowvec\ findDomain(\textcolor{keyword}{const}\ MatType\&\ v)\ \{}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00045}00045\ \ \ \ \ arma::urowvec\ result(v.n\_rows,\ arma::fill::zeros);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00046}00046\ \ \ \ \ \textcolor{keywordflow}{for}\ (arma::uword\ i\ =\ 0;\ i\ <\ v.n\_rows;\ ++i)\ \{}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00047}00047\ \ \ \ \ \ \ \textcolor{keyword}{const}\ KMA::uvector\&\ finite\_row\ =\ arma::find\_finite(v.row(i));}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00048}00048\ \ \ \ \ \ \ \textcolor{keywordflow}{if}(finite\_row.n\_elem)}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00049}00049\ \ \ \ \ \ \ \ \ result(i)\ =\ 1;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00050}00050\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00051}00051\ \ \ \ \ \textcolor{keywordflow}{return}\ result;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00052}00052\ \ \ \}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00053}00053\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00060}00060\ \ \ \textcolor{keyword}{inline}\ std::vector<arma::ivec>\ repeat\_elements(\textcolor{keyword}{const}\ KMA::imatrix\&\ A,\textcolor{keyword}{const}\ KMA::ivector\ \&\ times)\ \{}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00061}00061\ \ \ \ \ arma::uword\ times\_size\ =\ times.n\_elem;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00062}00062\ \ \ \ \ std::vector<KMA::ivector>\ result((times\_size*(times\_size+1))/2\ -\/\ 1);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00063}00063\ \ \ \ \ std::size\_t\ i\ =\ 0;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00064}00064\ \ \ \ \ \textcolor{keywordflow}{for}(arma::uword\ j\ =\ 0;j\ <\ times\_size;++j)}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00065}00065\ \ \ \ \ \{}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00066}00066\ \ \ \ \ \ \ \textcolor{keyword}{const}\ KMA::imatrix\&\ B\ =\ arma::repmat(A.col(j),1,times[j]);}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00067}00067\ \ \ \ \ \ \ B.each\_col([\&result,\&i](\textcolor{keyword}{const}\ KMA::ivector\&\ v)\{result[i++]\ =\ v;\});}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00068}00068\ \ \ \ \ \}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00069}00069\ \ \ \ \ \textcolor{keywordflow}{return}\ result;}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00070}00070\ \ \ \}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00071}00071\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00072}00072\ \}}
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00073}00073\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00074}00074\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00075}00075\ }
+\DoxyCodeLine{\Hypertarget{_utilities_8hpp_source_l00076}00076\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{//\ \_\_UTILITIES\_HPP\_\_}}
+
+\end{DoxyCode}

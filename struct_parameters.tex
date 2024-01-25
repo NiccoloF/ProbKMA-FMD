@@ -1,0 +1,416 @@
+\doxysection{Parameters Struct Reference}
+\hypertarget{struct_parameters}{}\label{struct_parameters}\index{Parameters@{Parameters}}
+
+
+{\ttfamily \#include $<$Parameters.\+hpp$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{struct_parameters_a823195cb511e2ca66e67b97b979a9e6d}\label{struct_parameters_a823195cb511e2ca66e67b97b979a9e6d} 
+{\bfseries Parameters} (const \mbox{\hyperlink{struct_parameters}{Parameters}} \&)=default
+\item 
+\Hypertarget{struct_parameters_a338a3ae9d492b20e0329bd4730ceaa79}\label{struct_parameters_a338a3ae9d492b20e0329bd4730ceaa79} 
+{\bfseries Parameters} (const Rcpp\+::\+List \&params)
+\item 
+\Hypertarget{struct_parameters_ab8ddeba99147597934114e38ed36c271}\label{struct_parameters_ab8ddeba99147597934114e38ed36c271} 
+Rcpp\+::\+List {\bfseries to\+\_\+list} ()
+\begin{DoxyCompactList}\small\item\em cast \doxylink{struct_parameters}{Parameters} class to Rcpp\+::\+List \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+bool \mbox{\hyperlink{struct_parameters_a5a84e7e8cc166ff1e8aa7080c3faf49d}{\+\_\+standardize}}
+\item 
+unsigned int \mbox{\hyperlink{struct_parameters_a26f474bcd500c3002fb6b0149ddba675}{\+\_\+K}}
+\begin{DoxyCompactList}\small\item\em if TRUE, each dimension is standardized (Z score on all the regions together). \end{DoxyCompactList}\item 
+arma\+::ivec \mbox{\hyperlink{struct_parameters_aae52169a8134bf4c04a7bcecdbbec0b4}{\+\_\+c}}
+\begin{DoxyCompactList}\small\item\em number of motifs \end{DoxyCompactList}\item 
+arma\+::ivec \mbox{\hyperlink{struct_parameters_a4d4f4bba3d04cb38312cef122977d220}{\+\_\+c\+\_\+max}}
+\begin{DoxyCompactList}\small\item\em minimum motif lengths. Can be an integer (or a vector of K integers). \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{struct_parameters_aefa9387247cd348f1f325ab5c9e22315}{\+\_\+iter\+\_\+max}}
+\begin{DoxyCompactList}\small\item\em maximum motif lengths. Can be an integer (or a vector of K integers). \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_afc77550afe92f861671e41615fc537ed}{\+\_\+quantile}}
+\begin{DoxyCompactList}\small\item\em the maximum number of iterations allowed. \end{DoxyCompactList}\item 
+std\+::string \mbox{\hyperlink{struct_parameters_a37b3ee9d24359add058f9a796dca4739}{\+\_\+stop\+Criterion}}
+\begin{DoxyCompactList}\small\item\em probability in \mbox{[}0,1\mbox{]} to be used if stop.\+criterion=\textquotesingle{}quantile\textquotesingle{}. \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_afaef9f203aaca558b6af72da3a3408b1}{\+\_\+m}}
+\begin{DoxyCompactList}\small\item\em criterion to stop iterate, based on the Bhattacharyya distance between memberships in subsequent iterations. \end{DoxyCompactList}\item 
+arma\+::vec \mbox{\hyperlink{struct_parameters_adc336c5aa0075666f66e1df0d8b1ea30}{\+\_\+w}}
+\begin{DoxyCompactList}\small\item\em weighting exponent in least-\/squares functional. \end{DoxyCompactList}\item 
+double \+\_\+alpha double \mbox{\hyperlink{struct_parameters_a196a13b8a9f194a785ad4a381258c61d}{\+\_\+tol}}
+\begin{DoxyCompactList}\small\item\em vector of weights for the dissimilarity index in the different dimensions (w\texorpdfstring{$>$}{>}0). \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{struct_parameters_a6ca297fab3dbab4f602affd214958893}{\+\_\+iter4elong}}
+\begin{DoxyCompactList}\small\item\em method tolerance (method stops if the stop criterion \texorpdfstring{$<$}{<}tol). \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_a4614adc4db9eab2d5fd6b6e06ec8b85d}{\+\_\+tol4elong}}
+\begin{DoxyCompactList}\small\item\em motifs elongation is performed every iter4elong iterations (if iter4elong\texorpdfstring{$>$}{>}iter.\+max, no elongation is done). \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_a11460b28f570b871d68876a61ac7b231}{\+\_\+max\+\_\+elong}}
+\begin{DoxyCompactList}\small\item\em tolerance on the Bhattacharyya distance (with the choice made in stop.\+criterion) for performing motifs elongation. \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{struct_parameters_a80e2d8c413c1cdc690d46a4f6ca8d459}{\+\_\+trials\+\_\+elong}}
+\begin{DoxyCompactList}\small\item\em maximum elongation allowed in a single iteration, as percentage of the motif length. \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_a57e001de12a20725b989d653f5b09bca}{\+\_\+delta\+JK\+\_\+elong}}
+\begin{DoxyCompactList}\small\item\em number of (equispaced) elongation trials at each side of the motif in a single iteration. \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_a19d5035c93057c0667152839743775b9}{\+\_\+max\+\_\+gap}}
+\begin{DoxyCompactList}\small\item\em maximum relative objective function increasing allowed in each motif elongation (for gaps and each side). \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{struct_parameters_a37f93f7043489f0cd4b746ad5cdf11b5}{\+\_\+iter4clean}}
+\begin{DoxyCompactList}\small\item\em maximum gap allowed in each alignment (percentage of motif length). \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_ae722444114f02762f9f5ee0b40034522}{\+\_\+tol4clean}}
+\begin{DoxyCompactList}\small\item\em motif cleaning is performed every iter4clean iterations (if iter4clean\texorpdfstring{$>$}{>}iter\+\_\+max, no cleaning is done). \end{DoxyCompactList}\item 
+double \mbox{\hyperlink{struct_parameters_a75777e99272f1f77d8f9ddb147fcdcfe}{\+\_\+quantile4clean}}
+\begin{DoxyCompactList}\small\item\em tolerance on the Bhattacharyya distance (with the choice made in stop\+\_\+criterion) for performing motif cleaning. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{struct_parameters_ad429e9fcb2bc701d1d8bcdb809743e7c}{\+\_\+return\+\_\+options}}
+\begin{DoxyCompactList}\small\item\em dissimilarity quantile to be used in motif cleaning. \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{struct_parameters_a50420ac4618af3298d79b5d823a9cc64}{\+\_\+seed}}
+\begin{DoxyCompactList}\small\item\em if TRUE, the options K,c,diss,w,m are returned by the function. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{struct_parameters_a2768725e39bf105172f000052778933e}{\+\_\+exe\+\_\+print}}
+\begin{DoxyCompactList}\small\item\em for reproducibility \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{struct_parameters_a3c2490124582c21cfbaadd23eb60d613}{\+\_\+set\+\_\+seed}}
+\begin{DoxyCompactList}\small\item\em True if you want more details on the execution of the algorithm. \end{DoxyCompactList}\item 
+unsigned int \mbox{\hyperlink{struct_parameters_a7814f00072ab1dbe1e9a7b15cc3a5f29}{\+\_\+n\+\_\+threads}}
+\begin{DoxyCompactList}\small\item\em True if you want to set the seed. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+structure that handles different options for \doxylink{class_prob_k_m_a}{Prob\+KMA} algorithm 
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00009}{9}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+
+
+\doxysubsection{Member Data Documentation}
+\Hypertarget{struct_parameters_aae52169a8134bf4c04a7bcecdbbec0b4}\label{struct_parameters_aae52169a8134bf4c04a7bcecdbbec0b4} 
+\index{Parameters@{Parameters}!\_c@{\_c}}
+\index{\_c@{\_c}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_c}{\_c}}
+{\footnotesize\ttfamily arma\+::ivec Parameters\+::\+\_\+c}
+
+
+
+number of motifs 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00019}{19}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a4d4f4bba3d04cb38312cef122977d220}\label{struct_parameters_a4d4f4bba3d04cb38312cef122977d220} 
+\index{Parameters@{Parameters}!\_c\_max@{\_c\_max}}
+\index{\_c\_max@{\_c\_max}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_c\_max}{\_c\_max}}
+{\footnotesize\ttfamily arma\+::ivec Parameters\+::\+\_\+c\+\_\+max}
+
+
+
+minimum motif lengths. Can be an integer (or a vector of K integers). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00020}{20}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a57e001de12a20725b989d653f5b09bca}\label{struct_parameters_a57e001de12a20725b989d653f5b09bca} 
+\index{Parameters@{Parameters}!\_deltaJK\_elong@{\_deltaJK\_elong}}
+\index{\_deltaJK\_elong@{\_deltaJK\_elong}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_deltaJK\_elong}{\_deltaJK\_elong}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+delta\+JK\+\_\+elong}
+
+
+
+number of (equispaced) elongation trials at each side of the motif in a single iteration. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00032}{32}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a2768725e39bf105172f000052778933e}\label{struct_parameters_a2768725e39bf105172f000052778933e} 
+\index{Parameters@{Parameters}!\_exe\_print@{\_exe\_print}}
+\index{\_exe\_print@{\_exe\_print}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_exe\_print}{\_exe\_print}}
+{\footnotesize\ttfamily bool Parameters\+::\+\_\+exe\+\_\+print}
+
+
+
+for reproducibility 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00039}{39}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a37f93f7043489f0cd4b746ad5cdf11b5}\label{struct_parameters_a37f93f7043489f0cd4b746ad5cdf11b5} 
+\index{Parameters@{Parameters}!\_iter4clean@{\_iter4clean}}
+\index{\_iter4clean@{\_iter4clean}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_iter4clean}{\_iter4clean}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+iter4clean}
+
+
+
+maximum gap allowed in each alignment (percentage of motif length). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00034}{34}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a6ca297fab3dbab4f602affd214958893}\label{struct_parameters_a6ca297fab3dbab4f602affd214958893} 
+\index{Parameters@{Parameters}!\_iter4elong@{\_iter4elong}}
+\index{\_iter4elong@{\_iter4elong}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_iter4elong}{\_iter4elong}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+iter4elong}
+
+
+
+method tolerance (method stops if the stop criterion \texorpdfstring{$<$}{<}tol). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00028}{28}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_aefa9387247cd348f1f325ab5c9e22315}\label{struct_parameters_aefa9387247cd348f1f325ab5c9e22315} 
+\index{Parameters@{Parameters}!\_iter\_max@{\_iter\_max}}
+\index{\_iter\_max@{\_iter\_max}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_iter\_max}{\_iter\_max}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+iter\+\_\+max}
+
+
+
+maximum motif lengths. Can be an integer (or a vector of K integers). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00021}{21}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a26f474bcd500c3002fb6b0149ddba675}\label{struct_parameters_a26f474bcd500c3002fb6b0149ddba675} 
+\index{Parameters@{Parameters}!\_K@{\_K}}
+\index{\_K@{\_K}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_K}{\_K}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+K}
+
+
+
+if TRUE, each dimension is standardized (Z score on all the regions together). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00018}{18}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_afaef9f203aaca558b6af72da3a3408b1}\label{struct_parameters_afaef9f203aaca558b6af72da3a3408b1} 
+\index{Parameters@{Parameters}!\_m@{\_m}}
+\index{\_m@{\_m}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_m}{\_m}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+m}
+
+
+
+criterion to stop iterate, based on the Bhattacharyya distance between memberships in subsequent iterations. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00024}{24}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a11460b28f570b871d68876a61ac7b231}\label{struct_parameters_a11460b28f570b871d68876a61ac7b231} 
+\index{Parameters@{Parameters}!\_max\_elong@{\_max\_elong}}
+\index{\_max\_elong@{\_max\_elong}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_max\_elong}{\_max\_elong}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+max\+\_\+elong}
+
+
+
+tolerance on the Bhattacharyya distance (with the choice made in stop.\+criterion) for performing motifs elongation. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00030}{30}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a19d5035c93057c0667152839743775b9}\label{struct_parameters_a19d5035c93057c0667152839743775b9} 
+\index{Parameters@{Parameters}!\_max\_gap@{\_max\_gap}}
+\index{\_max\_gap@{\_max\_gap}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_max\_gap}{\_max\_gap}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+max\+\_\+gap}
+
+
+
+maximum relative objective function increasing allowed in each motif elongation (for gaps and each side). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00033}{33}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a7814f00072ab1dbe1e9a7b15cc3a5f29}\label{struct_parameters_a7814f00072ab1dbe1e9a7b15cc3a5f29} 
+\index{Parameters@{Parameters}!\_n\_threads@{\_n\_threads}}
+\index{\_n\_threads@{\_n\_threads}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_n\_threads}{\_n\_threads}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+n\+\_\+threads}
+
+
+
+True if you want to set the seed. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00041}{41}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_afc77550afe92f861671e41615fc537ed}\label{struct_parameters_afc77550afe92f861671e41615fc537ed} 
+\index{Parameters@{Parameters}!\_quantile@{\_quantile}}
+\index{\_quantile@{\_quantile}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_quantile}{\_quantile}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+quantile}
+
+
+
+the maximum number of iterations allowed. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00022}{22}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a75777e99272f1f77d8f9ddb147fcdcfe}\label{struct_parameters_a75777e99272f1f77d8f9ddb147fcdcfe} 
+\index{Parameters@{Parameters}!\_quantile4clean@{\_quantile4clean}}
+\index{\_quantile4clean@{\_quantile4clean}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_quantile4clean}{\_quantile4clean}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+quantile4clean}
+
+
+
+tolerance on the Bhattacharyya distance (with the choice made in stop\+\_\+criterion) for performing motif cleaning. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00036}{36}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_ad429e9fcb2bc701d1d8bcdb809743e7c}\label{struct_parameters_ad429e9fcb2bc701d1d8bcdb809743e7c} 
+\index{Parameters@{Parameters}!\_return\_options@{\_return\_options}}
+\index{\_return\_options@{\_return\_options}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_return\_options}{\_return\_options}}
+{\footnotesize\ttfamily bool Parameters\+::\+\_\+return\+\_\+options}
+
+
+
+dissimilarity quantile to be used in motif cleaning. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00037}{37}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a50420ac4618af3298d79b5d823a9cc64}\label{struct_parameters_a50420ac4618af3298d79b5d823a9cc64} 
+\index{Parameters@{Parameters}!\_seed@{\_seed}}
+\index{\_seed@{\_seed}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_seed}{\_seed}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+seed}
+
+
+
+if TRUE, the options K,c,diss,w,m are returned by the function. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00038}{38}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a3c2490124582c21cfbaadd23eb60d613}\label{struct_parameters_a3c2490124582c21cfbaadd23eb60d613} 
+\index{Parameters@{Parameters}!\_set\_seed@{\_set\_seed}}
+\index{\_set\_seed@{\_set\_seed}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_set\_seed}{\_set\_seed}}
+{\footnotesize\ttfamily bool Parameters\+::\+\_\+set\+\_\+seed}
+
+
+
+True if you want more details on the execution of the algorithm. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00040}{40}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a5a84e7e8cc166ff1e8aa7080c3faf49d}\label{struct_parameters_a5a84e7e8cc166ff1e8aa7080c3faf49d} 
+\index{Parameters@{Parameters}!\_standardize@{\_standardize}}
+\index{\_standardize@{\_standardize}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_standardize}{\_standardize}}
+{\footnotesize\ttfamily bool Parameters\+::\+\_\+standardize}
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00017}{17}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a37b3ee9d24359add058f9a796dca4739}\label{struct_parameters_a37b3ee9d24359add058f9a796dca4739} 
+\index{Parameters@{Parameters}!\_stopCriterion@{\_stopCriterion}}
+\index{\_stopCriterion@{\_stopCriterion}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_stopCriterion}{\_stopCriterion}}
+{\footnotesize\ttfamily std\+::string Parameters\+::\+\_\+stop\+Criterion}
+
+
+
+probability in \mbox{[}0,1\mbox{]} to be used if stop.\+criterion=\textquotesingle{}quantile\textquotesingle{}. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00023}{23}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a196a13b8a9f194a785ad4a381258c61d}\label{struct_parameters_a196a13b8a9f194a785ad4a381258c61d} 
+\index{Parameters@{Parameters}!\_tol@{\_tol}}
+\index{\_tol@{\_tol}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_tol}{\_tol}}
+{\footnotesize\ttfamily double \+\_\+alpha double Parameters\+::\+\_\+tol}
+
+
+
+vector of weights for the dissimilarity index in the different dimensions (w\texorpdfstring{$>$}{>}0). 
+
+when diss=\textquotesingle{}d0\+\_\+d1\+\_\+\+L2\textquotesingle{}, weight coefficient between d0\+\_\+\+L2 and d1\+\_\+\+L2 (alpha=0 means d0\+\_\+\+L2, alpha=1 means d1\+\_\+\+L2). 
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00027}{27}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_ae722444114f02762f9f5ee0b40034522}\label{struct_parameters_ae722444114f02762f9f5ee0b40034522} 
+\index{Parameters@{Parameters}!\_tol4clean@{\_tol4clean}}
+\index{\_tol4clean@{\_tol4clean}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_tol4clean}{\_tol4clean}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+tol4clean}
+
+
+
+motif cleaning is performed every iter4clean iterations (if iter4clean\texorpdfstring{$>$}{>}iter\+\_\+max, no cleaning is done). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00035}{35}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a4614adc4db9eab2d5fd6b6e06ec8b85d}\label{struct_parameters_a4614adc4db9eab2d5fd6b6e06ec8b85d} 
+\index{Parameters@{Parameters}!\_tol4elong@{\_tol4elong}}
+\index{\_tol4elong@{\_tol4elong}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_tol4elong}{\_tol4elong}}
+{\footnotesize\ttfamily double Parameters\+::\+\_\+tol4elong}
+
+
+
+motifs elongation is performed every iter4elong iterations (if iter4elong\texorpdfstring{$>$}{>}iter.\+max, no elongation is done). 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00029}{29}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_a80e2d8c413c1cdc690d46a4f6ca8d459}\label{struct_parameters_a80e2d8c413c1cdc690d46a4f6ca8d459} 
+\index{Parameters@{Parameters}!\_trials\_elong@{\_trials\_elong}}
+\index{\_trials\_elong@{\_trials\_elong}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_trials\_elong}{\_trials\_elong}}
+{\footnotesize\ttfamily unsigned int Parameters\+::\+\_\+trials\+\_\+elong}
+
+
+
+maximum elongation allowed in a single iteration, as percentage of the motif length. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00031}{31}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+\Hypertarget{struct_parameters_adc336c5aa0075666f66e1df0d8b1ea30}\label{struct_parameters_adc336c5aa0075666f66e1df0d8b1ea30} 
+\index{Parameters@{Parameters}!\_w@{\_w}}
+\index{\_w@{\_w}!Parameters@{Parameters}}
+\doxysubsubsection{\texorpdfstring{\_w}{\_w}}
+{\footnotesize\ttfamily arma\+::vec Parameters\+::\+\_\+w}
+
+
+
+weighting exponent in least-\/squares functional. 
+
+
+
+Definition at line \mbox{\hyperlink{_parameters_8hpp_source_l00025}{25}} of file \mbox{\hyperlink{_parameters_8hpp_source}{Parameters.\+hpp}}.
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+Parameters.\+hpp\end{DoxyCompactItemize}
