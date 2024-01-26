@@ -72,11 +72,11 @@ Functional motif discovery on simulated data: 20 curves embedding 2 functional m
 
 ## Probabilistic local clustering example
 
-### Berkley growth curves
-Probabilitstic local clustering of the Berkley Growth Study dataset, provided within the R package `fda` and consisting of the heights of 39 boys and 54 girls recorded from age 1 to 18.
-- `growth_smoothed.RData`: smoothed growth curves
-- `growth_curves.pdf`: plot of growth curves and growth velocities
-- `probKMA_growth.r`: script to run the example
+### Italian Covid-19 excess mortality curves
+Probabilitic local clustering of Covid-19 excess mortality rate curves (daily difference between 2020 deaths and average deaths in the period 2015-2019) in the 20 regions of Italy. These curves were estimated in the period from February 16, 2020 and April 30, 2020 using the mortality data (due to all causes) from the Italian Institute of Statistics ISTAT. Raw mortality data are available on [ISTAT website](https://www.istat.it/it/files/2020/03/Dataset-decessi-comunali-giornalieri-e-tracciato-record-4giugno.zip).
+- `istat_mortality_rates_smoothed.Rdata`: smoothed excess mortality rate curves
+- `istat_mortality_rates_curves.pdf`: plot of excess mortality rate curves
+- `probKMA_mortality_regions.r`: script to run the example
 - `results`: probabilistic local clustering results
 
 ## Documentation
