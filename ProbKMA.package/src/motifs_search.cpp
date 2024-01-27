@@ -110,7 +110,7 @@ Rcpp::List motifs_search_cpp(const Rcpp::List& Y,
       Rcpp::NumericVector V_frequencies_i(range_rows.begin(),range_rows.end());
       Rcpp::NumericVector V_mean_diss_i(range_mean.begin(),range_mean.end());
 
-      // order based of frequency and average distanceà
+      // order based of frequency and average distance
       const arma::vec& avgR = util::avg_rank<Rcpp::NumericVector,Comparator<Rcpp::NumericVector>>(-1 * V_frequencies_i)+util::avg_rank<Rcpp::NumericVector,Comparator<Rcpp::NumericVector>>(V_mean_diss_i);
       Rcpp::IntegerVector V_order_i = util::order2<arma::vec,Rcpp::IntegerVector>(avgR) - 1;
       

@@ -67,7 +67,7 @@ arma::mat find_occurrences_cpp(const Rcpp::List& v,
     
     t = 0; 
     arma::mat local_SD_motif(std::min(start.size(),end.size()),2);
-    for(int k = 0;k<std::min<int>(start.size(),end.size());++k) // NON SO SE SERVE STD::min NEL CASO GENERALE
+    for(int k = 0;k<std::min<int>(start.size(),end.size());++k) 
     {
       const arma::vec& temp_d_rep = arma::conv_to<arma::vec>::from(d_rep(arma::span(start[k],end[k]))); 
       arma::uword index = arma::index_min(temp_d_rep);
