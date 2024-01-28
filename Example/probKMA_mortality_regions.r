@@ -90,6 +90,7 @@ for(i in 1:10){
   prok$set_P0(data$P0)
   prok$set_S0(data$S0)
 }
+dir.create("../Example/results/", recursive = TRUE)
 save(J_K2_d0_c65, probKMA_K2_d0_c65_all, file="../Example/results/probKMA_K2_d0_c65_results.RData")
 
 load("../Example/results/probKMA_K2_d0_c65_results.RData")

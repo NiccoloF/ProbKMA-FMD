@@ -61,7 +61,7 @@ dev.off()
 #############################################################
 
 # reinitialize motifs for a new run
-prok$reinit_motifs(params$c,ncol(Y$Y0[[1]]))
+prok$reinit_motifs(params$c,ncol(simulated200$Y0[[1]]))
 
 # computational time c++ imp.
 system.time(prok$probKMA_run())
