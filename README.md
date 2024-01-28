@@ -64,14 +64,14 @@ Starting from R functions **ProbKMA** and **find_candidate_motifs** we have deve
 - `find_candidate_motifs`: run multiple times `ProbKMA` function with different number of clusters, minimum motif's length and initializations, with the aim to find a set of candidate motifs.
 
 ## Functional motif discovery example
-Within the **Test comparisons folder** is the R script **Comparisons_vectorial_data.R** in which an example is analyzed on the 
+Within the **Test comparisons folder** is the **R** script **Comparisons_vectorial_data.R** in which an example is analyzed on the 
 discovery of functional motifs on simulated data with 20 curves incorporating 2 functional motifs of length 60, each with 12 occurrences.
 In particular, the following is found:
 - `simulated200`: simulated curves already built into the package. 
 - `len200_sd0.1_simulated_curves_with_motifs.pdf`: plot of curves with true motifs.
 - `Comparisons_vectorial_data.R`: script to run the example. \
 Finally, the differences in computational terms between the previous motif discovery algorithm written entirely in **R** and the new **C++** version can be analyzed.<br>
-<br> Similar to the previous case, within the script R **Comparisons_matrices_data.R**, an example can be run using multivariate data. 
+<br> Similar to the previous case, within the **R** script **Comparisons_matrices_data.R**, an example can be run using multivariate data. 
 In particular it can be found: 
 - `Y.Rdata`: functional data to be loaded.
 - `Comparisons_matrices_data.R`: script to run the example in the multivariate case.\
