@@ -49,12 +49,12 @@ params <- list(standardize=FALSE, K=2,c = c_min,c_max = c_min,iter_max = 1000,
                tol4clean = 1e-4,
                quantile4clean = 1/2,return_options = TRUE,
                m = 2,w = 1, alpha = 0.0,seed = seed,exe_print = TRUE, 
-               set_seed= FALSE, n_threads = 7)
-data <- initialChecks(Y0,NULL,P0,S0,params,diss,seed)
-params <- data$Parameters
-data <- data$FuncData
-prok <- new(ProbKMA,data$Y,params,data$P0,data$S0,"L2")
-prok$probKMA_run()
+               set_seed= FALSE, n_threads = 7) # Inizialize parameters
+data <- initialChecks(Y0,NULL,P0,S0,params,diss,seed) # Y0 and eventually Y1 are functional data 
+params <- data$Parameters # Get the updated parameters for the problem
+data <- data$FuncData # Get the updated functional data 
+prok <- new(ProbKMA,data$Y,params,data$P0,data$S0,"L2") # Initialization of the main class that handles ProbKMA
+prok$probKMA_run() # Run ProbKMA algorithm 
 ```
 
 ### Code
@@ -64,11 +64,20 @@ Starting from R functions **ProbKMA** and **find_candidate_motifs** we have deve
 - `find_candidate_motifs`: run multiple times `ProbKMA` function with different number of clusters, minimum motif's length and initializations, with the aim to find a set of candidate motifs.
 
 ## Functional motif discovery example
-Functional motif discovery on simulated data: 20 curves embedding 2 functional motifs of length 60, each with 12 occurrences. 
-- `len200_sd0.1.RData`: simulated curves
-- `len200_sd0.1_simulated_curves_with_motifs.pdf`: plot of curves with true motifs
-- `FMD_simulated_data.r`: script to run the example
-- `results`: functional motif discovery results
+Within the **Test comparisons folder** is the R script **Comparisons_vectorial_data.R** in which an example is analyzed on the 
+discovery of functional motifs on simulated data with 20 curves incorporating 2 functional motifs of length 60, each with 12 occurrences.
+In particular, the following is found:
+- `simulated200`: simulated curves already built into the package. 
+- `len200_sd0.1_simulated_curves_with_motifs.pdf`: plot of curves with true motifs.
+- `Comparisons_vectorial_data.R`: script to run the example. \
+Finally, the differences in computational terms between the previous motif discovery algorithm written entirely in **R** and the new **C++** version can be analyzed.<br>
+<br> Similar to the previous case, within the script R **Comparisons_matrices_data.R**, an example can be run using multivariate data. 
+In particular it can be found: 
+- `Y.Rdata`: functional data to be loaded.
+- `Comparisons_matrices_data.R`: script to run the example in the multivariate case.\
+In particular, in this last example, one can appreciate the significant computational differences between the two code versions. 
+
+
 
 ## Probabilistic local clustering example
 
