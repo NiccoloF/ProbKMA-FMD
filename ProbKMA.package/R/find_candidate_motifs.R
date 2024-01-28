@@ -117,7 +117,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=mapply_custom(cl_find,function(K,c,i){ #cl_find
+  vector_seed = seq(1,length(i_c_K$Var1))
+  results=mapply_custom(cl_find,function(K,c,i,small_seed){ #cl_find
     dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE,recursive = TRUE)
     files=list.files(paste0(name,"_K",K,"_c",c))
     message("K",K,"_c",c,'_random',i)
@@ -129,6 +130,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       iter=iter_max=1
       while(iter==iter_max){
         start=proc.time()
+        set.seed(small_seed)
+        small_seed = small_seed + 1
         probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
         end=proc.time()
         time=end-start
@@ -151,7 +154,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       return(list(probKMA_results=probKMA_results,
                   time=time,silhouette=silhouette))
     }
-  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
+  },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
   

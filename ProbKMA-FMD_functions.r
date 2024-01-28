@@ -54,6 +54,7 @@ library(dendextend)
   return(v)
 }
 
+
 .find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1){
   # Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
   # Return shift and dissimilarity.
@@ -68,7 +69,6 @@ library(dendextend)
   v_len=length(v_dom)
   y_len=unlist(lapply(y,nrow))[1]
   s_rep=(1-(v_len-c_k)):(y_len-v_len+1+(v_len-c_k))
-  index = seq_len(v_len)
   y_rep=lapply(s_rep,
                function(i){
                  index=i-1+seq_len(v_len)
@@ -86,7 +86,6 @@ library(dendextend)
                  y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
                  return(y_rep_i)
                })
-  
   length_inter=unlist(lapply(y_rep,
                              function(y_rep_i){
                                if(use0)
@@ -226,7 +225,7 @@ library(dendextend)
 }
 
 
-.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,use0,use1,c_k=NULL,keep_k=NULL){
+.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,c_k=NULL,keep_k=NULL,use0,use1){
   # Compute the objective function J for the motif k.
   # v: list of two elements, v0=v(x), v1=v'(x), matrices with d columns.
   # s_k: shift vector for motif k.
@@ -771,47 +770,45 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
         for(k in empty_k)
           keep[which.min(D[,k]),k]=TRUE
       }
-      
       res_left_right=mapply(function(v_new_k,v_dom_k,s_k,p_k,len_elong_k,keep_k,c){
-        if(length(len_elong_k)==0){
-          return(list(v_new=v_new_k,
-                      v_dom=v_dom_k,
-                      s_k=s_k))
-        }
-        s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
-        v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
-                                             function(len_elong_k_left)
-                                               lapply(c(0,len_elong_k[len_elong_k<=(max(len_elong_k)-len_elong_k_left)]),
-                                                      function(len_elong_k_right) 
-                                                        c(rep_len(TRUE,len_elong_k_left),v_dom_k,rep_len(TRUE,len_elong_k_right)))),
-                                      recursive=FALSE)[-1]
-        v_elong_left_right=mapply(.compute_motif,v_dom_elong_left_right,s_k_elong_left_right,
-                                  MoreArgs=list(p_k,Y,m,use0,use1),SIMPLIFY=FALSE)
-        start_with_NA=unlist(lapply(v_elong_left_right,length))>2
-        v_elong_left_right=v_elong_left_right[!start_with_NA]
-        s_k_elong_left_right=s_k_elong_left_right[!start_with_NA]
-        Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1)
-        c_k_after=floor(unlist(lapply(lapply(v_elong_left_right,.domain,use0),length))*(1-max_gap))
-        c_k_after[c_k_after<c]=c
-        Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
-                               MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
-        best_elong=which.min((Jk_after-Jk_before)/Jk_before)
-        if(length(best_elong)>0){
-          elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
-        }else{
-          elongate=FALSE
-        }
-        if(elongate){
-          return(list(v_new=v_elong_left_right[[best_elong]],
-                      v_dom=v_dom_elong_left_right[[best_elong]],
-                      s_k=s_k_elong_left_right[[best_elong]]))
-        }else{
-          return(list(v_new=v_new_k,
-                      v_dom=v_dom_k,
-                      s_k=s_k))
-        }
-      },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
-      
+                              if(length(len_elong_k)==0){
+                                return(list(v_new=v_new_k,
+                                            v_dom=v_dom_k,
+                                            s_k=s_k))
+                              }
+                              s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
+                              v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
+                                                                   function(len_elong_k_left)
+                                                                     lapply(c(0,len_elong_k[len_elong_k<=(max(len_elong_k)-len_elong_k_left)]),
+                                                                            function(len_elong_k_right) 
+                                                                              c(rep_len(TRUE,len_elong_k_left),v_dom_k,rep_len(TRUE,len_elong_k_right)))),
+                                                            recursive=FALSE)[-1]
+                              v_elong_left_right=mapply(.compute_motif,v_dom_elong_left_right,s_k_elong_left_right,
+                                                        MoreArgs=list(p_k,Y,m,use0,use1),SIMPLIFY=FALSE)
+                              start_with_NA=unlist(lapply(v_elong_left_right,length))>2
+                              v_elong_left_right=v_elong_left_right[!start_with_NA]
+                              s_k_elong_left_right=s_k_elong_left_right[!start_with_NA]
+                              Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1)
+                              c_k_after=floor(unlist(lapply(lapply(v_elong_left_right,.domain,use0),length))*(1-max_gap))
+                              c_k_after[c_k_after<c]=c
+                              Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
+                                                     MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
+                              best_elong=which.min((Jk_after-Jk_before)/Jk_before)
+                              if(length(best_elong)>0){
+                                elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
+                              }else{
+                                elongate=FALSE
+                              }
+                              if(elongate){
+                                return(list(v_new=v_elong_left_right[[best_elong]],
+                                            v_dom=v_dom_elong_left_right[[best_elong]],
+                                            s_k=s_k_elong_left_right[[best_elong]]))
+                              }else{
+                                return(list(v_new=v_new_k,
+                                            v_dom=v_dom_k,
+                                            s_k=s_k))
+                              }
+                            },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
       V_new=res_left_right[1,]
       V_dom=res_left_right[2,]
       S_k=res_left_right[3,]
@@ -1468,7 +1465,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  results=.mapply_custom(cl_find,function(K,c,i){
+  vector_seed = seq(1,length(i_c_K$Var1))
+  results=.mapply_custom(cl_find,function(K,c,i,small_seed){
                                     dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
                                     files=list.files(paste0(name,"_K",K,"_c",c))
                                     message("K",K,"_c",c,'_random',i)
@@ -1479,6 +1477,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                     }else{
                                       iter=iter_max=1
                                       while(iter==iter_max){
+                                        set.seed(small_seed)
+                                        small_seed = small_seed + 1
                                         start=proc.time()
                                         probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
                                         end=proc.time()
@@ -1502,7 +1502,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                       return(list(probKMA_results=probKMA_results,
                                                   time=time,silhouette=silhouette))
                                     }
-                                  },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
+                                  },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
   
@@ -2305,7 +2305,7 @@ motifs_search <- function(cluster_candidate_motifs_results,
   }else{
     cl_search=NULL
   }
-  
+
   ### prepare input data ##################################################################################
   if(cluster_candidate_motifs_results$diss=='d0_L2'){
     alpha=0
@@ -2462,7 +2462,6 @@ motifs_search <- function(cluster_candidate_motifs_results,
     # find occurrences
     V_occurrences=.mapply_custom(cl_search,.find_occurrences,
                                  V,V_R_m,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1),SIMPLIFY=FALSE)
-    
     not_null=which(!unlist(lapply(V_occurrences,is.null)))
     V=V[not_null]
     V_occurrences=V_occurrences[not_null]

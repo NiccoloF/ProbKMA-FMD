@@ -6,7 +6,7 @@ seed = 123
 set.seed(seed)
 
 # load data
-load(file = "Y.RData")
+load(file = "../Test_probKMA/Y.RData")
 
 diss = 'd0_d1_L2' 
 alpha = 0.5
@@ -43,4 +43,45 @@ system.time(ProbKMA.package::probKMA(Y$Y0,Y$Y1,standardize=FALSE,K=K,c=c,c_max=c
                                      iter4elong=2,tol4elong=1e-3,max_elong=0.5,trials_elong=trials_elong,deltaJk_elong=0.05,max_gap=max_gap,
                                      iter4clean=50,tol4clean=1e-4,quantile4clean=1/K,
                                      return_options=TRUE,return_init=TRUE,worker_number=NULL))
+
+
+###############################################################
+############## find_candidate_motifs test part ################
+###############################################################
+rm(list = ls()) # clean the environment
+# set seed
+seed = 123
+set.seed(seed)
+
+diss='d0_L2'
+iter_max = 250
+standardize = FALSE
+alpha=0
+max_gap = 0.2 # no gaps allowed
+iter4elong = 5 # perform elongation
+trials_elong = 100
+c_max = 150 
+### run probKMA multiple times (2x3x10=60 times)
+K = c(2, 3) # number of clusters to try
+c = c(40, 50) # minimum motif lengths to try
+n_init = 10 # number of random initializations to try
+return_options = TRUE
+
+
+load("../Test_probKMA/Y.RData")
+
+# C++ version
+system.time(ProbKMA.package::find_candidate_motifs(Y$Y0, NULL, K, c, n_init,
+                                  name = '../Test_probKMA/results/our/matrix_data.1', names_var = 'x(t)',
+                                  probKMA_options = list(c_max = c_max, standardize = standardize, iter_max = iter_max,
+                                                         iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                         return_options = return_options, return_init = TRUE,
+                                                         diss = diss, alpha = alpha),
+                                  plot = FALSE, worker_number = NULL))
+
+
+
+
+
+
 

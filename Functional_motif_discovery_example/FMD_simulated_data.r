@@ -26,7 +26,7 @@ set.seed(4321)
 #################################################################
 
 #load(paste0('len200_sd0.1.RData')) 
-data(sim_clusters)
+data(sim_motifs)
 
 # Y0: list of 20 vectors (univariate curves) with the evaluation of the 20 curves in 201 points
 # Y1: list of 20 vectors (univariate curves) with the evaluation of the 20 curve derivatives in 201 points
