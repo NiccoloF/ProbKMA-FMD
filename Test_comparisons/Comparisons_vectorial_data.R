@@ -11,10 +11,10 @@ diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
 P0= matrix() 
 S0= matrix() 
 
-params <- list(standardize=TRUE, K=2,c = 61,c_max = 71,iter_max = 1000, 
+params <- list(standardize=TRUE, K=2,c = 41,c_max = 71,iter_max = 1000, 
                quantile = 0.25,stopCriterion = 'max',tol = 1e-8,
                iter4elong = 1,tol4elong = 1e-3,max_elong = 0.5, 
-               trials_elong = 201, deltaJK_elong = 0.05,max_gap = 0.2,iter4clean = 50,
+               trials_elong = 201, deltaJK_elong = 0.05,max_gap = 0,iter4clean = 50,
                tol4clean = 1e-4,
                quantile4clean = 1/2,return_options = TRUE,
                m = 2,w = 1,alpha = 0.5,seed = seed,exe_print = FALSE, #TRUE
@@ -33,6 +33,11 @@ prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
 # run the probKMA algorithm 
 output <- prok$probKMA_run()
 
+# plot the results of probKMA
+pdf(paste0('our_plot_vectorial','.pdf'),width=20,height=10)
+probKMA_plot(data$Y$Y0,data$Y$Y1,output)
+dev.off()
+
 # comparison with previous implementation
 source(file ="../Test_comparisons/previous_ProbKMA.R") # @TODO: load using the library
 
@@ -46,7 +51,14 @@ true_output <- probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$
                        max_gap=params$max_gap,params$iter4clean,params$tol4clean,
                        params$quantile4clean,params$return_options,TRUE,NULL)
 
-# computational time comparison probKMA
+# true plot
+pdf(paste0('true_plot_vectorial','.pdf'),width=20,height=10)
+probKMA_plot(true_output)
+dev.off()
+
+#############################################################
+########### computational time comparison probKMA ###########
+#############################################################
 
 # reinitialize motifs for a new run
 prok$reinit_motifs(params$c,ncol(Y$Y0[[1]]))
@@ -70,9 +82,7 @@ system.time(probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$sta
 ############## find_candidate_motifs test part ################
 ###############################################################
 
-# set the directory of the package, otherwise initialChecks does not work
-setwd("../ProbKMAcpp")
-devtools::load_all()
+library(ProbKMAcpp)
 
 diss = 'd0_d1_L2' 
 alpha = 0.5
@@ -84,7 +94,6 @@ c_max = 71 # maximum motif length 70
 K = c(2, 3) # number of clusters to try
 c = c(61, 51, 41) # minimum motif lengths to try
 n_init = 10 # number of random initializations to try
-set.seed(1) # set the seed for compare the two implementations
 
 
 find_candidate_motifs_results = find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
@@ -93,7 +102,7 @@ find_candidate_motifs_results = find_candidate_motifs(simulated200$Y0, simulated
                                                                              iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                              return_options = TRUE, return_init = TRUE,
                                                                              diss = diss, alpha = alpha),
-                                                      plot = FALSE,exe_print = FALSE,set_seed = FALSE)
+                                                      plot = TRUE,exe_print = FALSE,set_seed = FALSE)
 
 # time c++:
 system.time(find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,

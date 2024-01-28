@@ -6,7 +6,7 @@
 #' @param Y1 derivatives
 #' @param P0 initial membership probabilities 
 #' @param S0 description
-#' @param params Parameters Object
+#' @param params list of parameters
 #' @param diss dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'
 #' @param seed for reproducibility
 #' 
@@ -359,7 +359,6 @@
       P0=cbind(P0[1,],Reduce('cbind',lapply(2:K,function(k) P0[k,]-P0[k-1,])))
   }
   colnames(P0)=NULL
-  P=P0
   if(is.null(S0)){
     # create shift warping matrix, with N rows and k columns
     S0=matrix(unlist(lapply(Y_intervals,
@@ -377,19 +376,7 @@
                             },c,K)),
               nrow=N,ncol=K,byrow=TRUE)
   }
-  S=S0
   
-  # create empty motifs
-  V=lapply(c,
-           function(c_k,d){
-             v=list(v0=NULL,v1=NULL)
-             if(use0)
-               v$v0=matrix(0,nrow=c_k,ncol=d)
-             if(use1)
-               v$v1=matrix(0,nrow=c_k,ncol=d)
-             return(v)
-           },d)
-
   Y0_f <- function(Y_i)
   {
     return(Y_i$y0)
@@ -417,4 +404,5 @@
                                   "set_seed" = set_seed,
                                   "n_threads" = n_threads) ) )
 }
+
 
