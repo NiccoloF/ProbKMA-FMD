@@ -9,50 +9,10 @@
 #' @param params list of parameters
 #' @param diss dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'
 #' @param seed for reproducibility
-#' 
 #' @return \item{List} {returns a list containing FuncData and Parameters useful for initializing the probKMA object}
-
 #' @export
 .initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
-  # Probabilistic k-mean with local alignment to find candidate motifs.
-  # Y0: list of N vectors, for univariate curves y_i(x), or
-  #     list of N matrices with d columns, for d-dimensional curves y_i(x),
-  #     with the evaluation of curves (all curves should be evaluated on a uniform grid).
-  #     When y_j(x)=NA in the dimension j, then y_j(x)=NA in ALL dimensions
-  # Y1: list of N vectors, for univariate derivative curves y'_i(x), or
-  #     list of N matrices with d columns, for d-dimensional derivatibe curves y'_i(x),
-  #     with the evaluation of the curves derivatives (all curves should be evaluated on a uniform grid).
-  #     When y'_j(x)=NA in the dimension j, then y'_j(x)=NA in ALL dimensions.
-  #     Must be provided when diss='d1_L2' or diss='d0_d1_L2'.
-  # standardize: if TRUE, each dimension is standardized (Z score on all the regions together).
-  # K: number of motifs.
-  # c: minimum motif lengths. Can be an integer (or a vector of K integers).
-  # c_max: maximum motif lengths. Can be an integer (or a vector of K integers).
-  # P0: initial membership matrix, with N row and K column (if NA matrix, a random P0 is choosen).
-  # S0: initial shift warping matrix, with N row and K column (if NA, a random S0 is choosen).
-  # diss: dissimilarity. Possible choices are 'd0_L2', 'd1_L2', 'd0_d1_L2'. 
-  # alpha: when diss='d0_d1_L2', weight coefficient between d0_L2 and d1_L2 (alpha=0 means d0_L2, alpha=1 means d1_L2).
-  # w: vector of weights for the dissimilarity index in the different dimensions (w>0).
-  # m>1: weighting exponent in least-squares functional.
-  # iter_max: the maximum number of iterations allowed.
-  # stop_criterion: criterion to stop iterate, based on the Bhattacharyya distance between memberships in subsequent iterations. 
-  #                 Possible choices are: 'max' for the maximum of distances in the different motifs;
-  #                                       'mean' for the average of distances in the different motifs;
-  #                                       'quantile' for the quantile of distances in the different motifs (in this case, quantile must be provided).
-  # quantile: probability in [0,1] to be used if stop.criterion='quantile'.
-  # tol: method tolerance (method stops if the stop criterion <tol).
-  # iter4elong: motifs elongation is performed every iter4elong iterations (if iter4elong>iter.max, no elongation is done).
-  # tol4elong: tolerance on the Bhattacharyya distance (with the choice made in stop.criterion) for performing motifs elongation.
-  # max_elong: maximum elongation allowed in a single iteration, as percentage of the motif length.
-  # trials_elong: number of (equispaced) elongation trials at each side of the motif in a single iteration.
-  # deltaJk_elong: maximum relative objective function increasing allowed in each motif elongation (for gaps and each side).
-  # max_gap: maximum gap allowed in each alignment (percentage of motif length).
-  # iter4clean: motif cleaning is performed every iter4clean iterations (if iter4clean>iter_max, no cleaning is done).
-  # tol4clean: tolerance on the Bhattacharyya distance (with the choice made in stop_criterion) for performing motif cleaning.
-  # quantile4clean: dissimilarity quantile to be used in motif cleaning.
-  # return_options: if TRUE, the options K,c,diss,w,m are returned by the function.
-  # return_init: if TRUE, P0 and S0 are returned by the function.
-  
+
   ### Unpacking #############################################################################
   standardize = params$standardize
   K = params$K
@@ -79,7 +39,6 @@
   exe_print = params$exe_print
   set_seed = params$set_seed
   n_threads = params$n_threads
-  
   
   ### check input ####################################################################################
   start=proc.time()

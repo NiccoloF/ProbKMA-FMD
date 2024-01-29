@@ -1,23 +1,19 @@
 #' @title probKMA_plot
 #'
 #' @description Plot the results of probKMA.
-#' @param Y0 curves used by probKMA
-#' @param Y1 curves used by probKMA
 #' @param probKMA_results output of probKMA function.
 #' @param ylab a vector of length d, with the titles for the y axis for each dimension.
 #' @param cleaned if TRUE, plot the cleaned motifs.
 #' @return plot of memberships motifs, objective function and Bhattacharyya distance
 #' @author Marzia Angela Cremone & Francesca Chiaromonte
 #' @export
-probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
-  # my idea was passing data instead of Y0 and Y1 but in this way when data suppresses Y0 or Y1 it does not work
-  d=ncol(Y0[[1]])
-  N=nrow(probKMA_results$P0)
-  K=ncol(probKMA_results$P0)
+probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE){
+  d=ncol(probKMA_results$Y0[[1]])
+  N=nrow(probKMA_results$P)
+  K=ncol(probKMA_results$P)
   V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
   S_k=split(probKMA_results$S,rep(seq_len(K),each=N))
-  P_k=split(probKMA_results$P,rep(seq_len(K),each=N)) 
-  
+  P_k=split(probKMA_results$P,rep(seq_len(K),each=N))
   ### plot motifs with matched curves ########################################################################
   if(cleaned){
     S_clean_k=split(probKMA_results$S_clean,rep(seq_len(K),each=N))
@@ -35,7 +31,7 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
                              matrix(y[index[index<=y_len],],ncol=d),
                              matrix(NA,nrow=sum(index>y_len),ncol=d))
             return(Y_inters_k)},
-           Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+          probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
         layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
         lapply(seq_len(d),
                function(j){
@@ -63,7 +59,7 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
                              matrix(y[index[index<=y_len],],ncol=d),
                              matrix(NA,nrow=sum(index>y_len),ncol=d))
             return(Y_inters_k)},
-           Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+          probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
         Y1_inters_k=mapply(
           function(y,s_k_i,v_dom){
             v_len=length(v_dom)
@@ -74,7 +70,7 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
                              matrix(y[index[index<=y_len],],ncol=d),
                              matrix(NA,nrow=sum(index>y_len),ncol=d))
             return(Y_inters_k)},
-           Y1[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+          probKMA_results$Y1[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
         layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
         lapply(seq_len(d),
                function(j){
@@ -113,7 +109,7 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
                            matrix(y[index[index<=y_len],],ncol=d),
                            matrix(NA,nrow=sum(index>y_len),ncol=d))
           return(Y_inters_k)},
-          Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+          probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
         layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
         lapply(seq_len(d),
                function(j){
@@ -139,7 +135,7 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
                            matrix(y[index[index<=y_len],],ncol=d),
                            matrix(NA,nrow=sum(index>y_len),ncol=d))
           return(Y_inters_k)},
-          Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+          probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
         Y1_inters_k=mapply(function(y,s_k_i,v_dom){
           v_len=length(v_dom)
           d=ncol(y)
@@ -149,7 +145,7 @@ probKMA_plot <- function(Y0,Y1,probKMA_results,ylab='',cleaned=FALSE){
                            matrix(y[index[index<=y_len],],ncol=d),
                            matrix(NA,nrow=sum(index>y_len),ncol=d))
           return(Y_inters_k)},
-          Y1,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+          probKMA_results$Y1,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
         layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
         lapply(seq_len(d),
                function(j){

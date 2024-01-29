@@ -13,28 +13,28 @@
 #' @return \item{silhouette_average}{ vector of average silhouette index for each cluster}
 #' @author Marzia Angela Cremona  & Francesca Chiaromonte
 #' @export
-probKMA_silhouette <- function(Y0, Y1, params, diss, probKMA_results,align=FALSE,plot=TRUE){
+probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
   ### compute silhouette #####################################################################################
-  if(diss=='d0_L2'){
+  if(probKMA_results$diss=='d0_L2'){
     alpha=0
     use0=TRUE
     use1=FALSE
-    Y=lapply(Y0,function(y0) list(y0=y0,y1=NULL))
+    Y=lapply(probKMA_results$Y0,function(y0) list(y0=y0,y1=NULL))
   }
-  if(diss=='d1_L2'){
+  if(probKMA_results$diss=='d1_L2'){
     alpha=1
     use0=FALSE
     use1=TRUE
-    Y=lapply(Y1,function(y1) list(y0=NULL,y1=y1))
+    Y=lapply(probKMA_results$Y1,function(y1) list(y0=NULL,y1=y1))
   }
-  if(diss=='d0_d1_L2'){
-    alpha=params$alpha
+  if(probKMA_results$diss=='d0_d1_L2'){
+    alpha=probKMA_results$alpha
     use0=TRUE
     use1=TRUE
-    Y=mapply(function(y0,y1) list(y0=y0,y1=y1),Y0,Y1,SIMPLIFY=FALSE)
+    Y=mapply(function(y0,y1) list(y0=y0,y1=y1),probKMA_results$Y0,probKMA_results$Y1,SIMPLIFY=FALSE)
   }
-  w=params$w
-  d=ncol(Y0[[1]])
+  w=probKMA_results$w
+  d=ncol(probKMA_results$Y0[[1]])
   N=nrow(probKMA_results$P_clean)
   K=ncol(probKMA_results$P_clean)
   V_dom=lapply(probKMA_results$V0,function(v) rowSums(!is.na(v))!=0)
@@ -150,5 +150,4 @@ probKMA_silhouette <- function(Y0, Y1, params, diss, probKMA_results,align=FALSE
   
   return(list(silhouette=silhouette,motifs=Y_motifs,curves=unlist(curves_in_motifs),
               silhouette_average=silhouette_average))
-  
 }

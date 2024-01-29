@@ -29,7 +29,8 @@ find_candidate_motifs(
   seed = 1,
   exe_print = FALSE,
   set_seed = FALSE,
-  n_threads = 7
+  n_threads = 7,
+  worker_number = NULL
 )
 }
 \arguments{

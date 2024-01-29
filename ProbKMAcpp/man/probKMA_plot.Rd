@@ -4,13 +4,9 @@
 \alias{probKMA_plot}
 \title{probKMA_plot}
 \usage{
-probKMA_plot(Y0, Y1, probKMA_results, ylab = "", cleaned = FALSE)
+probKMA_plot(probKMA_results, ylab = "", cleaned = FALSE)
 }
 \arguments{
-\item{Y0}{curves used by probKMA}
-
-\item{Y1}{curves used by probKMA}
-
 \item{probKMA_results}{output of probKMA function.}
 
 \item{ylab}{a vector of length d, with the titles for the y axis for each dimension.}

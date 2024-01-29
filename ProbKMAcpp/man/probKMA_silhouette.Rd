@@ -4,15 +4,7 @@
 \alias{probKMA_silhouette}
 \title{probKMA_silhouette}
 \usage{
-probKMA_silhouette(
-  Y0,
-  Y1,
-  params,
-  diss,
-  probKMA_results,
-  align = FALSE,
-  plot = TRUE
-)
+probKMA_silhouette(probKMA_results, align = FALSE, plot = TRUE)
 }
 \arguments{
 \item{probKMA_results}{output of probKMA function (with return_options=TRUE).}

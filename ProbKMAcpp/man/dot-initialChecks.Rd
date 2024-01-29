@@ -15,7 +15,7 @@
 
 \item{S0}{description}
 
-\item{params}{Parameters Object}
+\item{params}{list of parameters}
 
 \item{diss}{dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'}
 

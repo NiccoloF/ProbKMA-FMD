@@ -33,9 +33,13 @@ prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
 # run the probKMA algorithm 
 output <- prok$probKMA_run()
 
+# for the plot add other info
+output <- c(output, list(Y0 = data$Y$Y0,Y1 = data$Y$Y1,
+                         diss = diss,w = params$w,alpha = params$alpha))
+
 # plot the results of probKMA
 pdf(paste0('our_plot_vectorial','.pdf'),width=20,height=10)
-probKMA_plot(data$Y$Y0,data$Y$Y1,output)
+probKMA_plot(output)
 dev.off()
 
 # comparison with previous implementation
@@ -83,6 +87,7 @@ system.time(probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$sta
 ###############################################################
 
 library(ProbKMAcpp)
+library(parallel)
 
 diss = 'd0_d1_L2' 
 alpha = 0.5
@@ -96,22 +101,24 @@ c = c(61, 51, 41) # minimum motif lengths to try
 n_init = 10 # number of random initializations to try
 
 
-find_candidate_motifs_results = find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
-                                                      name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
-                                                      probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                             iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                             return_options = TRUE, return_init = TRUE,
-                                                                             diss = diss, alpha = alpha),
-                                                      plot = TRUE,exe_print = FALSE,set_seed = FALSE)
+find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(simulated200$Y0,simulated200$Y1,K,c,n_init,
+                                                                  name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
+                                                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                                         iter4elong = iter4elong, trials_elong = trials_elong, 
+                                                                                         max_gap = max_gap,
+                                                                                         return_options = TRUE, return_init = TRUE,
+                                                                                         diss = diss, alpha = alpha),
+                                                                  plot = TRUE,exe_print = FALSE,set_seed = FALSE)
 
 # time c++:
-system.time(find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
-                                  name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
-                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                         iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                         return_options = TRUE, return_init = TRUE,
-                                                         diss = diss, alpha = alpha),
-                                  plot = FALSE,exe_print=FALSE,set_seed = FALSE))
+system.time(ProbKMAcpp::find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
+                                              name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
+                                              probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                     iter4elong = iter4elong, trials_elong = trials_elong,
+                                                                     max_gap = max_gap,
+                                                                     return_options = TRUE, return_init = TRUE,
+                                                                     diss = diss, alpha = alpha),
+                                              plot = FALSE,exe_print=FALSE,set_seed = FALSE))
 
 
 
@@ -121,10 +128,11 @@ source(file ="../Test_comparisons/previous_ProbKMA.R")
 true_find_candidate_motifs_results = find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init,
                                                            name = '../Test_comparisons/results/prof/len200_sd0.1', names_var = 'x(t)',
                                                            probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                                  iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                                  iter4elong = iter4elong, trials_elong = trials_elong,
+                                                                                  max_gap = max_gap,
                                                                                   return_options = TRUE, return_init = TRUE,
                                                                                   diss = diss, alpha = alpha),
-                                                           plot = FALSE, worker_number = NULL)
+                                                           plot = TRUE, worker_number = NULL)
 
 
 # time R previous imp:
