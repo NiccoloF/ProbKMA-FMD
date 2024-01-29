@@ -110,12 +110,12 @@ iter_max = 1000
 return_options = TRUE
 
 system.time(ProbKMA.package::find_candidate_motifs(Y0,Y1, K, c, n_init,
-                                                      name = '../Test_probKMA/results/our/len200_sd0.1', names_var = 'x(t)',
-                                                      probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = iter_max,
-                                                                             iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                             return_options = return_options, return_init = TRUE,
-                                                                             diss = diss, alpha = alpha),
-                                                      plot = FALSE,worker_number = NULL))
+                                                   name = '../Test_probKMA/results/our/len200_sd0.1', names_var = 'x(t)',
+                                                   probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = iter_max,
+                                                                           iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+                                                                           return_options = return_options, return_init = TRUE,
+                                                                           diss = diss, alpha = alpha),
+                                                   plot = FALSE,worker_number = NULL))
 
 
 

@@ -1,4 +1,3 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 #include "silhoutte.h"
 
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -98,10 +97,6 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  
  unsigned int n_occurrences = arma::accu(P_clean);
  
- // @TODO: check it is not necessary in this implementation
- // if(!is.null(ncol(curves_in_motifs))) this if condition makes no sense since curves_in_motifs is a list
- //   curves_in_motifs=split(curves_in_motifs,rep(seq_len(ncol(curves_in_motifs)),each=nrow(curves_in_motifs))) 
- 
  const arma::ivec & curves_in_motifs_number=arma::sum(P_clean,0).t();
 
  // for each centroid take the shift of the curve associated to that centroid 
@@ -115,20 +110,26 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  // compute distances between pieces of curves
  std::vector<Rcpp::List> Y_in_motifs(n_occurrences);
  unsigned int l = 0;
+ int s;
+ unsigned int y_len;
+ unsigned int v_len;
+ arma::mat y0_temp;
+ arma::mat y1_temp;
+ int index_size;
  for (unsigned int i= 0; i < K; ++i){ // for each centroid
    const arma::uvec & curves_in_motif = curves_in_motifs[i];
    const arma::uvec & v_dom = V_dom[i];
    for(unsigned int j = 0; j < curves_in_motif.n_elem; ++j){ // for each curve assigned to that centroid
      const Rcpp::List & y = Y[curves_in_motif[j]]; //select the shifted part of the curve
-     const int s = S_clean_k[i][j];
+     s = S_clean_k[i][j];
      Rcpp::List y_temp = Rcpp::List::create(Rcpp::_["y0"] = R_NilValue,Rcpp::_["y1"] = R_NilValue);
-     const arma::uvec & index = arma::regspace<arma::uvec>(1,v_dom.n_elem - std::max(0,1-s)) + std::max(1,s) - 1;
-     int index_size = index.n_elem;
+     v_len = v_dom.n_elem;
+     const arma::uvec & index = arma::regspace<arma::uvec>(1,v_len - std::max(0,1-s)) + std::max(1,s) - 1;
+     index_size = index.n_elem;
      if (use0){
        const arma::mat & y0 = Rcpp::as<arma::mat>(y["y0"]);
-       const unsigned int d = y0.n_cols;
-       const unsigned int y_len = y0.n_rows;
-       arma::mat y0_temp(std::max(0,1-s) + index_size,d);
+       y_len = y0.n_rows;
+       y0_temp.set_size(v_len,d);
        y0_temp.fill(arma::datum::nan);
        auto filtered_j = std::views::iota(0,index_size) 
          | std::views::filter([&y_len,&v_dom, &index](int j){return (index[j] <= y_len && v_dom(j));});
@@ -138,9 +139,8 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
      }
      if (use1) {
        const arma::mat & y1 = Rcpp::as<arma::mat>(y["y1"]);
-       const unsigned int d = y1.n_cols;
-       const unsigned int y_len = y1.n_rows;
-       arma::mat y1_temp(std::max(0,1-s) + index.n_elem,d);
+       y_len = y1.n_rows;
+       y1_temp.set_size(v_len,d);
        y1_temp.fill(arma::datum::nan);
        auto filtered_j = std::views::iota(0,index_size)
          | std::views::filter([&y_len,&v_dom, &index](int j){return (index[j] <= y_len && v_dom(j));});
@@ -207,9 +207,9 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  }else{ 
    arma::imat c_Y_motifs_comb = util::combn2<arma::sword>(c_Y_motifs);
    arma::vec min_diss;
+   unsigned int cc_motifs_i;
    for(int i = 0; i < YY_length_size; ++i){
-     const unsigned int cc_motifs_i = std::min(c_Y_motifs_comb(0,i),
-                                               c_Y_motifs_comb(1,i));
+     cc_motifs_i = std::min(c_Y_motifs_comb(0,i),c_Y_motifs_comb(1,i));
      min_diss = find_diss(Y_in_motifs[indeces_YY(0,i)],    
                           Y_in_motifs[indeces_YY(1,i)],
                           w,
@@ -258,10 +258,12 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  
  arma::umat inter(Y_motifs_size,Y_motifs_size,arma::fill::zeros);
  arma::mat b_k(K-1,Y_motifs_size,arma::fill::zeros);
+ int motif;
+ int inter_motif;
  for(unsigned int k = 1; k <= K-1; ++k){
    for(unsigned int i = 0; i < Y_motifs_size; ++i){
-    const int motif = Y_motifs(i);
-    const unsigned int inter_motif = (motif+k)>K? (motif+k)%K : motif+k; 
+    motif = Y_motifs(i);
+    inter_motif = (motif+k)>K? (motif+k)%K : motif+k; 
     inter.col(i) = (Y_motifs== inter_motif);
    }
    b_k.row(k-1) = sum(inter%YY_D,0)/(curves_in_motifs_number_rep.t());
