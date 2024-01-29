@@ -41,9 +41,9 @@ true_output = probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=NULL,S0=NULL
 
 
 
-############################################################
-##### computational times comparison
-############################################################
+#########################################################
+##### computational times comparison ####################
+#########################################################
 
 # ProbKMA
 rm(list = ls()) # clean the environment
@@ -88,7 +88,10 @@ system.time(ProbKMA.package::probKMA(Y0,Y1,standardize=standardize,K=K,c=c,c_max
                                      iter4clean=iter4clean,tol4clean=tol4clean,quantile4clean=quantile4clean,
                                      return_options=return_options,return_init=TRUE,worker_number=NULL))
 
-# Find candidate Motifs
+#############################################
+####### Find candidate Motifs ###############
+#############################################
+
 rm(list = ls()) # clean the environment
 # load data
 data(sim_motifs)
@@ -113,6 +116,8 @@ system.time(ProbKMA.package::find_candidate_motifs(Y0,Y1, K, c, n_init,
                                                                              return_options = return_options, return_init = TRUE,
                                                                              diss = diss, alpha = alpha),
                                                       plot = FALSE,worker_number = NULL))
+
+
 
 
 

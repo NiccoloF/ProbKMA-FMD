@@ -10,7 +10,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
                                    const Rcpp::Function & select_domain,
                                    const Rcpp::Function & diss_d0_d1_L2,
                                    bool align){ 
-
+   
   double alpha;
   bool use0, use1;
   unsigned int Y_size;
@@ -95,8 +95,9 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    const arma::uvec & P_clean_1 = find(P_clean_k == 1); 
    curves_in_motifs[k] = P_clean_1;
  }
-
-
+ 
+ unsigned int n_occurrences = arma::accu(P_clean);
+ 
  // @TODO: check it is not necessary in this implementation
  // if(!is.null(ncol(curves_in_motifs))) this if condition makes no sense since curves_in_motifs is a list
  //   curves_in_motifs=split(curves_in_motifs,rep(seq_len(ncol(curves_in_motifs)),each=nrow(curves_in_motifs))) 
@@ -112,7 +113,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  }
  
  // compute distances between pieces of curves
- std::vector<Rcpp::List> Y_in_motifs(Y_size);
+ std::vector<Rcpp::List> Y_in_motifs(n_occurrences);
  unsigned int l = 0;
  for (unsigned int i= 0; i < K; ++i){ // for each centroid
    const arma::uvec & curves_in_motif = curves_in_motifs[i];
@@ -225,7 +226,7 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
    }
  }
 
- 
+
  arma::mat YY_D(Y_motifs_size,Y_motifs_size,arma::fill::zeros);
  unsigned int k = 0;
  for (unsigned int j = 0; j < Y_motifs_size; ++j){
@@ -267,12 +268,13 @@ Rcpp::List probKMA_silhouette_rcpp(const Rcpp::List & probKMA_results,
  }
 
  
- arma::vec b(Y_motifs_size,1);
+ arma::rowvec b_tmp(Y_motifs_size);
  if(b_k.n_rows > 1){
-   b = min(b_k,0).t();
+   b_tmp = arma::min(b_k,0);
  }else{
-   b = b_k.t();
+   b_tmp = b_k;
  }
+ arma::vec b = b_tmp.t();
  
  // compute silhouette
  arma::vec silhouette= (b-a)/arma::max(a,b);
