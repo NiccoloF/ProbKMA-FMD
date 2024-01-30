@@ -485,6 +485,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       YV=expand.grid(Y,V_new)
       SD=mapply_custom(cl_probKMA,find_min_diss,YV[,1],YV[,2],c_k,
                       MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
+      rm(YV)
       S_new=matrix(SD[1,],ncol=K)
       D_new=matrix(SD[2,],ncol=K)
       rm(YV) 

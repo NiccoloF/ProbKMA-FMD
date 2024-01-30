@@ -36,10 +36,11 @@ vignettes/*.pdf
 *.knit.md
 
 # Object files
-*.o
+./src/*.o
 
 # shared library
-*.so
+./src/*.so
+./src/*.dll
 
 # documentation
 man/* 

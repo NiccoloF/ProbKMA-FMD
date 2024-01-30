@@ -13,8 +13,8 @@ alpha = 0.5
 max_gap = 0
 trials_elong = 201
 c_max = 71
-K = 3
-c = 61
+K = 2
+c = 41
 P0 = NULL
 S0 = NULL
 
@@ -27,9 +27,13 @@ my_output = ProbKMA.package::probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,
                                      return_options=TRUE,return_init=TRUE,worker_number=1)
 
 
+
 # load previous R implementation source file
-# warning: for comparing the results reload all the data and clean the envir
 source(file = "../probKMA-FMD_functions.r")
+
+# set seed again otherwise you get different P0 and S0
+set.seed(seed)
+
 
 true_output = probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=NULL,S0=NULL,
                      diss=diss,alpha=alpha,w=1,m=2,
@@ -47,9 +51,11 @@ true_output = probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=NULL,S0=NULL
 
 # ProbKMA
 rm(list = ls()) # clean the environment
+
 # set seed
 seed = 123
 set.seed(seed)
+
 # load data
 data(sim_motifs)
 
@@ -92,14 +98,16 @@ system.time(ProbKMA.package::probKMA(Y0,Y1,standardize=standardize,K=K,c=c,c_max
 ####### Find candidate Motifs ###############
 #############################################
 
-rm(list = ls()) # clean the environment
+# clean the environment
+rm(list = ls()) 
+
 # load data
 data(sim_motifs)
 
 diss = 'd0_d1_L2' 
 alpha = 0.5
 max_gap = 0 # no gaps allowed
-iter4elong = 1 # perform elongation
+iter4elong = 1 # perform elongation every iteration
 trials_elong = 201 # try all possible elongations
 c_max = 71 # maximum motif length 70
 #run probKMA multiple times (2x3x10=60 times)
