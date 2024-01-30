@@ -38,38 +38,45 @@ double compute_Jk_rcpp(const Rcpp::List & v,
   // curves shifted as s_k says 
   Rcpp::List Y_inters_k(Y_size);
   arma::ivec index;
-  arma::uvec filtered_j;
+  arma::uword index_row;
   arma::mat new_y0(v_len, d);
   arma::mat new_y1(v_len, d);
-  arma::mat temp_y1_i;
-  Rcpp::List y_inters_k;
-  arma::mat temp_y0_i;
-  int s_k_i;
   for (unsigned int i = 0; i < Y_size; ++i){
    
-    y_inters_k = Rcpp::List::create(Rcpp::Named("y0") = R_NilValue,
-                                    Rcpp::Named("y1") = R_NilValue);
-    s_k_i = s_k[i];
+    Rcpp::List y_inters_k = Rcpp::List::create(Rcpp::Named("y0") = R_NilValue,
+                                               Rcpp::Named("y1") = R_NilValue);
+    int s_k_i = s_k[i];
     
     index = arma::regspace<arma::ivec>(1, v_len - std::max(0, 1-s_k_i))+std::max(1,s_k_i)-1;
+    
+    unsigned int index_size = index.size();
     
     Rcpp::List y_i = Y[i];
     
     if (use0){
-      int y_len = Rcpp::as<arma::mat>(y_i[0]).n_rows;
-      filtered_j = arma::find(index <= y_len);
-      temp_y0_i = Rcpp::as<arma::mat>(y_i[0]);
+      const int y_len = Rcpp::as<arma::mat>(y_i[0]).n_rows;
+      arma::mat temp_y0_i = Rcpp::as<arma::mat>(y_i[0]);
       new_y0.fill(arma::datum::nan);
-      new_y0.rows(std::max(0, 1-s_k_i), std::max(0, 1-s_k_i) + filtered_j.n_elem - 1) =  temp_y0_i.rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
+      for(unsigned int j = 0; j < index_size; ++j) {
+        if (index[j]  <= y_len){
+          index_row = std::max(0, 1-s_k_i) + j;
+          new_y0.row(index_row) =  temp_y0_i.row(index[j] - 1);
+        }
+      }
       y_inters_k["y0"] = new_y0;
     }
     
     if (use1){
-      int y_len = Rcpp::as<arma::mat>(y_i[1]).n_rows;
-      filtered_j = arma::find(index <= y_len);
-      temp_y1_i = Rcpp::as<arma::mat>(y_i[1]);
+      // length of the curve 
+      const int y_len = Rcpp::as<arma::mat>(y_i[1]).n_rows;
+      arma::mat temp_y1_i = Rcpp::as<arma::mat>(y_i[1]);
       new_y1.fill(arma::datum::nan);
-      new_y1.rows(std::max(0, 1-s_k_i), std::max(0, 1-s_k_i) + filtered_j.n_elem - 1) =  temp_y1_i.rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
+      for(unsigned int j = 0; j < index_size; ++j) {
+        if (index[j] <= y_len){
+          index_row = std::max(0, 1-s_k_i) + j;
+          new_y1.row(index_row) =  temp_y1_i.row(index[j] - 1);
+        }
+      }
       y_inters_k["y1"] = new_y1;
     }
     Y_inters_k[i] = Rcpp::as<Rcpp::List>(select_domain(y_inters_k,v_dom,use0,use1));
