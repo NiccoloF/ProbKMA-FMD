@@ -9,7 +9,6 @@
 #' @param c_k minimum length of supp(y_shifted) and supp(v) intersection.
 #' @return Shift warping and dissimilarity
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
-#' @export
 find_shift_warp_min <- function(y,v,w,c_k,K,d,max_gap,alpha,use0,use1,domain,select_domain,diss_d0_d1_L2){
   
   out<-.find_shift_warp_min(y,v,w,c_k,K,d,max_gap,alpha,use0,use1,domain,select_domain,diss_d0_d1_L2)

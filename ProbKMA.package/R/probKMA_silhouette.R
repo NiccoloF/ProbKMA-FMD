@@ -12,7 +12,6 @@
 #' @return \item{curves}{ vector of curves numbers with motifs}
 #' @return \item{silhouette_average}{ vector of average silhouette index for each cluster}
 #' @author Marzia Angela Cremona  & Francesca Chiaromonte
-#' @export
 probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
   
   result <- .probKMA_silhouette_rcpp(probKMA_results,

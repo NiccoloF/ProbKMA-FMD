@@ -123,7 +123,7 @@ system.time(ProbKMA.package::find_candidate_motifs(Y0,Y1, K, c, n_init,
                                                                              iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                              return_options = return_options, return_init = TRUE,
                                                                              diss = diss, alpha = alpha),
-                                                      plot = FALSE,worker_number = NULL))
+                                                      plot = FALSE,worker_number = 1))
 
 
 
