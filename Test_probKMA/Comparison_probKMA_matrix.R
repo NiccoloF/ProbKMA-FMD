@@ -49,6 +49,7 @@ system.time(ProbKMA.package::probKMA(Y$Y0,Y$Y1,standardize=FALSE,K=K,c=c,c_max=c
 ############## find_candidate_motifs test part ################
 ###############################################################
 rm(list = ls()) # clean the environment
+load("../Test_probKMA/Y.RData") # load data
 # set seed
 seed = 123
 set.seed(seed)
@@ -67,8 +68,6 @@ c = c(40, 50) # minimum motif lengths to try
 n_init = 10 # number of random initializations to try
 return_options = TRUE
 
-
-load("../Test_probKMA/Y.RData")
 
 # C++ version
 system.time(ProbKMA.package::find_candidate_motifs(Y$Y0, NULL, K, c, n_init,
