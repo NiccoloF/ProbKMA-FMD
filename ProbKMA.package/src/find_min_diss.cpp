@@ -1,7 +1,6 @@
 #include "find_min_diss.h"
 
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp20)]]
+
 // [[Rcpp::export(.find_diss)]]
 arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,  
                     const arma::vec & w, 
@@ -17,11 +16,10 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
     int v_len = v_dom.size();
     int y_len = use0? Rcpp::as<arma::mat>(y[0]).n_rows :  Rcpp::as<arma::mat>(y[1]).n_rows;
     arma::ivec s_rep = arma::regspace<arma::ivec>(1 - (v_len - c_k), y_len - v_len + 1 + (v_len - c_k));
-    std::size_t s_rep_size = s_rep.size();
+    arma::uword s_rep_size = s_rep.size();
     Rcpp::List y_rep(s_rep_size);
     
     // Convert y[0] and y[1] to mat objects
-    const int index_size = v_len;
     arma::mat temp_y0, temp_y1;
     if (use0) {
       temp_y0 = Rcpp::as<arma::mat>(y[0]);
@@ -30,32 +28,35 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
       temp_y1 = Rcpp::as<arma::mat>(y[1]);
     }
     
-    auto index_range = std::views::iota(0,index_size);
     arma::mat new_y0(v_len, d);
+    arma::mat new_y1(v_len, d);
+    arma::ivec index;
+    Rcpp::List y_rep_i;
+    arma::uvec neg_index;
+    arma::uvec filtered_j;
     for (unsigned int i = 0; i < s_rep_size; ++i) {
-      arma::ivec index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
-      Rcpp::List y_rep_i = Rcpp::List::create(Rcpp::Named("y0") = R_NilValue, Rcpp::Named("y1") = R_NilValue);
-      auto j_true = index_range
-      | std::views::filter([&index,&y_len](int j){return((index[j] > 0) && (index[j] <= y_len));});
+      index = s_rep(i) - 1 + arma::regspace<arma::ivec>(1,v_len);
+      filtered_j = arma::find((index > 0) && (index <= y_len));
+      neg_index = arma::find(index <= 0); 
+      y_rep_i = Rcpp::List::create(Rcpp::Named("y0") = R_NilValue, Rcpp::Named("y1") = R_NilValue);
       if (use0) {
         new_y0.fill(arma::datum::nan);
-        std::for_each(j_true.begin(),j_true.end(),[&new_y0,&temp_y0,&index](int j){new_y0.row(j) = temp_y0.row(index[j] - 1);});
+        new_y0.rows(neg_index.n_elem,neg_index.n_elem + filtered_j.n_elem - 1) = temp_y0.rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
         y_rep_i["y0"] = new_y0;
       }
       if (use1) {
-        arma::mat new_y1(v_len, d);
         new_y1.fill(arma::datum::nan);
-        std::for_each(j_true.begin(),j_true.end(),[&new_y1,&temp_y1,&index](int j){new_y1.row(j) = temp_y1.row(index[j] - 1);});
+        new_y1.rows(neg_index.n_elem,neg_index.n_elem + filtered_j.n_elem - 1) = temp_y1.rows(index(*(filtered_j.cbegin())) - 1, index(*(filtered_j.cend() - 1)) - 1);
         y_rep_i["y1"] = new_y1;
       }
       y_rep_i = select_domain(y_rep_i, v_dom, use0, use1);
       y_rep[i] = y_rep_i;
     }
-    const unsigned int y_rep_size = y_rep.size();
-    arma::ivec length_inter(y_rep_size);
+    
+    arma::ivec length_inter(s_rep_size);
     
     arma::mat temp_y;
-    for (unsigned int i = 0; i < y_rep_size; ++i){
+    for (unsigned int i = 0; i < s_rep_size; ++i){
       const Rcpp::List & y_rep_i = y_rep[i];
       if (use0) 
         temp_y = Rcpp::as<arma::mat>(y_rep_i["y0"]);
@@ -70,21 +71,20 @@ arma::vec find_diss(const Rcpp::List &y,const Rcpp::List &v,
       valid.elem(arma::find(length_inter == arma::max(length_inter))).fill(1);  
     }
     
-    s_rep = s_rep.elem(find(valid==1));
-    y_rep = y_rep[Rcpp::as<Rcpp::LogicalVector>(Rcpp::wrap(valid))];
-    
-    const unsigned int y_rep_size_valid = y_rep.size(); 
-    
     double min_d = std::numeric_limits<double>::max();
     int min_s = 0;
-    
-    for (unsigned int i = 0; i < y_rep_size_valid; i++) {
-      double dist = Rcpp::as<double>(diss_d0_d1_L2(y_rep[i], v_new, w, alpha));
-      if (dist < min_d){
-        min_d = dist;
-        min_s = s_rep[i];
+
+    for (unsigned int i = 0; i < s_rep_size; i++) {
+      if(valid(i)){
+        double dist = Rcpp::as<double>(diss_d0_d1_L2(y_rep[i], v_new, w, alpha));
+        if (dist < min_d)
+        {
+          min_d = dist;
+          min_s = s_rep[i];
+        }
       }
     }
+
     return arma::vec({static_cast<double>(min_s), min_d});  
   }
   
