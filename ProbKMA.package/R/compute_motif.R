@@ -1,4 +1,4 @@
-#' @title .compute_motif
+#' @title compute_motif
 #'
 #' @description Compute the new motif v_new.
 #'
@@ -8,7 +8,6 @@
 #' @param Y list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x), matrices with d columns, for d-dimensional curves.
 #' @return The new motif v_new
 #' @author Marzia Angela Cremona  & Francesca Chiaromonte
-#' @export
 compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1){
   
   .compute_v_new <- function(Y_inters_k,Y_inters_supp,v_dom,v_len,p_k,d,m){

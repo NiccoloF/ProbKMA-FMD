@@ -1,7 +1,4 @@
 #include "elongate_motifs.h"
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp20)]]
-// [[Rcpp::plugins(openmp)]]
 
 
 void elongation_rcpp(Rcpp::List & V_new, 
@@ -98,13 +95,11 @@ void elongation_rcpp(Rcpp::List & V_new,
   
   // compute performance indexes for all possible elongations
   arma::uword new_v_elong_left_right_size = v_elong_left_right.size();
-  arma::vec c_k_after(new_v_elong_left_right_size);
   arma::vec Jk_after(new_v_elong_left_right_size);
   
   for (arma::uword i = 0; i < new_v_elong_left_right_size; i++) {
     const arma::uvec& domain_elong = Rcpp::as<arma::uvec>(domain(v_elong_left_right[i], use0));
     int c_i =  std::max(floor(domain_elong.n_elem*(1 - max_gap)),c); 
-    c_k_after[i] = c_i; 
     const Rcpp::List& v_i = v_elong_left_right[i];
     Jk_after[i] = compute_Jk_rcpp(v_i, s_k_elong_left_right[i], p_k, Y, alpha, w, m,use0 , use1,domain, select_domain, diss_d0_d1_L2, Rcpp::wrap(c_i),Rcpp::as<Rcpp::LogicalVector>(Rcpp::wrap(keep_k)));
   }

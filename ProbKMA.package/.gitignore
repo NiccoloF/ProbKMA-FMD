@@ -42,5 +42,3 @@ vignettes/*.pdf
 ./src/*.so
 ./src/*.dll
 
-# documentation
-man/* 

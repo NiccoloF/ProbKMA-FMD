@@ -1,4 +1,4 @@
-#' @title .find_diss_aligned
+#' @title find_diss_aligned
 #'
 #' @description Find dissimilarity between multidimensional curves (dimension=d), without alignment unless
 #' their lengths are different. To be used by probKMA_silhouette fucntion.
@@ -10,7 +10,6 @@
 #' @param aligned if TRUE, curves are already aligned. Else, the shortest curve is aligned inside the longest.
 #' @return shift and dissimilarity
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
-#' @export
 find_diss_aligned <- function(y,v,alpha,w,aligned,d,use0,use1)
 {
   out <- .find_diss_aligned_rcpp(y, v, w, alpha, aligned, d, 

@@ -1,6 +1,6 @@
 #' @title motifs_search_plot
 #'
-#' Plot the results of motifs_search.
+#' @description Plot the results of motifs_search.
 #'
 #' @param motifs_search_results output of motifs_search function.
 #' @param ylab a vector of length d, with the titles for the y axis for each dimension.
