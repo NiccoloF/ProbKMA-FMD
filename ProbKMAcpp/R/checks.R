@@ -5,14 +5,13 @@
 #' @param Y0 curves
 #' @param Y1 derivatives
 #' @param P0 initial membership probabilities 
-#' @param S0 description
+#' @param S0 initial shift matrix
 #' @param params list of parameters
 #' @param diss dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'
 #' @param seed for reproducibility
 #' @return \item{List} {returns a list containing FuncData and Parameters useful for initializing the probKMA object}
 #' @export
-.initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
-
+initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
   ### Unpacking #############################################################################
   standardize = params$standardize
   K = params$K

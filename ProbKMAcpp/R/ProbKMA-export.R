@@ -80,7 +80,7 @@
 #' ## Run ProbKMA algo
 #' prok$probKMA_run() # run the algorithm
 #' 
-#' @author Niccolò Feresini and Riccardo Lazzarini
+#' @author Niccolo' Feresini and Riccardo Lazzarini
 #' @name ProbKMA
 #' @export ProbKMA
 

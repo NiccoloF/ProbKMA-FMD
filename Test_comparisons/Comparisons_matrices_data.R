@@ -21,7 +21,7 @@ params <- list(standardize=FALSE, K=2,c = 40,c_max = 53,iter_max = 20, #100, 200
                deltaJK_elong = 0.05,max_gap = 0,iter4clean = 1000,
                tol4clean = 1e-4,
                quantile4clean = 1/2,return_options = TRUE,
-               m = 2,w = c(0.5,0.5),alpha = 0.5,seed = seed,exe_print = TRUE, 
+               m = 2,w = c(0.5,0.5),alpha = 0.5,seed = seed,exe_print = FALSE, 
                set_seed= TRUE, n_threads = 7)
 
 # checks the parameters
