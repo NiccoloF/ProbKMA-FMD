@@ -1,4 +1,4 @@
-## blas lapack openmp
+## blas lapack 
 PKG_CXXFLAGS = -I../include
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
 
