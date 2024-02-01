@@ -29,7 +29,7 @@ Several configurations are possible :
 
 Usually the clang compiler doesn't support **OpenMP**. For this reason, a release without -fopenmp is available for the first configuration
 ```
-devtools::install_github('NiccoloF/ProbKMA-FMD',ref = 'v1.0.1.nopenmp',subdir = 'ProbKMAcpp')
+devtools::install_github('NiccoloF/ProbKMA-FMD',ref = 'v1.0.1.nomp',subdir = 'ProbKMAcpp')
 ```
 Othewise check: https://clang-omp.github.io/. 
 
