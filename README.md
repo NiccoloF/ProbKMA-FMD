@@ -39,3 +39,8 @@ Probabilitic local clustering of Covid-19 excess mortality rate curves (daily di
 - `istat_mortality_rates_curves.pdf`: plot of excess mortality rate curves
 - `probKMA_mortality_regions.r`: script to run the example
 - `results`: probabilistic local clustering results
+
+### Computational tests
+Within the `Test_probKMA` directory you can see the differences in computational terms between the original library and the new **C++** implementation. In particular, one can find : 
+- `Comparison_probKMA_vector.R`: contains a computational test using one-dimensional data
+- `Comparison_probKMA_matrix.R`: contains a computational test using multi-dimensional data
