@@ -82,5 +82,5 @@ prok$probKMA_run() # run the algorithm
 
 }
 \author{
-Niccolò Feresini and Riccardo Lazzarini
+Niccolo' Feresini and Riccardo Lazzarini
 }
