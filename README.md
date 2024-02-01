@@ -13,30 +13,32 @@ To install the package locally, **Rcpp** and **RcppArmadillo** packages need to 
 Using ```install_github()``` will install the dependencies (**Rcpp** and **RcppArmadillo**) automatically.
 
 ### Installing
+Up to now it is possible to install the package easily on **Linux**,**Windows** and **MacOS**
+- Install **R** development version https://cran.r-project.org/
+- open **R** with the command `R` in command line or, if you have installed [Rstudio desktop version](https://posit.co/download/rstudio-desktop/),open it;
+- Install the library `devtools` with the command `install.packages('devtools')`, this may take a while;
+- Install `ProbKMAcpp` using the command: \
+  `devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "main_3",subdir = 'ProbKMAcpp')`
 
-The package can be installed directly from Github but **Devtools** is required.
-
-If devtools is not installed use the following comand to install it
-```
-install.packages('devtools') 
-```
-and then install the package
-```
-library(devtools)
-install_github('NiccoloF/ProbKMA-FMD',ref = "main_3",subdir = 'ProbKMAcpp')
-```
 Several configurations are possible :
-- **main_3** : more performant package with a full C++ design layout for **ProbKMA**.
-- **main_2** : full implementation of the **ProbKMA-FMD** package with C++ parallelism(for illustrative purposes only).
-- **main_1** : full implementation of the **ProbKMA-FMD** package with only R parallelism.
+- `ref = main_3,subdir ='ProbKMAcpp'` : more performant package with a full C++ design layout for **ProbKMA**.
+- `ref = main_2,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with C++ parallelism(for illustrative purposes only).
+- `ref = main_1,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with only R parallelism.
 
-Usually the clag compiler doesn't support **OpenMP**. For this reason is available a release without -fopenmp.
+Usually the clang compiler doesn't support **OpenMP**. For this reason, a release without -fopenmp is available for the first configuration
 ```
-library(devtools)
-install_github('NiccoloF/ProbKMA-FMD',ref = 'v1.0.1.nopenmp',subdir = 'ProbKMAcpp')
+devtools::install_github('NiccoloF/ProbKMA-FMD',ref = 'v1.0.1.nopenmp',subdir = 'ProbKMAcpp')
 ```
+Othewise check: https://clang-omp.github.io/. 
 
-Othewise check: https://clang-omp.github.io/.
+**NB**: For Windows you may need to install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)\
+**NB**: To launch the examples and computational tests, it is necessary to clone the entire **Github** directory
+
+### Code
+
+Starting from R functions **ProbKMA** and **find_candidate_motifs** we have developed a full C++ design implementation.
+- `ProbKMA`: central class that handles probabilistic k-means with local alignment to find candidate motifs
+- `find_candidate_motifs`: run multiple times `ProbKMA` function with different number of clusters, minimum motif's length and initializations, with the aim to find a set of candidate motifs.
 
 ### Example
 
@@ -56,12 +58,6 @@ data <- data$FuncData # Get the updated functional data
 prok <- new(ProbKMA,data$Y,params,data$P0,data$S0,"L2") # Initialization of the main class that handles ProbKMA
 prok$probKMA_run() # Run ProbKMA algorithm 
 ```
-
-### Code
-
-Starting from R functions **ProbKMA** and **find_candidate_motifs** we have developed a full design layout C++ implementation.
-- `ProbKMA`: central class that handles probabilistic k-means with local alignment to find candidate motifs
-- `find_candidate_motifs`: run multiple times `ProbKMA` function with different number of clusters, minimum motif's length and initializations, with the aim to find a set of candidate motifs.
 
 ## Functional motif discovery example
 Within the **Test comparisons folder** is the **R** script **Comparisons_vectorial_data.R** in which an example is analyzed on the 
