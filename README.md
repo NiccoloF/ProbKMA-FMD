@@ -1,6 +1,6 @@
 # ProbKMA-FMD
 
-C++ implementation of **ProbKMA** (probabilistic K-means with local alignment) for local clustering of functional data and functional motif discovery, proposed in the paper [Probabilistic K-means with local alignment for clustering and motif discovery in functional data](https://doi.org/10.1080/10618600.2022.2156522), by Marzia A. Cremona and Francesca Chiaromonte. 
+**C++** implementation of **ProbKMA** (probabilistic K-means with local alignment) for local clustering of functional data and functional motif discovery, proposed in the paper [Probabilistic K-means with local alignment for clustering and motif discovery in functional data](https://doi.org/10.1080/10618600.2022.2156522), by Marzia A. Cremona and Francesca Chiaromonte. 
 
 ## Getting Started
 The source code can be cloned or downloaded directly from Github.
@@ -19,13 +19,12 @@ Up to now it is possible to install the package easily on **Linux**,**Windows** 
 - Install the library `devtools` with the command `install.packages('devtools')`, this may take a while;
 - Install `ProbKMAcpp` using the command: 
 ```
-`devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "main_3",subdir = 'ProbKMAcpp')`
+`devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "v1.0.0",subdir = 'ProbKMAcpp')`
 ```
 
 Several configurations are possible :
-- `ref = main_3,subdir ='ProbKMAcpp'` : more performant package with a full C++ design layout for **ProbKMA**.
-- `ref = main_2,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with C++ parallelism(for illustrative purposes only).
-- `ref = main_1,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with only R parallelism.
+- `ref = main_2,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with **C++** parallelism(for illustrative purposes only).
+- `ref = main_1,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with only **R** parallelism.
 
 Usually the clang compiler doesn't support **OpenMP**. For this reason, a release without -fopenmp is available for the first configuration
 ```
