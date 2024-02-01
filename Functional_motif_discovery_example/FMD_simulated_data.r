@@ -4,7 +4,6 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # load the package
 library(ProbKMA.package)
 
-set.seed(4321)
 #############################
 ### SIMULATION SCENARIO 1 ###
 #############################
@@ -25,7 +24,6 @@ set.seed(4321)
 #                                                               #
 #################################################################
 
-#load(paste0('len200_sd0.1.RData')) 
 data(sim_motifs)
 
 # Y0: list of 20 vectors (univariate curves) with the evaluation of the 20 curves in 201 points
