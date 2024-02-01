@@ -17,8 +17,10 @@ Up to now it is possible to install the package easily on **Linux**,**Windows** 
 - Install **R** development version https://cran.r-project.org/
 - open **R** with the command `R` in command line or, if you have installed [Rstudio desktop version](https://posit.co/download/rstudio-desktop/),open it;
 - Install the library `devtools` with the command `install.packages('devtools')`, this may take a while;
-- Install `ProbKMAcpp` using the command: \
-  `devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "main_3",subdir = 'ProbKMAcpp')`
+- Install `ProbKMAcpp` using the command: 
+```
+`devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "main_3",subdir = 'ProbKMAcpp')`
+```
 
 Several configurations are possible :
 - `ref = main_3,subdir ='ProbKMAcpp'` : more performant package with a full C++ design layout for **ProbKMA**.
