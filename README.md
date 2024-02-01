@@ -33,7 +33,7 @@ devtools::install_github('NiccoloF/ProbKMA-FMD',ref = 'v1.0.1.nomp',subdir = 'Pr
 Othewise check: https://clang-omp.github.io/. 
 
 **NB**: For Windows you may need to install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)\
-**NB**: To launch the examples and computational tests, it is necessary to clone the entire **Github** directory
+**NB**: To launch the examples and computational tests, it is necessary to clone the entire Github directory
 
 ### Code
 
