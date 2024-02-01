@@ -19,7 +19,7 @@ Up to now it is possible to install the package easily on **Linux**,**Windows** 
 - Install the library `devtools` with the command `install.packages('devtools')`, this may take a while;
 - Install `ProbKMAcpp` using the command: 
 ```
-`devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "v1.0.0",subdir = 'ProbKMAcpp')`
+devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "v1.0.0",subdir = 'ProbKMAcpp')
 ```
 
 Several configurations are possible :
