@@ -24,8 +24,8 @@ devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "v1.0.0",subdir = 'ProbKMA
 
 Several configurations are possible :
 - `ref = "v1.0.0",subdir = 'ProbKMAcpp'` : higher performance version that implements the two main algorithms , **ProbKMA** and **find_candidate_motifs**, exploiting both **R** and **C++** parallelism
-- `ref = main_2,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with **C++** parallelism (for illustrative purposes only).
-- `ref = main_1,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with only **R** parallelism.
+- `ref = "main_2",subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with **C++** parallelism (for illustrative purposes only).
+- `ref = "main_1",subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with only **R** parallelism.
 
 Usually the clang compiler doesn't support **OpenMP**. For this reason, a release without -fopenmp is available for the first configuration
 ```
