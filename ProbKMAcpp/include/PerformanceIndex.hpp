@@ -13,7 +13,7 @@ class PerformanceIndexAB
 {
 public:
   
-  virtual ~PerformanceIndexAB();
+  virtual ~PerformanceIndexAB() = default;
   virtual double compute_Jk(const KMA::Mfield& v,
                             const KMA::ivector& s_k,
                             const KMA::vector& p_k,
@@ -63,7 +63,7 @@ public:
 class PerformanceSobol: public PerformanceIndexAB
 {
 public:
-  virtual ~PerformanceSobol();
+  virtual ~PerformanceSobol() = default;
 
 protected:
   
@@ -79,7 +79,7 @@ protected:
 class PerformanceL2 final: public PerformanceSobol
 {
 public:
-  virtual ~PerformanceL2();
+  virtual ~PerformanceL2() = default;
   double compute_Jk(const KMA::Mfield& v,const KMA::ivector& s_k,
                     const KMA::vector& p_k,const KMA::Mfield& Y,
                     const KMA::vector& w,int m,double c_k, 
@@ -91,7 +91,7 @@ public:
 class PerformanceH1 final: public PerformanceSobol
 {
 public:
-  virtual ~PerformanceH1();
+  virtual ~PerformanceH1() = default;
   double compute_Jk(const KMA::Mfield& v,const KMA::ivector& s_k,
                     const KMA::vector& p_k,const KMA::Mfield& Y,
                     const KMA::vector& w,int m,double c_k,
