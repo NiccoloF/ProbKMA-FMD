@@ -23,6 +23,7 @@ devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "v1.0.0",subdir = 'ProbKMA
 ```
 
 Several configurations are possible :
+- `ref = main_2,subdir ='ProbKMA.package'` : higher performance version that implements the two main algorithms , **ProbKMA** and **find_candidate_motifs**, exploiting both **R** and **C++** parallelism
 - `ref = main_2,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with **C++** parallelism(for illustrative purposes only).
 - `ref = main_1,subdir ='ProbKMA.package'` : full implementation of the **ProbKMA-FMD** package with only **R** parallelism.
 
@@ -44,6 +45,9 @@ Starting from R functions **ProbKMA** and **find_candidate_motifs** we have deve
 ### Example
 
 ```
+c_min <- 41
+c_max <- 71
+seed <- 1
 params <- list(standardize=FALSE, K=2,c = c_min,c_max = c_min,iter_max = 1000,
                quantile = 0.25,stopCriterion = 'max',tol = 1e-8,
                iter4elong = 2,tol4elong = 1e-3,max_elong = 0.5,
@@ -53,7 +57,8 @@ params <- list(standardize=FALSE, K=2,c = c_min,c_max = c_min,iter_max = 1000,
                quantile4clean = 1/2,return_options = TRUE,
                m = 2,w = 1, alpha = 0.0,seed = seed,exe_print = TRUE, 
                set_seed= FALSE, n_threads = 7) # Inizialize parameters
-data <- initialChecks(Y0,NULL,P0,S0,params,diss,seed) # Y0 and eventually Y1 are functional data 
+Y0 <- simulated200$Y0
+data <- initialChecks(Y0,NULL,matrix(),matrix(),params,diss,seed) # Y0 and eventually Y1 are functional data 
 params <- data$Parameters # Get the updated parameters for the problem
 data <- data$FuncData # Get the updated functional data 
 prok <- new(ProbKMA,data$Y,params,data$P0,data$S0,"L2") # Initialization of the main class that handles ProbKMA
