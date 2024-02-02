@@ -65,7 +65,7 @@ data <- initialChecks(Y0,NULL,P0,S0,params,diss,seed) # Y0 and eventually Y1 are
 params <- data$Parameters # Get the updated parameters for the problem
 data <- data$FuncData # Get the updated functional data
 prok <- new(ProbKMA,data$Y,params,data$P0,data$S0,"L2") # Initialization of the main class that handles ProbKMA
-prok$probKMA_run() # Run ProbKMA algorithm
+result <- prok$probKMA_run() # Run ProbKMA algorithm
 ```
 
 ## Functional motif discovery example
