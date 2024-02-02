@@ -100,3 +100,7 @@ Within the `Test_probKMA` directory you can see the differences in computational
 ## Documentation
 
 The C++ documentation can be found at [https://niccolof.github.io/ProbKMA-FMD/index.html](https://niccolof.github.io/ProbKMA-FMD/).
+
+
+## Report
+For more details on the implementation choices and a review of the theory behind the algorithm see the report: `PACS_project_report.pdf`
