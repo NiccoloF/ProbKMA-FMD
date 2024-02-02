@@ -81,9 +81,9 @@ probKMA_wrap <- function(Y0 = NULL,Y1 = NULL,P0 = matrix(),S0 = matrix(),
                 deltaJK_elong = deltaJK_elong, iter4clean = iter4clean, 
                 tol4clean = tol4clean,quantile4clean = quantile4clean, 
                 m = m, w = w, seed = seed, K = K, c = c, exe_print = exe_print,
-                set_seed = set_seed,n_threads = n_threads) 
+                set_seed = set_seed,n_threads = n_threads, transformed = TRUE) 
   
-  checked_data <- initialChecks(Y0,Y1,P0,S0,params,diss,seed)
+  checked_data <- initialChecks(Y0,Y1,P0,S0,params,diss)
   
   params <- checked_data$Parameters
   

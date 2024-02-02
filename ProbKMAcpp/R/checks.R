@@ -1,17 +1,15 @@
 #' @title InitialChecks
 #'
 #' @description checks inputs provided by the user for running ProbKMA
-#'
 #' @param Y0 curves
 #' @param Y1 derivatives
 #' @param P0 initial membership probabilities 
 #' @param S0 initial shift matrix
 #' @param params list of parameters
-#' @param diss dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'
-#' @param seed for reproducibility
-#' @return \item{List} {returns a list containing FuncData and Parameters useful for initializing the probKMA object}
+#' @param diss dissimilarity type
+#' @return \item{List}{returns a list containing FuncData and Parameters useful for initializing the probKMA object}
 #' @export
-initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
+initialChecks <- function(Y0,Y1,P0,S0,params,diss){
   ### Unpacking #############################################################################
   standardize = params$standardize
   K = params$K
@@ -38,6 +36,11 @@ initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
   exe_print = params$exe_print
   set_seed = params$set_seed
   n_threads = params$n_threads
+  transformed = params$transformed
+  
+  if(set_seed){
+    set.seed(seed)
+  }
   
   ### check input ####################################################################################
   start=proc.time()
@@ -360,7 +363,8 @@ initialChecks <- function(Y0,Y1,P0,S0,params,diss,seed){
                                   "return_options"=return_options,
                                   "exe_print"= exe_print,
                                   "set_seed" = set_seed,
-                                  "n_threads" = n_threads) ) )
+                                  "n_threads" = n_threads,
+                                  "transformed" = transformed) ) )
 }
 
 

@@ -19,13 +19,13 @@ public:
 
                     // Create Dissimilarity factory
                     util::SharedFactory<Dissimilarity> dissfac;
-                    dissfac.FactoryRegister<L2>("L2",_parameters._w);
-                    dissfac.FactoryRegister<H1>("H1",_parameters._w,_parameters._alpha);
+                    dissfac.FactoryRegister<L2>("L2",_parameters._w,_parameters._transformed);
+                    dissfac.FactoryRegister<H1>("H1",_parameters._w,_parameters._alpha,_parameters._transformed);
 
                     //Create Motif factory
                     util::SharedFactory<MotifPure> motfac;
-                    motfac.FactoryRegister<MotifL2>("L2");
-                    motfac.FactoryRegister<MotifH1>("H1");
+                    motfac.FactoryRegister<MotifL2>("L2",_parameters._transformed);
+                    motfac.FactoryRegister<MotifH1>("H1",_parameters._transformed);
 
                     //Create Performance factory
                     util::SharedFactory<PerformanceIndexAB> perfac;
@@ -120,6 +120,7 @@ public:
       const arma::uword _n_rows_Y = _Y.n_rows;
       Rcpp::Environment stats("package:stats");
       Rcpp::Function quantile = stats["quantile"];
+
 #ifdef _OPENMP
       const unsigned int n_threads = _parameters._n_threads;
 #endif
@@ -169,6 +170,7 @@ public:
                                                              _parameters._m);
           if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
           {
+            Rcpp::Rcout << "Warning: no test for this in compute motifs shifts changes" <<std::endl;
             const arma::sword& index = ptr_1->second;
             S.col(i) += index;
             _V.row(i) = ptr_1->first;
@@ -179,7 +181,6 @@ public:
           }
           V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
-
 
         if((iter>1)&&(!(iter%_parameters._iter4elong))&&(BC_dist<_parameters._tol4elong))
         {
@@ -284,6 +285,7 @@ public:
         if (auto ptr = std::get_if<KMA::Mfield>(&new_motif)){
           V_clean.row(k) = *ptr;
         } else {
+          Rcpp::Rcout << "Warning: no test for this in compute motifs shifts changes" <<std::endl;
           const auto& pair_motif_shift = std::get_if<std::pair<KMA::Mfield,arma::sword>>(&new_motif);
           V_clean.row(k) = pair_motif_shift->first;
           shift_s.insert(std::make_pair(k, pair_motif_shift->second));
@@ -564,14 +566,13 @@ Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
                          const Rcpp::NumericMatrix& P0,
                          const Rcpp::NumericMatrix& S0,
                          const Rcpp::List& params,
-                         const Rcpp::String& diss,
-                         long long seed)
+                         const Rcpp::String& diss)
 {
   try
   {
     Rcpp::Function checks = Rcpp::Environment::namespace_env("ProbKMAcpp")[".initialChecks"];
     // Call R checks and updata data and parameters
-    return checks(Y0,Y1,P0,S0,params,diss,seed);
+    return checks(Y0,Y1,P0,S0,params,diss);
   }catch (Rcpp::exception& e) {
     // Handle the Rcpp exception
     Rcpp::Rcerr << "Caught exception: " << e.what() << std::endl;

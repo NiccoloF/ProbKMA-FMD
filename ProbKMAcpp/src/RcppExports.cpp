@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // initialChecks
-Rcpp::List initialChecks(const Rcpp::List& Y0, const Rcpp::List& Y1, const Rcpp::NumericMatrix& P0, const Rcpp::NumericMatrix& S0, const Rcpp::List& params, const Rcpp::String& diss, long long seed);
-RcppExport SEXP _ProbKMAcpp_initialChecks(SEXP Y0SEXP, SEXP Y1SEXP, SEXP P0SEXP, SEXP S0SEXP, SEXP paramsSEXP, SEXP dissSEXP, SEXP seedSEXP) {
+Rcpp::List initialChecks(const Rcpp::List& Y0, const Rcpp::List& Y1, const Rcpp::NumericMatrix& P0, const Rcpp::NumericMatrix& S0, const Rcpp::List& params, const Rcpp::String& diss);
+RcppExport SEXP _ProbKMAcpp_initialChecks(SEXP Y0SEXP, SEXP Y1SEXP, SEXP P0SEXP, SEXP S0SEXP, SEXP paramsSEXP, SEXP dissSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -23,8 +23,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type S0(S0SEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type params(paramsSEXP);
     Rcpp::traits::input_parameter< const Rcpp::String& >::type diss(dissSEXP);
-    Rcpp::traits::input_parameter< long long >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(initialChecks(Y0, Y1, P0, S0, params, diss, seed));
+    rcpp_result_gen = Rcpp::wrap(initialChecks(Y0, Y1, P0, S0, params, diss));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -32,7 +31,7 @@ END_RCPP
 RcppExport SEXP _rcpp_module_boot_ProbKMAModule();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ProbKMAcpp_initialChecks", (DL_FUNC) &_ProbKMAcpp_initialChecks, 7},
+    {"_ProbKMAcpp_initialChecks", (DL_FUNC) &_ProbKMAcpp_initialChecks, 6},
     {"_rcpp_module_boot_ProbKMAModule", (DL_FUNC) &_rcpp_module_boot_ProbKMAModule, 0},
     {NULL, NULL, 0}
 };

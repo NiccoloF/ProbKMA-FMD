@@ -1,11 +1,18 @@
 #include "Dissimilarity.hpp"
 
-H1::H1(const KMA::vector& w,double alpha):SobolDiss(w),_alpha(alpha){};
+H1::H1(const KMA::vector& w,double alpha, bool transformed):SobolDiss(w, transformed),_alpha(alpha){};
 
 
 double H1::computeDissimilarity(const KMA::Mfield& Y_i,
                                 const KMA::Mfield& V_i) const
 {
+    if(_transformed)
+    { 
+      const KMA::Mfield & Y_i_transf = util::transform_curves<true>(Y_i);
+      const KMA::Mfield & V_i_transf = util::transform_curves<true>(V_i);
+      return (1-_alpha) * this -> distance(Y_i_transf(0,0),V_i_transf(0,0)) +
+              _alpha * this -> distance(Y_i_transf(0,1),V_i_transf(0,1));
+    }
     return (1-_alpha) * this -> distance(Y_i(0,0),V_i(0,0)) +
             _alpha * this -> distance(Y_i(0,1),V_i(0,1));
 }
@@ -13,6 +20,7 @@ double H1::computeDissimilarity(const KMA::Mfield& Y_i,
 void H1::set_parameters(const Parameters & newParameters){
     _w = newParameters._w;
     _alpha = newParameters._alpha;
+    _transformed = newParameters._transformed;
 }
 
 void H1::computeDissimilarityClean(KMA::matrix & D_clean,

@@ -11,17 +11,17 @@ diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
 P0= matrix() 
 S0= matrix() 
 
-params <- list(standardize=TRUE, K=2,c = 41,c_max = 71,iter_max = 1000, 
+params <- list(standardize=FALSE, K=2,c = 41,c_max = 71,iter_max = 1000, 
                quantile = 0.25,stopCriterion = 'max',tol = 1e-8,
                iter4elong = 1,tol4elong = 1e-3,max_elong = 0.5, 
                trials_elong = 201, deltaJK_elong = 0.05,max_gap = 0,iter4clean = 50,
                tol4clean = 1e-4,
                quantile4clean = 1/2,return_options = TRUE,
-               m = 2,w = 1,alpha = 0.5,seed = seed,exe_print = FALSE, #TRUE
-               set_seed = TRUE, n_threads = 3) 
+               m = 2,w = 1,alpha = 0.5,seed = seed,exe_print = TRUE, 
+               set_seed = FALSE, n_threads = 7, transformed = TRUE) 
 
 # check input data are correct
-a <- initialChecks(simulated200$Y0,simulated200$Y1,P0,S0,params,diss,seed)
+a <- initialChecks(simulated200$Y0,simulated200$Y1,P0,S0,params,diss)
 
 # take checked data and parameters  
 params <- a$Parameters
@@ -45,15 +45,19 @@ dev.off()
 # comparison with previous implementation
 source(file ="../Test_comparisons/previous_ProbKMA.R") # @TODO: load using the library
 
-true_output <- probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$standardize,K=params$K,c=params$c,c_max=params$c_max,
+true_output <- probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$standardize,
+                       transformed = TRUE,K=params$K,c=params$c,c_max=params$c_max,
                        P0=data$P0,S0=data$S0,
-                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,iter_max=params$iter_max,
+                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,v_init = NULL,
+                       iter_max=params$iter_max,
                        stop_criterion=params$stopCriterion,
                        quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
                        tol4elong=params$tol4elong,max_elong=params$max_elong,
                        trials_elong=params$trials_elong,deltaJk_elong=params$deltaJK_elong,
                        max_gap=params$max_gap,params$iter4clean,params$tol4clean,
-                       params$quantile4clean,params$return_options,TRUE,NULL)
+                       params$quantile4clean,params$return_options,return_init=TRUE,
+                       worker_number=NULL)
+
 
 # true plot
 pdf(paste0('true_plot_vectorial','.pdf'),width=20,height=10)

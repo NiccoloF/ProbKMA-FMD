@@ -1,10 +1,12 @@
-# ProbKMA: Probabilistic k-mean with local alignment
-# ProbKMA-FMD: ProbKMA-based Functional Motif Discovery
-
+#This code contains the functions for running the
+#Functional Motif Discovery and Search with random and partially initializations,
+#as well as computing the MB-foresting of the stock prices.
 library(combinat)
 library(parallel)
 library(class)
 library(dendextend)
+
+
 
 
 .mapply_custom <- function(cl,FUN,...,MoreArgs=NULL,SIMPLIFY=TRUE,USE.NAMES=TRUE){
@@ -14,31 +16,67 @@ library(dendextend)
     clusterMap(cl,FUN,...,MoreArgs=MoreArgs,SIMPLIFY=SIMPLIFY,USE.NAMES=USE.NAMES)
   }
 }
-.diss_d0_d1_L2 <- function(y,v,w,alpha){
+
+
+
+.diss_d0_d1_L2 <- function(y,v,w,alpha,transformed=FALSE){
   # Dissimilarity index for multidimensional curves (dimension=d).
   # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
   # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
+  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  y_norm=v_norm=list()
+  y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
+  v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
   
-  .diss_L2 <- function(y,v,w){
+  if(transformed){
+    y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
+    y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
+    y0_diff = y0_max - y0_min
+    y0_const = unlist(lapply(y0_diff, function(diff) all.equal(diff, 0) == TRUE))
+    y_norm[[1]] = t( (t(y[[1]]) - y0_min) / y0_diff )
+    y_norm[[2]] = t( t(y[[2]]) / y0_diff )
+    y_norm[[1]][,y0_const]=0.5
+    y_norm[[2]][,y0_const] = 0
+    
+    v0_min=apply(v[[1]],2,min,na.rm=TRUE)
+    v0_max=apply(v[[1]],2,max,na.rm=TRUE)
+    v0_diff=v0_max-v0_min
+    v0_const=unlist(lapply(v0_diff,function(diff) all.equal(diff,0)==TRUE))
+    v_norm[[1]]=t( (t(v[[1]]) - v0_min)/v0_diff)
+    v_norm[[2]]=t( t(v[[2]])/v0_diff)
+    v_norm[[1]][,v0_const]=0.5
+    v_norm[[2]][,v0_const]=0
+  }
+  else{
+    y_norm=y
+    v_norm=v
+  }
+  .diss_L2 <- function(y_norm,v_norm,w){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # L2 distance with normalization on common support.
     # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     
-    sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
+    sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+    # NB: divide for the length of the interval, not for the squared length!
   }
   
-  if(alpha==0){
-    return(.diss_L2(y[[1]],v[[1]],w))
-  }else if(alpha==1){
-    return(.diss_L2(y[[2]],v[[2]],w))
-  }else{
-    return((1-alpha)*.diss_L2(y[[1]],v[[1]],w)+alpha*.diss_L2(y[[2]],v[[2]],w))
+  if(alpha==0){#L2-like distance which focuses excusively on the levels
+    return(.diss_L2(y_norm[[1]],v_norm[[1]],w))
+  }else if(alpha==1){#L2-like pseudo distance, which uses only weak
+    #derivative information
+    return(.diss_L2(y_norm[[2]],v_norm[[2]],w))
+  }else{#Sobolev-like distance that allows to highlight
+    #more complex features of curve shapes,taking into account
+    #both levels and variations
+    return((1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w))
   }
 }
+
+
 .domain <- function(v,use0){
   if(use0){
     rowSums(!is.na(v[[1]]))!=0
@@ -46,7 +84,7 @@ library(dendextend)
     rowSums(!is.na(v[[2]]))!=0
   }
 }
-.select_domain <- function(v,v_dom,use0,use1){
+.select_domain <- function(v,v_dom,use0,use1){#????
   if(use0)
     v[[1]]=as.matrix(v[[1]][v_dom,])
   if(use1)
@@ -55,15 +93,17 @@ library(dendextend)
 }
 
 
-.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1){
-  # Find shift warping minimizing dissimilarity between multidimensional curves (dimension=d).
+.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE){
+  # Find shift warping minimizing dissimilarity between multidimensional
+  #curves (dimension=d).
   # Return shift and dissimilarity.
   # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
   # alpha: weight coefficient between d0.L2 and d1.L2.
-  # w: weights for the dissimilarity index in the different dimensions (w>0).
+  # w: weights for the dissimilarity index in the
+  #different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-  
+  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -98,20 +138,23 @@ library(dendextend)
   }
   s_rep=s_rep[valid]
   y_rep=y_rep[valid]
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }
 
 
-.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1){
-  # Find dissimilarity between multidimensional curves (dimension=d), without alignment unless their lengths are different.
+.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1,transformed=FALSE){
+  # Find dissimilarity between multidimensional curves (dimension=d),
+  #without alignment unless their lengths are different.
   # Return shift and dissimilarity.
-  # To be used by probKMA_silhouette fucntion.
+  # To be used by probKMA_silhouette function.
   # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
   # alpha: weight coefficient between d0.L2 and d1.L2.
-  # w: weights for the dissimilarity index in the different dimensions (w>0).
-  # aligned: if TRUE, curves are already aligned. If FALSE, the shortest curve is aligned inside the longest.
+  # w: weights for the dissimilarity index in the different
+  #dimensions (w>0).
+  # aligned: if TRUE, curves are already aligned. If FALSE,
+  #the shortest curve is aligned inside the longest.
   
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
@@ -139,17 +182,18 @@ library(dendextend)
                  y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
                  return(y_rep_i)
                })
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }
 
 
-.compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1){
+.compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1,transformed=FALSE){
   # Compute the new motif v_new.
   # v_dom: TRUE for x in supp(v).
   # s_k: shift vector for motif k.
   # p_k: membership vector for motif k.
-  # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x), matrices with d columns, for d-dimensional curves.
+  # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x),
+  #matrices with d columns, for d-dimensional curves.
   
   .domain <- function(v,use0){
     if(use0){
@@ -185,34 +229,67 @@ library(dendextend)
   v_len=length(v_dom)
   d=unlist(lapply(Y[[1]],ncol))[1] # dimension of curves
   Y_inters_k=mapply(function(y,s_k_i,d,use0,use1){
-                      y_len=unlist(lapply(y,nrow))[1]
-                      y_inters_k=list(y0=NULL,y1=NULL)
-                      index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                      if(use0)
-                        y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                            matrix(y$y0[index[index<=y_len],],ncol=d),
-                                            matrix(NA,nrow=sum(index>y_len),ncol=d))
-                      if(use1)
-                        y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                            matrix(y$y1[index[index<=y_len],],ncol=d),
-                                            matrix(NA,nrow=sum(index>y_len),ncol=d))
-                      return(.select_domain(y_inters_k,v_dom,use0,use1))
-                    },Y[p_k>0],s_k[p_k>0],MoreArgs=list(d,use0,use1),SIMPLIFY=FALSE)
+    y_len=unlist(lapply(y,nrow))[1]
+    y_inters_k=list(y0=NULL,y1=NULL)
+    index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+    if(use0)
+      y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y0[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    
+    
+    
+    if(use1)
+      y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y1[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    return(.select_domain(y_inters_k,v_dom,use0,use1))
+  },Y[p_k>0],s_k[p_k>0],MoreArgs=list(d,use0,use1),SIMPLIFY=FALSE)
   Y_inters_supp=lapply(Y_inters_k,.domain,use0)
   Y_inters_k=mapply(function(y_inters_k,y_inters_supp,use0,use1){
-                      if(use0)
-                        y_inters_k$y0[!y_inters_supp]=0
-                      if(use1)
-                        y_inters_k$y1[!y_inters_supp]=0
-                      return(y_inters_k)},
-                    Y_inters_k,Y_inters_supp,SIMPLIFY=FALSE,MoreArgs=list(use0,use1))
+    if(use0)
+      y_inters_k$y0[!y_inters_supp]=0
+    if(use1)
+      y_inters_k$y1[!y_inters_supp]=0
+    
+    
+    return(y_inters_k)},
+    Y_inters_k,Y_inters_supp,SIMPLIFY=FALSE,MoreArgs=list(use0,use1))
+  
   v_new=list(v0=NULL,v1=NULL)
-  if(use0)
-    v_new$v0=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y0),
-                            Y_inters_supp,v_dom,v_len,p_k,d,m)
-  if(use1)
-    v_new$v1=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y1),
-                            Y_inters_supp,v_dom,v_len,p_k,d,m)
+  if(transformed){
+    if(use0)
+      
+      v_new$v0=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) {#y0 = y_inters_k$y0
+        y0_min = apply(y_inters_k$y0, 2, min, na.rm = TRUE)
+        y0_max = apply(y_inters_k$y0, 2, max, na.rm = TRUE)
+        y0_diff = y0_max - y0_min
+        y0_const = unlist(lapply(y0_diff, function(diff) all.equal(diff, 0) == TRUE))
+        y0_norm = t( (t(y_inters_k$y0) - y0_min) / y0_diff )
+        y0_norm[,y0_const] = 0.5
+        return(y0_norm)}),
+        Y_inters_supp,v_dom,v_len,p_k,d,m)
+    
+    if(use1)
+      
+      v_new$v1=.compute_v_new(lapply(Y_inters_k,function(y_inters_k){#y1 = y_inters_k$y1
+        y0_min = apply(y_inters_k$y0, 2, min, na.rm = TRUE)
+        y0_max = apply(y_inters_k$y0, 2, max, na.rm = TRUE)
+        y0_diff = y0_max - y0_min
+        y0_const = unlist(lapply(y0_diff, function(diff) all.equal(diff, 0) == TRUE))
+        y1_norm = t( t(y_inters_k$y1) / y0_diff )
+        y1_norm[,y0_const] = 0
+        return(y1_norm)} ) ,
+        Y_inters_supp,v_dom,v_len,p_k,d,m)
+  }else{
+    if(use0)
+      v_new$v0=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y0),
+                              Y_inters_supp,v_dom,v_len,p_k,d,m)
+    if(use1)
+      v_new$v1=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y1),
+                              Y_inters_supp,v_dom,v_len,p_k,d,m)
+  }
+  # print(str(v_new))
   # check if there are NA at the corners (it can happen after cleaning), and remove it
   range_v_new=range(which(.domain(v_new,use0)))
   v_dom_new=rep(FALSE,v_len)
@@ -225,7 +302,7 @@ library(dendextend)
 }
 
 
-.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,c_k=NULL,keep_k=NULL,use0,use1){
+.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,c_k=NULL,keep_k=NULL,use0,use1,transformed=FALSE){
   # Compute the objective function J for the motif k.
   # v: list of two elements, v0=v(x), v1=v'(x), matrices with d columns.
   # s_k: shift vector for motif k.
@@ -237,31 +314,65 @@ library(dendextend)
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
   # keep_k: check c_k only when keep=TRUE for y_shifted.
   
-  .diss_d0_d1_L2 <- function(y,v,w,alpha){
+  
+  
+  .diss_d0_d1_L2 <- function(y,v,w,alpha,transformed=FALSE){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
     # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
     # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
+    # transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+    y_norm=v_norm=list()
+    y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
+    v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
     
-    .diss_L2 <- function(y,v,w){
+    if(transformed){
+      y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
+      y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
+      y0_diff = y0_max - y0_min
+      y0_const = unlist(lapply(y0_diff, function(diff) all.equal(diff, 0) == TRUE))
+      y_norm[[1]] = t( (t(y[[1]]) - y0_min) / y0_diff )
+      y_norm[[2]] = t( t(y[[2]]) / y0_diff )
+      y_norm[[1]][,y0_const]=0.5
+      y_norm[[2]][,y0_const] = 0
+      
+      v0_min=apply(v[[1]],2,min,na.rm=TRUE)
+      v0_max=apply(v[[1]],2,max,na.rm=TRUE)
+      v0_diff=v0_max-v0_min
+      v0_const=unlist(lapply(v0_diff,function(diff) all.equal(diff,0)==TRUE))
+      v_norm[[1]]=t( (t(v[[1]]) - v0_min)/v0_diff)
+      v_norm[[2]]=t( t(v[[2]])/v0_diff)
+      v_norm[[1]][,v0_const]=0.5
+      v_norm[[2]][,v0_const]=0
+    }
+    else{
+      y_norm=y
+      v_norm=v
+    }
+    .diss_L2 <- function(y_norm,v_norm,w){
       # Dissimilarity index for multidimensional curves (dimension=d).
       # L2 distance with normalization on common support.
       # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
       # w: weights for the dissimilarity index in the different dimensions (w>0).
       
-      sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
+      sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+      # NB: divide for the length of the interval, not for the squared length!
     }
     
-    if(alpha==0){
-      return(.diss_L2(y[[1]],v[[1]],w))
-    }else if(alpha==1){
-      return(.diss_L2(y[[2]],v[[2]],w))
-    }else{
-      return((1-alpha)*.diss_L2(y[[1]],v[[1]],w)+alpha*.diss_L2(y[[2]],v[[2]],w))
+    if(alpha==0){#L2-like distance which focuses excusively on the levels
+      return(.diss_L2(y_norm[[1]],v_norm[[1]],w))
+    }else if(alpha==1){#L2-like pseudo distance, which uses only weak
+      #derivative information
+      return(.diss_L2(y_norm[[2]],v_norm[[2]],w))
+    }else{#Sobolev-like distance that allows to highlight
+      #more complex features of curve shapes,taking into account
+      #both levels and variations
+      return((1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w))
     }
   }
+  
   .domain <- function(v,use0){
     if(use0){
       rowSums(!is.na(v[[1]]))!=0
@@ -282,74 +393,110 @@ library(dendextend)
   v=.select_domain(v,v_dom,use0,use1)
   d=unlist(lapply(Y[[1]],ncol))[1]
   Y_inters_k=mapply(function(y,s_k_i,d){
-                      y_len=unlist(lapply(y,nrow))[1]
-                      y_inters_k=list(y0=NULL,y1=NULL)
-                      index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                      if(use0)
-                        y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                            matrix(y$y0[index[index<=y_len],],ncol=d),
-                                            matrix(NA,nrow=sum(index>y_len),ncol=d))
-                      if(use1)
-                        y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                            matrix(y$y1[index[index<=y_len],],ncol=d),
-                                            matrix(NA,nrow=sum(index>y_len),ncol=d))
-                      return(.select_domain(y_inters_k,v_dom,use0,use1))
-                    },Y,s_k,MoreArgs=list(d),SIMPLIFY=FALSE)
+    y_len=unlist(lapply(y,nrow))[1]
+    y_inters_k=list(y0=NULL,y1=NULL)
+    index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+    if(use0)
+      y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y0[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    if(use1)
+      y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                          matrix(y$y1[index[index<=y_len],],ncol=d),
+                          matrix(NA,nrow=sum(index>y_len),ncol=d))
+    return(.select_domain(y_inters_k,v_dom,use0,use1))
+  },Y,s_k,MoreArgs=list(d),SIMPLIFY=FALSE)
   if(!is.null(keep_k)){
     supp_inters_length=unlist(lapply(Y_inters_k[keep_k],function(y_inters_k) sum(.domain(y_inters_k,use0))))
     if(TRUE %in% (supp_inters_length<c_k))
       return(NA)
   }
-  dist=unlist(mapply(.diss_d0_d1_L2,Y_inters_k,MoreArgs=list(v,w,alpha)))
+  dist=unlist(mapply(.diss_d0_d1_L2,Y_inters_k,MoreArgs=list(v,w,alpha,transformed)))
   return(sum(dist*(p_k^m),na.rm=TRUE))
 }
 
 
-probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
-                       diss='d0_L2',alpha=NULL,w=1,m=2,
-                       iter_max=1000,stop_criterion='max',quantile=NULL,tol=1e-8,
-                       iter4elong=10,tol4elong=1e-3,max_elong=0.5,trials_elong=10,deltaJk_elong=0.05,max_gap=0.2,
-                       iter4clean=50,tol4clean=1e-4,quantile4clean=1/K,
-                       return_options=TRUE,return_init=TRUE,worker_number=NULL){
+probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
+                    diss='d0_L2',alpha=NULL,w=1,m=2,v_init=NULL,
+                    iter_max=1000,stop_criterion='max',quantile=NULL,tol=1e-8,
+                    iter4elong=10,tol4elong=1e-3,max_elong=0.5,trials_elong=10,
+                    deltaJk_elong=0.05,max_gap=0.2,
+                    iter4clean=50,tol4clean=1e-4,quantile4clean=1/K,
+                    return_options=TRUE,return_init=TRUE,
+                    worker_number=NULL){
   # Probabilistic k-mean with local alignment to find candidate motifs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
-  #     list of N matrices with d columns, for d-dimensional curves y_i(x),
-  #     with the evaluation of curves (all curves should be evaluated on a uniform grid).
-  #     When y_j(x)=NA in the dimension j, then y_j(x)=NA in ALL dimensions
+  #     list of N matrices with d columns, for d-dimensional curves
+  #y_i(x),
+  #     with the evaluation of curves (all curves should be
+  #evaluated on a uniform grid).
+  #     When y_j(x)=NA in the dimension j,
+  #then y_j(x)=NA in ALL dimensions
   # Y1: list of N vectors, for univariate derivative curves y'_i(x), or
-  #     list of N matrices with d columns, for d-dimensional derivatibe curves y'_i(x),
-  #     with the evaluation of the curves derivatives (all curves should be evaluated on a uniform grid).
+  #     list of N matrices with d columns, for d-dimensional derivative curves y'_i(x),
+  #     with the evaluation of the curves derivatives
+  #(all curves should be evaluated on a uniform grid).
   #     When y'_j(x)=NA in the dimension j, then y'_j(x)=NA in ALL dimensions.
   #     Must be provided when diss='d1_L2' or diss='d0_d1_L2'.
   # standardize: if TRUE, each dimension is standardized (Z score on all the regions together).
   # K: number of motifs.
-  # c: minimum motif lengths. Can be an integer (or a vector of K integers).
-  # c_max: maximum motif lengths. Can be an integer (or a vector of K integers).
-  # P0: initial membership matrix, with N row and K column (if NULL, a random P0 is choosen).
-  # S0: initial shift warping matrix, with N row and K column (if NULL, a random S0 is choosen).
-  # diss: dissimilarity. Possible choices are 'd0_L2', 'd1_L2', 'd0_d1_L2'. 
-  # alpha: when diss='d0_d1_L2', weight coefficient between d0_L2 and d1_L2 (alpha=0 means d0_L2, alpha=1 means d1_L2).
-  # w: vector of weights for the dissimilarity index in the different dimensions (w>0).
+  # c: minimum motif lengths.
+  # Can be an integer (or a vector of K integers).
+  # v_init: in the case of a partially random initialization, represents a list of K sub-lists,
+  #         where each sub-list contains two lists, corresponding to a univariate/d-dimensional
+  #         cluster center v0 and to a univariate/d-dimensional derivative of the cluster center.
+  
+  # c_max: maximum motif lengths. Can be an integer (or a vector of K
+  #integers).
+  # P0: initial membership matrix, with N row and K column
+  #(if NULL, a random P0 is choosen).
+  # S0: initial shift warping matrix, with N row and K column (if
+  #NULL, a random S0 is chosen).
+  # diss: dissimilarity. Possible choices are 'd0_L2',
+  #'d1_L2', 'd0_d1_L2'.
+  # alpha: when diss='d0_d1_L2', weight coefficient between
+  #d0_L2 and d1_L2 (alpha=0 means d0_L2, alpha=1 means d1_L2).
+  # w: vector of weights for the dissimilarity index in
+  #the different dimensions (w>0).
   # m>1: weighting exponent in least-squares functional.
   # iter_max: the maximum number of iterations allowed.
-  # stop_criterion: criterion to stop iterate, based on the Bhattacharyya distance between memberships in subsequent iterations. 
-  #                 Possible choices are: 'max' for the maximum of distances in the different motifs;
-  #                                       'mean' for the average of distances in the different motifs;
-  #                                       'quantile' for the quantile of distances in the different motifs (in this case, quantile must be provided).
-  # quantile: probability in [0,1] to be used if stop.criterion='quantile'.
+  # stop_criterion: criterion to stop iterate,
+  #based on the Bhattacharyya distance between memberships
+  #in subsequent iterations.
+  # Possible choices are: 'max' for the maximum of distances
+  #in the different motifs;
+  # 'mean' for the average of distances in the different motifs;
+  #'quantile' for the quantile of distances in the different motifs
+  #' (in this case, quantile must be provided).
+  # quantile: probability in [0,1] to be used if
+  #stop.criterion='quantile'.
   # tol: method tolerance (method stops if the stop criterion <tol).
-  # iter4elong: motifs elongation is performed every iter4elong iterations (if iter4elong>iter.max, no elongation is done).
-  # tol4elong: tolerance on the Bhattacharyya distance (with the choice made in stop.criterion) for performing motifs elongation.
-  # max_elong: maximum elongation allowed in a single iteration, as percentage of the motif length.
-  # trials_elong: number of (equispaced) elongation trials at each side of the motif in a single iteration.
-  # deltaJk_elong: maximum relative objective function increasing allowed in each motif elongation (for gaps and each side).
-  # max_gap: maximum gap allowed in each alignment (percentage of motif length).
-  # iter4clean: motif cleaning is performed every iter4clean iterations (if iter4clean>iter_max, no cleaning is done).
-  # tol4clean: tolerance on the Bhattacharyya distance (with the choice made in stop_criterion) for performing motif cleaning.
-  # quantile4clean: dissimilarity quantile to be used in motif cleaning.
-  # return_options: if TRUE, the options K,c,diss,w,m are returned by the function.
+  # iter4elong: motifs elongation is performed every
+  #iter4elong iterations (if iter4elong>iter.max, no elongation
+  #is done).
+  # tol4elong: tolerance on the Bhattacharyya distance
+  #(with the choice made in stop.criterion) for performing motifs
+  #elongation.
+  # max_elong: maximum elongation allowed in a single iteration,
+  #as percentage of the motif length.
+  # trials_elong: number of (equispaced) elongation trials
+  #at each side of the motif in a single iteration.
+  # deltaJk_elong: maximum relative objective function
+  #increasing allowed in each motif elongation (for gaps and each
+  #side).
+  # max_gap: maximum gap allowed in each alignment
+  #(percentage of motif length).
+  # iter4clean: motif cleaning is performed every iter4clean
+  #iterations (if iter4clean>iter_max, no cleaning is done).
+  # tol4clean: tolerance on the Bhattacharyya distance (with
+  #the choice made in stop_criterion) for performing motif cleaning.
+  # quantile4clean: dissimilarity quantile to be used in motif
+  #cleaning.
+  # return_options: if TRUE, the options K,
+  #c,diss,w,m are returned by the function.
   # return_init: if TRUE, P0 and S0 are returned by the function.
-  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially. 
+  # worker_number: number of CPU cores to be used
+  #for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially.
   
   ### set parallel jobs #############################################################################
   start=proc.time()
@@ -392,6 +539,25 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       stop('Y0 should be a list of vectors or matrices.')
   if((FALSE %in% lapply(Y0,is.matrix))&&(FALSE %in% lapply(Y0,is.vector)))
     stop('Y0 should be a list of vectors or matrices.')
+  
+  
+  #check v_init
+  if(!is.null(v_init)){
+    if(length(v_init)!=K){
+      v_init=NULL
+      warning('The length of the list does not represent the number of clusters. The random
+         initialization will be used.')
+    }
+    for(i in 1:length(v_init)){
+      if((nrow(v_init[[i]][[1]])!=c)&(nrow(v_init[[i]][[2]])!=c)){ 
+        #use nrow instead of length so it will work in a d-dimensional case as well.
+        v_init=NULL
+        warning('The length of the list does not represent the number of clusters. The random
+         initialization will be used.')  
+      }
+    }
+  }
+  
   N=length(Y0) # number of curves
   if(N<5)
     stop('More curves y_i(x) needed.')
@@ -469,10 +635,10 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     if(length(index_diff_NA)>0){
       warning('y_j(x) and y\'_j(x) are not both defined, for some x. Putting NA in that case.')
       same_NA=mapply(function(y0,y1,diff_NA){
-                       y0[diff_NA]=NA
-                       y1[diff_NA]=NA
-                       return(list(y0,y1))
-                     },Y0[index_diff_NA],Y1[index_diff_NA],diff_NA[index_diff_NA])
+        y0[diff_NA]=NA
+        y1[diff_NA]=NA
+        return(list(y0,y1))
+      },Y0[index_diff_NA],Y1[index_diff_NA],diff_NA[index_diff_NA])
       Y0[index_diff_NA]=same_NA[1,]
       Y1[index_diff_NA]=same_NA[2,]
     }
@@ -565,17 +731,17 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       if(sum((P0<0)|(P0>1))){
         warning('Memberships should be non-negative and <=1. Choosing random initial membership matrix.')
         P0=NULL
+      }else{
+        if(sum(rowSums(P0)!=1)){
+          warning('Memberships of each curve should sum to 1. Choosing random initial membership matrix.')
+          P0=NULL
         }else{
-          if(sum(rowSums(P0)!=1)){
-            warning('Memberships of each curve should sum to 1. Choosing random initial membership matrix.')
+          if(sum(colSums(P0)==0)){
+            warning('Sum of memberships of each cluster should be positive. Choosing random initial membership matrix.')
             P0=NULL
-            }else{
-              if(sum(colSums(P0)==0)){
-                warning('Sum of memberships of each cluster should be positive. Choosing random initial membership matrix.')
-                P0=NULL
-              }
-            }
+          }
         }
+      }
     }
   }
   # check S0
@@ -585,8 +751,8 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       S0=NULL
     }else{
       Y_segments=mapply(function(y,S_i,c){
-                          return(mapply(function(s,c) NA %in% y[s+seq_len(c)-1],S_i,c))},
-                        Y0,lapply(seq_len(N),function(i) S0[i,]),MoreArgs=list(c),SIMPLIFY=TRUE)
+        return(mapply(function(s,c) NA %in% y[s+seq_len(c)-1],S_i,c))},
+        Y0,lapply(seq_len(N),function(i) S0[i,]),MoreArgs=list(c),SIMPLIFY=TRUE)
       if(sum(Y_segments)){
         warning('Shift warping matrix not valid. Choosing random initial shift warping matrix.')
         S0=NULL
@@ -678,8 +844,9 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
               nrow=N,ncol=K,byrow=TRUE)
   }
   S=S0
-
+  
   # create empty motifs
+  
   V=lapply(c,
            function(c_k,d){
              v=list(v0=NULL,v1=NULL)
@@ -689,6 +856,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
                v$v1=matrix(0,nrow=c_k,ncol=d)
              return(v)
            },d)
+  
   end=proc.time()
   #message('initialize: ',round((end-start)[3],2))
   
@@ -722,7 +890,16 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     S_k=split(S,rep(seq_len(K),each=N))
     P_k=split(P,rep(seq_len(K),each=N))
     V_dom=lapply(V,.domain,use0)
-    V_new=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+    
+    if((!is.null(v_init))&(iter==1)){
+      V_new=v_init
+    }else{
+      V_new=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1,transformed),
+                   SIMPLIFY=FALSE)
+    }
+    
+    #print(V_new)
+    #print(str(V_new))
     changed_s=which(unlist(lapply(V_new,length))>2)
     for(k in changed_s){
       S[,k]=S[,k]+V_new[[k]]$shift
@@ -740,13 +917,13 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       with_gaps=which(unlist(lapply(V_dom,function(v_dom) sum(!v_dom)!=0)))
       if(length(with_gaps)>0){
         V_dom_filled=lapply(V_dom[with_gaps],function(v_dom) rep_len(TRUE,length(v_dom)))
-        V_filled=mapply(.compute_motif,V_dom_filled,S_k[with_gaps],P_k[with_gaps],MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+        V_filled=mapply(.compute_motif,V_dom_filled,S_k[with_gaps],P_k[with_gaps],MoreArgs=list(Y,m,use0,use1,transformed),SIMPLIFY=FALSE)
         Jk_before=mapply(.compute_Jk,
                          V_new[with_gaps],S_k[with_gaps],P_k[with_gaps],
-                         MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1))
+                         MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1,transformed=transformed))
         Jk_after=mapply(.compute_Jk,
                         V_filled,S_k[with_gaps],P_k[with_gaps],
-                        MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1))
+                        MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1,transformed=transformed))
         fill=(Jk_after-Jk_before)/Jk_before<deltaJk_elong
         V_dom[with_gaps[fill]]=V_dom_filled[fill]
         V_new[with_gaps[fill]]=V_filled[fill]
@@ -771,44 +948,44 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
           keep[which.min(D[,k]),k]=TRUE
       }
       res_left_right=mapply(function(v_new_k,v_dom_k,s_k,p_k,len_elong_k,keep_k,c){
-                              if(length(len_elong_k)==0){
-                                return(list(v_new=v_new_k,
-                                            v_dom=v_dom_k,
-                                            s_k=s_k))
-                              }
-                              s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
-                              v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
-                                                                   function(len_elong_k_left)
-                                                                     lapply(c(0,len_elong_k[len_elong_k<=(max(len_elong_k)-len_elong_k_left)]),
-                                                                            function(len_elong_k_right) 
-                                                                              c(rep_len(TRUE,len_elong_k_left),v_dom_k,rep_len(TRUE,len_elong_k_right)))),
-                                                            recursive=FALSE)[-1]
-                              v_elong_left_right=mapply(.compute_motif,v_dom_elong_left_right,s_k_elong_left_right,
-                                                        MoreArgs=list(p_k,Y,m,use0,use1),SIMPLIFY=FALSE)
-                              start_with_NA=unlist(lapply(v_elong_left_right,length))>2
-                              v_elong_left_right=v_elong_left_right[!start_with_NA]
-                              s_k_elong_left_right=s_k_elong_left_right[!start_with_NA]
-                              Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1)
-                              c_k_after=floor(unlist(lapply(lapply(v_elong_left_right,.domain,use0),length))*(1-max_gap))
-                              c_k_after[c_k_after<c]=c
-                              Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
-                                                     MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1)))
-                              best_elong=which.min((Jk_after-Jk_before)/Jk_before)
-                              if(length(best_elong)>0){
-                                elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
-                              }else{
-                                elongate=FALSE
-                              }
-                              if(elongate){
-                                return(list(v_new=v_elong_left_right[[best_elong]],
-                                            v_dom=v_dom_elong_left_right[[best_elong]],
-                                            s_k=s_k_elong_left_right[[best_elong]]))
-                              }else{
-                                return(list(v_new=v_new_k,
-                                            v_dom=v_dom_k,
-                                            s_k=s_k))
-                              }
-                            },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
+        if(length(len_elong_k)==0){
+          return(list(v_new=v_new_k,
+                      v_dom=v_dom_k,
+                      s_k=s_k))
+        }
+        s_k_elong_left_right=rep(lapply(c(0,len_elong_k),function(len_elong_k) s_k-len_elong_k),(length(len_elong_k)+1):1)[-1]
+        v_dom_elong_left_right=unlist(lapply(c(0,len_elong_k),
+                                             function(len_elong_k_left)
+                                               lapply(c(0,len_elong_k[len_elong_k<=(max(len_elong_k)-len_elong_k_left)]),
+                                                      function(len_elong_k_right)
+                                                        c(rep_len(TRUE,len_elong_k_left),v_dom_k,rep_len(TRUE,len_elong_k_right)))),
+                                      recursive=FALSE)[-1]
+        v_elong_left_right=mapply(.compute_motif,v_dom_elong_left_right,s_k_elong_left_right,
+                                  MoreArgs=list(p_k,Y,m,use0,use1,transformed),SIMPLIFY=FALSE)
+        start_with_NA=unlist(lapply(v_elong_left_right,length))>2
+        v_elong_left_right=v_elong_left_right[!start_with_NA]
+        s_k_elong_left_right=s_k_elong_left_right[!start_with_NA]
+        Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1,transformed=transformed)
+        c_k_after=floor(unlist(lapply(lapply(v_elong_left_right,.domain,use0),length))*(1-max_gap))
+        c_k_after[c_k_after<c]=c
+        Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
+                               MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1,transformed=transformed)))
+        best_elong=which.min((Jk_after-Jk_before)/Jk_before)
+        if(length(best_elong)>0){
+          elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
+        }else{
+          elongate=FALSE
+        }
+        if(elongate){
+          return(list(v_new=v_elong_left_right[[best_elong]],
+                      v_dom=v_dom_elong_left_right[[best_elong]],
+                      s_k=s_k_elong_left_right[[best_elong]]))
+        }else{
+          return(list(v_new=v_new_k,
+                      v_dom=v_dom_k,
+                      s_k=s_k))
+        }
+      },V_new,V_dom,S_k,P_k,len_elong,split(keep,rep(1:K,each=N)),c)
       V_new=res_left_right[1,]
       V_dom=res_left_right[2,]
       S_k=res_left_right[3,]
@@ -825,7 +1002,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     c_k=rep(c_k,each=length(Y))
     YV=expand.grid(Y,V_new)
     SD=.mapply_custom(cl_probKMA,.find_min_diss,YV[,1],YV[,2],c_k,
-                      MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
+                      MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1,transformed=transformed),SIMPLIFY=TRUE)
     S_new=matrix(SD[1,],ncol=K)
     D_new=matrix(SD[2,],ncol=K)
     end=proc.time()
@@ -857,7 +1034,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     
     ##### evaluate objective function #####################################################################
     J_iter[iter]=sum(D_new*(P_new^m),na.rm=TRUE)
-
+    
     ##### compute Bhattacharyya distance between P_old and P_new ##########################################
     BC_dist_k=-log(rowSums(sqrt(P_old*P_new)))
     if(stop_criterion=='max')
@@ -866,15 +1043,15 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
       BC_dist=mean(BC_dist_k)
     if(stop_criterion=='quantile')
       BC_dist=quantile(BC_dist_k,prob,type=1)
-    BC_dist_iter[iter]=BC_dist    
-
+    BC_dist_iter[iter]=BC_dist
+    
     ##### update ##########################################################################################
     V=V_new
     P=P_new
     S=S_new
     D=D_new
   }
-
+  
   ### prepare output ####################################################################################
   start=proc.time()
   if(iter==iter_max){
@@ -887,7 +1064,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
     use0=TRUE
     Y=mapply(function(y,y0) list(y0=y0,y1=y$y1),Y,Y0,SIMPLIFY=FALSE)
   }
-  V=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+  V=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1,transformed),SIMPLIFY=FALSE)
   # compute cleaned motifs
   keep=D<quantile(D,quantile4clean)
   empty_k=which(colSums(keep)==0)
@@ -900,7 +1077,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   P_clean[!keep]=0
   P_k=split(P_clean,rep(seq_len(K),each=N))
   S_clean=S
-  V_clean=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1),SIMPLIFY=FALSE)
+  V_clean=mapply(.compute_motif,V_dom,S_k,P_k,MoreArgs=list(Y,m,use0,use1,transformed),SIMPLIFY=FALSE)
   changed_s=which(unlist(lapply(V_clean,length))>2)
   for(k in changed_s){
     S_clean[,k]=S_clean[,k]+V_clean[[k]]$shift
@@ -910,36 +1087,36 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   V_dom=lapply(V_clean,.domain,use0)
   # compute dissimilarities from cleaned motifs
   D_clean=mapply(function(s_k,v_dom,v_clean,Y){
-                   Y_in_motifs=mapply(function(y,s){
-                                        if(use0){
-                                          d=ncol(y$y0) # dimension of curves
-                                          y_len=nrow(y$y0)
-                                          index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
-                                          y$y0=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
-                                                     matrix(y$y0[index[index<=y_len],],ncol=d),
-                                                     matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                        }
-                                        if(use1){
-                                          d=ncol(y$y1) # dimension of curves
-                                          y_len=nrow(y$y1)
-                                          index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
-                                          y$y1=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
-                                                     matrix(y$y1[index[index<=y_len],],ncol=d),
-                                                     matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                        }
-                                        y=.select_domain(y,v_dom,use0,use1)
-                                        return(y)
-                                      },Y,s_k,SIMPLIFY=FALSE)
-                   d=unlist(lapply(Y_in_motifs,.diss_d0_d1_L2,.select_domain(v_clean,v_dom,use0,use1),w,alpha))
-                   return(d)
-                 },S_k,V_dom,V_clean,MoreArgs=list(Y))
+    Y_in_motifs=mapply(function(y,s){
+      if(use0){
+        d=ncol(y$y0) # dimension of curves
+        y_len=nrow(y$y0)
+        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
+        y$y0=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
+                   matrix(y$y0[index[index<=y_len],],ncol=d),
+                   matrix(NA,nrow=sum(index>y_len),ncol=d))
+      }
+      if(use1){
+        d=ncol(y$y1) # dimension of curves
+        y_len=nrow(y$y1)
+        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
+        y$y1=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
+                   matrix(y$y1[index[index<=y_len],],ncol=d),
+                   matrix(NA,nrow=sum(index>y_len),ncol=d))
+      }
+      y=.select_domain(y,v_dom,use0,use1)
+      return(y)
+    },Y,s_k,SIMPLIFY=FALSE)
+    d=unlist(lapply(Y_in_motifs,.diss_d0_d1_L2,.select_domain(v_clean,v_dom,use0,use1),w,alpha,transformed))
+    return(d)
+  },S_k,V_dom,V_clean,MoreArgs=list(Y))
   output=list(Y0=Y0,Y1=Y1,
               V0=lapply(V,function(v) v$v0),V1=lapply(V,function(v) v$v1),
               V0_clean=lapply(V_clean,function(v) v$v0),V1_clean=lapply(V_clean,function(v) v$v1),
               P=P,P_clean=P_clean,S=S,S_clean=S_clean,
               D=D,D_clean=D_clean,iter=iter,J_iter=J_iter,BC_dist_iter=BC_dist_iter)
   if(return_options){
-    output=c(output,list(standardize=standardize,K=K,c=c,c_max=c_max,diss=diss,alpha=alpha,w=w,m=m,
+    output=c(output,list(standardize=standardize,transformed=transformed,K=K,c=c,c_max=c_max,diss=diss,alpha=alpha,w=w,m=m,v_init=v_init,
                          iter_max=iter_max,stop_criterion=stop_criterion,quantile=quantile,tol=tol,
                          iter4elong=iter4elong,tol4elong=tol4elong,max_elong=max_elong,trials_elong=trials_elong,deltaJk_elong=deltaJk_elong,max_gap=max_gap,
                          iter4clean=iter4clean,tol4clean=tol4clean))
@@ -950,13 +1127,12 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,K,c,c_max=Inf,P0=NULL,S0=NULL,
   end=proc.time()
   #message('output: ',round((end-start)[3],2))
   
-
+  
   ### return output ####################################################################################
   return(output)
 }
 
-
-probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE){
+probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE){#transformed=FALSE
   # Plot the results of probKMA.
   # probKMA_results: output of probKMA function.
   # ylab: a vector of length d, with the titles for the y axis for each dimension.
@@ -969,167 +1145,263 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE){
   S_k=split(probKMA_results$S,rep(seq_len(K),each=N))
   P_k=split(probKMA_results$P,rep(seq_len(K),each=N))
   
+  #transformed=probKMA_results$transformed
   ### plot motifs with matched curves ########################################################################
   if(cleaned){
     S_clean_k=split(probKMA_results$S_clean,rep(seq_len(K),each=N))
     P_clean_k=split(probKMA_results$P_clean,rep(seq_len(K),each=N))
     if(is.null(probKMA_results$V1[[1]])){
       mapply(function(v,v_dom,s_k,p_clean_k,k){
-              keep=which(p_clean_k==1)
-              Y_inters_k=mapply(
-                           function(y,s_k_i,v_dom){
-                             v_len=length(v_dom)
-                             d=ncol(y)
-                             y_len=nrow(y)
-                             index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                             Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                              matrix(y[index[index<=y_len],],ncol=d),
-                                              matrix(NA,nrow=sum(index>y_len),ncol=d))
-                             return(Y_inters_k)},
-                           probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-              layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-              lapply(seq_len(d),
-                     function(j){
-                       par(mar=c(3,4,4,2)+0.1)
-                       y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                       y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                       matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                       points(v[,j],type='l',col='black',lwd=7,lty=1)
-                       par(mar=c(0,0,0,0))
-                       plot.new()
-                       legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                       })
-              return()},
-             probKMA_results$V0_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
+        keep=which(p_clean_k==1)
+        Y_inters_k=mapply(
+          function(y,s_k_i,v_dom){
+            v_len=length(v_dom)
+            d=ncol(y)
+            y_len=nrow(y)
+            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                             matrix(y[index[index<=y_len],],ncol=d),
+                             matrix(NA,nrow=sum(index>y_len),ncol=d))
+            return(Y_inters_k)},
+          probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+        Y0_diff_k=lapply(Y0_inters_k,
+                         function(Y0_inters_k){
+                           y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                           y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                           y0_diff=y0_max-y0_min
+                           return(y0_diff)
+                         })
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
+                 if(transformed){
+                   y_plot[v_dom,]=Reduce('cbind',
+                                         mapply(function(Y_inters_k, Y_diff_k) {
+                                           y0_min=min(Y_inters_k[,j])
+                                           y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                           #print(dim(y0_norm))
+                                           y0_const = (Y_diff_k[j] == 0)
+                                           y0_norm[,y0_const] = 0.5
+                                           return(y0_norm)},
+                                           Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) ) 
+                 }else{
+                   y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+                 }
+                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
+                 points(v[,j],type='l',col='black',lwd=7,lty=1)
+                 par(mar=c(0,0,0,0))
+                 plot.new()
+                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+               })
+        return()},
+        probKMA_results$V0_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
     }else{
       mapply(function(v0,v1,v_dom,s_k,p_clean_k,k){
-              keep=which(p_clean_k==1)
-              Y0_inters_k=mapply(
-                            function(y,s_k_i,v_dom){
-                              v_len=length(v_dom)
-                              d=ncol(y)
-                              y_len=nrow(y)
-                              index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                              Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                               matrix(y[index[index<=y_len],],ncol=d),
-                                               matrix(NA,nrow=sum(index>y_len),ncol=d))
-                              return(Y_inters_k)},
-                            probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-              Y1_inters_k=mapply(
-                            function(y,s_k_i,v_dom){
-                              v_len=length(v_dom)
-                              d=ncol(y)
-                              y_len=nrow(y)
-                              index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                              Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                               matrix(y[index[index<=y_len],],ncol=d),
-                                               matrix(NA,nrow=sum(index>y_len),ncol=d))
-                              return(Y_inters_k)},
-                            probKMA_results$Y1[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-              layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-              lapply(seq_len(d),
-                     function(j){
-                       par(mar=c(3,4,4,2)+0.1)
-                       y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                       y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                       matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                       points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                       par(mar=c(0,0,0,0))
-                       plot.new()
-                       legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                       })
-              lapply(seq_len(d),
-                     function(j){
-                       par(mar=c(3,4,4,2)+0.1)
-                       y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                       y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                       matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
-                       points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                       par(mar=c(0,0,0,0))
-                       plot.new()
-                       legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                       })
-              return()},
-             probKMA_results$V0_clean,probKMA_results$V1_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
+        keep=which(p_clean_k==1)
+        Y0_inters_k=mapply(
+          function(y,s_k_i,v_dom){
+            v_len=length(v_dom)
+            d=ncol(y)
+            y_len=nrow(y)
+            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                             matrix(y[index[index<=y_len],],ncol=d),
+                             matrix(NA,nrow=sum(index>y_len),ncol=d))
+            return(Y_inters_k)},
+          probKMA_results$Y0[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        Y1_inters_k=mapply(
+          function(y,s_k_i,v_dom){
+            v_len=length(v_dom)
+            d=ncol(y)
+            y_len=nrow(y)
+            index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+            Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                             matrix(y[index[index<=y_len],],ncol=d),
+                             matrix(NA,nrow=sum(index>y_len),ncol=d))
+            return(Y_inters_k)},
+          probKMA_results$Y1[keep],s_k[keep],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+        Y0_diff_k=lapply(Y0_inters_k,
+                         function(Y0_inters_k){
+                           y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                           y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                           y0_diff=y0_max-y0_min
+                           return(y0_diff)
+                         })
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+                 if(transformed){
+                   y_plot[v_dom,]=Reduce('cbind',
+                                         mapply(function(Y_inters_k, Y_diff_k) {
+                                           y0_min=min(Y_inters_k[,j])
+                                           y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                           #print(dim(y0_norm))
+                                           y0_const = (Y_diff_k[j] == 0)
+                                           y0_norm[,y0_const] = 0.5
+                                           return(y0_norm)},
+                                           Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) )
+                 }else{
+                   y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))}
+                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
+                 points(v0[,j],type='l',col='black',lwd=7,lty=1)
+                 par(mar=c(0,0,0,0))
+                 plot.new()
+                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+               })
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
+                 if(transformed){
+                   y_plot[v_dom,]=Reduce('cbind',
+                                         mapply(function(Y1_inters_k, Y_diff_k) {
+                                           y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
+                                           #print(dim(y1_norm))
+                                           y0_const = (Y_diff_k[j] == 0)
+                                           y1_norm[,y0_const] = 0
+                                           return(y1_norm)},
+                                           Y1_inters_k, Y0_diff_k, SIMPLIFY=FALSE)
+                   ) 
+                 }else{
+                   y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))}
+                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=1,lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
+                 points(v1[,j],type='l',col='black',lwd=7,lty=1)
+                 par(mar=c(0,0,0,0))
+                 plot.new()
+                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+               })
+        return()},
+        probKMA_results$V0_clean,probKMA_results$V1_clean,V_dom,S_clean_k,P_clean_k,seq_len(K))
     }
   }else{
     if(is.null(probKMA_results$V1[[1]])){
       mapply(function(v,v_dom,s_k,p_k,k){
-               Y_inters_k=mapply(function(y,s_k_i,v_dom){
-                                   v_len=length(v_dom)
-                                   d=ncol(y)
-                                   y_len=nrow(y)
-                                   index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                                   Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                                    matrix(y[index[index<=y_len],],ncol=d),
-                                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                   return(Y_inters_k)},
-                                 probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-               layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-               lapply(seq_len(d),
-                      function(j){
-                        par(mar=c(3,4,4,2)+0.1)
-                        y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                        y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                        matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                        points(v[,j],type='l',col='black',lwd=7,lty=1)
-                        par(mar=c(0,0,0,0))
-                        plot.new()
-                        legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                        })
-               return()},
-             probKMA_results$V0,V_dom,S_k,P_k,seq_len(K))
+        Y_inters_k=mapply(function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          d=ncol(y)
+          y_len=nrow(y)
+          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                           matrix(y[index[index<=y_len],],ncol=d),
+                           matrix(NA,nrow=sum(index>y_len),ncol=d))
+          return(Y_inters_k)},
+          probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+        Y0_diff_k=lapply(Y0_inters_k,
+                         function(Y0_inters_k){
+                           y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                           y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                           y0_diff=y0_max-y0_min
+                           return(y0_diff)
+                         })
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
+                 if(transformed){
+                   y_plot[v_dom,]=Reduce('cbind',
+                                         mapply(function(Y_inters_k, Y_diff_k) {
+                                           y0_min=min(Y_inters_k[,j])
+                                           y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                           #print(dim(y0_norm))
+                                           y0_const = (Y_diff_k[j] == 0)
+                                           y0_norm[,y0_const] = 0.5
+                                           return(y0_norm)},
+                                           Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) )
+                 }else{
+                   y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))}
+                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
+                 points(v[,j],type='l',col='black',lwd=7,lty=1)
+                 par(mar=c(0,0,0,0))
+                 plot.new()
+                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+               })
+        return()},
+        probKMA_results$V0,V_dom,S_k,P_k,seq_len(K))
     }else{
       mapply(function(v0,v1,v_dom,s_k,p_k,k){
-               Y0_inters_k=mapply(function(y,s_k_i,v_dom){
-                                    v_len=length(v_dom)
-                                    d=ncol(y)
-                                    y_len=nrow(y)
-                                    index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                                    Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                                     matrix(y[index[index<=y_len],],ncol=d),
-                                                     matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                    return(Y_inters_k)},
-                                  probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-               Y1_inters_k=mapply(function(y,s_k_i,v_dom){
-                                    v_len=length(v_dom)
-                                    d=ncol(y)
-                                    y_len=nrow(y)
-                                    index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
-                                    Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
-                                                     matrix(y[index[index<=y_len],],ncol=d),
-                                                     matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                    return(Y_inters_k)},
-                                  probKMA_results$Y1,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-               layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-               lapply(seq_len(d),
-                      function(j){
-                        par(mar=c(3,4,4,2)+0.1)
-                        y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                        y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                        matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
-                        points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                        par(mar=c(0,0,0,0))
-                        plot.new()
-                        legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                        })
-               lapply(seq_len(d),
-                      function(j){
-                        par(mar=c(3,4,4,2)+0.1)
-                        y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                        y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                        matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
-                        points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                        par(mar=c(0,0,0,0))
-                        plot.new()
-                        legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                        })
-               return()},
-             probKMA_results$V0,probKMA_results$V1,V_dom,S_k,P_k,seq_len(K))
+        Y0_inters_k=mapply(function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          d=ncol(y)
+          y_len=nrow(y)
+          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                           matrix(y[index[index<=y_len],],ncol=d),
+                           matrix(NA,nrow=sum(index>y_len),ncol=d))
+          return(Y_inters_k)},
+          probKMA_results$Y0,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        Y1_inters_k=mapply(function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          d=ncol(y)
+          y_len=nrow(y)
+          index=max(1,s_k_i)-1+seq_len(v_len-max(0,1-s_k_i))
+          Y_inters_k=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
+                           matrix(y[index[index<=y_len],],ncol=d),
+                           matrix(NA,nrow=sum(index>y_len),ncol=d))
+          return(Y_inters_k)},
+          probKMA_results$Y1,s_k,MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+        layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+        Y0_diff_k=lapply(Y0_inters_k,
+                         function(Y0_inters_k){
+                           y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                           y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                           y0_diff=y0_max-y0_min
+                           return(y0_diff)
+                         })
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+                 if(transformed){
+                   y_plot[v_dom,]=Reduce('cbind',
+                                         mapply(function(Y_inters_k, Y_diff_k) {
+                                           y0_min=min(Y_inters_k[,j])
+                                           y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                           #print(dim(y0_norm))
+                                           y0_const = (Y_diff_k[j] == 0)
+                                           y0_norm[,y0_const] = 0.5
+                                           return(y0_norm)},
+                                           Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) )
+                 }else{
+                   y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))}
+                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j]))
+                 points(v0[,j],type='l',col='black',lwd=7,lty=1)
+                 par(mar=c(0,0,0,0))
+                 plot.new()
+                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+               })
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
+                 if(transformed){
+                   y_plot[v_dom,]=Reduce('cbind',
+                                         mapply(function(Y1_inters_k, Y_diff_k) {
+                                           y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
+                                           #print(dim(y1_norm))
+                                           y0_const = (Y_diff_k[j] == 0)
+                                           y1_norm[,y0_const] = 0
+                                           return(y1_norm)},
+                                           Y1_inters_k, Y0_diff_k, SIMPLIFY=FALSE)
+                   ) 
+                 }else{
+                   y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))}
+                 matplot(y_plot,type='l',col=seq_len(N)+1,lwd=round(5*p_k,2),lty=1,ylab=ylab[j],main=paste('Motif',k,'-',ylab[j],' derivative'))
+                 points(v1[,j],type='l',col='black',lwd=7,lty=1)
+                 par(mar=c(0,0,0,0))
+                 plot.new()
+                 legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+               })
+        return()},
+        probKMA_results$V0,probKMA_results$V1,V_dom,S_k,P_k,seq_len(K))
     }
   }
   layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-
+  
   ### plot motifs ############################################################################################
   if(cleaned){
     lapply(seq_len(d),
@@ -1188,28 +1460,29 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE){
                return()})
     }
   }
-
+  
   ### plot memberships #######################################################################################
   par(mfrow=c(K,1),mar=c(3,4,4,2)+0.1)
   if(cleaned){
     mapply(function(p_k,p_clean_k,k){
-             col=rep('lightgray',N)
-             col[p_clean_k==1]='gray35'
-             barplot(p_k,names.arg=seq_len(N),col=col,las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
-             },P_k,P_clean_k,seq_len(K))
+      col=rep('lightgray',N)
+      col[p_clean_k==1]='gray35'
+      barplot(p_k,names.arg=seq_len(N),col=col,las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
+    },P_k,P_clean_k,seq_len(K))
   }else{
     mapply(function(p_k,k){
-             barplot(p_k,names.arg=seq_len(N),col='gray',las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
-             },P_k,seq_len(K))
+      barplot(p_k,names.arg=seq_len(N),col='gray',las=2,ylim=c(0,1),ylab='memberships',main=paste('Motif',k))
+    },P_k,seq_len(K))
   }
-
+  
   ### plot objective function and Bhattacharyya distance #####################################################
   par(mfrow=c(1,1))
   plot(seq_len(probKMA_results$iter),probKMA_results$J_iter,type='l',xlab='iter',ylab='objective function',main='Objective function Jm')
   plot(seq_len(probKMA_results$iter),probKMA_results$BC_dist_iter,type='l',xlab='iter',ylab='distance between memberships',main='Bhattacharyya distance between memberships')
-
+  
   return()
 }
+
 
 
 probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
@@ -1217,7 +1490,7 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
   # probKMA_results: output of probKMA function (with return_options=TRUE).
   # align: if TRUE, try all possible alignements between pieces of curves (corresponding to the same or to different motifs).
   # plot: if TRUE, the silhouette plot is drawn.
-
+  
   ### compute silhouette #####################################################################################
   if(probKMA_results$diss=='d0_L2'){
     alpha=0
@@ -1237,6 +1510,7 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
     use1=TRUE
     Y=mapply(function(y0,y1) list(y0=y0,y1=y1),probKMA_results$Y0,probKMA_results$Y1,SIMPLIFY=FALSE)
   }
+  transformed=probKMA_results$transformed
   w=probKMA_results$w
   d=ncol(probKMA_results$Y0[[1]])
   N=nrow(probKMA_results$P_clean)
@@ -1251,32 +1525,32 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
   }
   curves_in_motifs_number=colSums(probKMA_results$P_clean)
   S_clean_k=mapply(function(s_k,curves_in_motif) s_k[curves_in_motif],
-                            split(probKMA_results$S_clean,rep(seq_len(K),each=N)),curves_in_motifs,SIMPLIFY=FALSE)
+                   split(probKMA_results$S_clean,rep(seq_len(K),each=N)),curves_in_motifs,SIMPLIFY=FALSE)
   
   # compute distances between pieces of curves
   Y_in_motifs=unlist(mapply(function(curves_in_motif,s_k,v_dom){
-                              Y_in_motif=mapply(function(y,s){
-                                                  if(use0){
-                                                    d=ncol(y$y0) # dimension of curves
-                                                    y_len=nrow(y$y0)
-                                                    index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
-                                                    y$y0=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
-                                                               matrix(y$y0[index[index<=y_len],],ncol=d),
-                                                               matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                                    y$y0[!v_dom,]=NA
-                                                  }
-                                                  if(use1){
-                                                    d=ncol(y$y1) # dimension of curves
-                                                    y_len=nrow(y$y1)
-                                                    index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
-                                                    y$y1=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
-                                                               matrix(y$y1[index[index<=y_len],],ncol=d),
-                                                               matrix(NA,nrow=sum(index>y_len),ncol=d))
-                                                    y$y1[!v_dom,]=NA
-                                                  }
-                                                  return(y)
-                                                },Y[curves_in_motif],s_k,SIMPLIFY=FALSE)
-                            },curves_in_motifs,S_clean_k,V_dom,SIMPLIFY=FALSE),recursive=FALSE)
+    Y_in_motif=mapply(function(y,s){
+      if(use0){
+        d=ncol(y$y0) # dimension of curves
+        y_len=nrow(y$y0)
+        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
+        y$y0=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
+                   matrix(y$y0[index[index<=y_len],],ncol=d),
+                   matrix(NA,nrow=sum(index>y_len),ncol=d))
+        y$y0[!v_dom,]=NA
+      }
+      if(use1){
+        d=ncol(y$y1) # dimension of curves
+        y_len=nrow(y$y1)
+        index=max(1,s)-1+seq_len(length(v_dom)-max(0,1-s))
+        y$y1=rbind(matrix(NA,nrow=max(0,1-s),ncol=d),
+                   matrix(y$y1[index[index<=y_len],],ncol=d),
+                   matrix(NA,nrow=sum(index>y_len),ncol=d))
+        y$y1[!v_dom,]=NA
+      }
+      return(y)
+    },Y[curves_in_motif],s_k,SIMPLIFY=FALSE)
+  },curves_in_motifs,S_clean_k,V_dom,SIMPLIFY=FALSE),recursive=FALSE)
   Y_motifs=rep.int(1:K,curves_in_motifs_number)
   YY=combn(Y_in_motifs,2,simplify=FALSE)
   YY=array(unlist(YY,recursive=FALSE),dim=c(2,length(YY)))
@@ -1289,13 +1563,13 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
     # alignment for pieces corresponding to motifs with different lengths (requiring one piece inside the other)
     equal_length=(YY_lengths[1,]==YY_lengths[2,])
     SD=mapply(.find_diss,YY[1,],YY[2,],equal_length,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
+              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transformed),SIMPLIFY=TRUE)
   }else{
-    # find minimum distance between the two pieces of curves, allowing alignment 
+    # find minimum distance between the two pieces of curves, allowing alignment
     # minimum overlap required: minimum motif length
-    cc_motifs=apply(combn(probKMA_results$c[Y_motifs],2),2,min) 
+    cc_motifs=apply(combn(probKMA_results$c[Y_motifs],2),2,min)
     SD=mapply(.find_min_diss,YY[1,],YY[2,],cc_motifs,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
+              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transformed),SIMPLIFY=TRUE)
   }
   YY_D=matrix(0,nrow=length(Y_motifs),ncol=length(Y_motifs))
   YY_D[lower.tri(YY_D)]=SD[2,]
@@ -1331,7 +1605,7 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
     silhouette[Y_motifs==k]=sort(silhouette_k,decreasing=TRUE)
     silhouette_average[k]=mean(silhouette_k)
   }
-
+  
   ### plot silhouette ########################################################################################
   if(plot){
     n=length(silhouette)
@@ -1357,29 +1631,32 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
 }
 
 
-find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',
+find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',V_init=NULL,
                                   probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL){
-  # Run multiple times probKMA function with different K,c and initializations, 
+  # Run multiple times probKMA function with different K,c and initializations,
   # with the aim to find a set of candidate motifs.
-  # If the folder name_KK_cc is already present and n result files are already present, 
+  # If the folder name_KK_cc is already present and n result files are already present,
   # load them and continue with the n_init-n runs.
   # Y0: list of N vectors, for univariate curves y_i(x), or
-  #     list of N matrices with d columns, for d-dimensional curves y_i(x), 
+  #     list of N matrices with d columns, for d-dimensional curves y_i(x),
   #     with the evaluation of curves (all curves should be evaluated on a uniform grid).
   #     When y_j(x)=NA in the dimension j, then y_j(x)=NA in ALL dimensions
   # Y1: list of N vectors, for univariate derivative curves y'_i(x), or
   #     list of N matrices with d columns, for d-dimensional derivatibe curves y'_i(x),
   #     with the evaluation of the curves derivatives (all curves should be evaluated on a uniform grid).
-  #     When y'_j(x)=NA in the dimension j, then y'_j(x)=NA in ALL dimensions. 
+  #     When y'_j(x)=NA in the dimension j, then y'_j(x)=NA in ALL dimensions.
   #     Must be provided when diss='d1_L2' or diss='d0_d1_L2'.
   # K: vector with numbers of motifs that must be tested.
   # c: vector with minimum motifs lengths that must be tested.
+  # V_init: in the case of a non-random initialization, represents a list of k sub-lists 
+  #         where each of the k sub-lists contains n_init sub-lists of length k which represent
+  #         the univariate/d-dimensional cluster centers and their derivatives for each initialization.
   # n_init: number of random initialization for each combination of K and c.
   # name: name of the folders when the results are saved.
   # names_var: vector of length d, with names of the variables in the different dimensions.
   # probKMA_options: list with options for probKMA (see the help of probKMA).
-  # plot: if TRUE, summary plots are drawn. 
-  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially. 
+  # plot: if TRUE, summary plots are drawn.
+  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores -1). If worker_number=1, the function is run sequentially.
   
   ### check input #############################################################################################
   # check required input
@@ -1398,6 +1675,12 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     stop('Number of initializations n_init should be an integer.')
   if(n_init<1)
     stop('Number of initializations n_init should be at least 1.')
+  #check V_init
+  if((!is.null(V_init))&(length(unlist(unlist(V_init,recursive=FALSE),recursive=FALSE))!=(length(K)*length(c)*n_init))){
+    V_init=NULL
+    warning('The length of the list does not represent the number of clusters. The random
+         initialization will be used.')
+  }
   # check name
   if(!is.character(name))
     stop('name should be a string.')
@@ -1425,7 +1708,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       probKMA_options$return_options=TRUE
     }
   }
-
+  
+  
   ### set parallel jobs #############################################################################
   core_number <- detectCores()
   # check worker number
@@ -1455,7 +1739,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       cl_find=makeCluster(worker_number,timeout=60*60*24*30)
       clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA_options',
                               'probKMA','probKMA_plot','probKMA_silhouette','.compute_motif', # delete these in the package
-                              '.mapply_custom','.diss_d0_d1_L2','.domain','.select_domain','.find_min_diss','.compute_Jk'),envir=environment()) 
+                              '.mapply_custom','.diss_d0_d1_L2','.domain','.select_domain','.find_min_diss','.compute_Jk'),envir=environment())
       clusterCall(cl_find,function()library(parallel,combinat))
       on.exit(stopCluster(cl_find))
     }else{
@@ -1465,44 +1749,82 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
-  vector_seed = seq(1,length(i_c_K$Var1))
-  results=.mapply_custom(cl_find,function(K,c,i,small_seed){
-                                    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
-                                    files=list.files(paste0(name,"_K",K,"_c",c))
-                                    message("K",K,"_c",c,'_random',i)
-                                    if(paste0('random',i,'.RData') %in% files){
-                                      load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-                                      return(list(probKMA_results=probKMA_results,
-                                                  time=time,silhouette=silhouette))
-                                    }else{
-                                      iter=iter_max=1
-                                      while(iter==iter_max){
-                                        set.seed(small_seed)
-                                        small_seed = small_seed + 1
-                                        start=proc.time()
-                                        probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
-                                        end=proc.time()
-                                        time=end-start
-                                        iter=probKMA_results$iter
-                                        iter_max=probKMA_results$iter_max
-                                        if(iter==iter_max)
-                                          warning('Maximum number of iteration reached. Re-starting.')
-                                      }
-                                      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
-                                      probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE)
-                                      dev.off()
-                                      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
-                                      probKMA_plot(probKMA_results,ylab=names_var,cleaned=TRUE)
-                                      dev.off()
-                                      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
-                                      silhouette=probKMA_silhouette(probKMA_results,align=silhouette_align,plot=TRUE)
-                                      dev.off()
-                                      save(probKMA_results,time,silhouette,
-                                           file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-                                      return(list(probKMA_results=probKMA_results,
-                                                  time=time,silhouette=silhouette))
-                                    }
-                                  },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
+  if(is.null(V_init)){
+    results=.mapply_custom(cl_find,function(K,c,i){
+      dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+      files=list.files(paste0(name,"_K",K,"_c",c))
+      message("K",K,"_c",c,'_random',i)
+      if(paste0('random',i,'.RData') %in% files){
+        load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }else{
+        iter=iter_max=1
+        while(iter==iter_max){
+          start=proc.time()
+          probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
+          end=proc.time()
+          time=end-start
+          iter=probKMA_results$iter
+          iter_max=probKMA_results$iter_max
+          if(iter==iter_max)
+            warning('Maximum number of iteration reached. Re-starting.')
+        }
+        transformed=probKMA_results$transformed
+        #if(transformed){
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE,transformed=transformed)
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=TRUE,transformed=transformed)
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
+        silhouette=probKMA_silhouette(probKMA_results,align=silhouette_align,plot=TRUE)
+        dev.off()
+        save(probKMA_results,time,silhouette,
+             file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
+  }else{
+    V_init_unlist=unlist(unlist(V_init,recursive=FALSE),recursive=FALSE)
+    results=.mapply_custom(cl_find,function(K,c,i,v_init){
+      dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+      files=list.files(paste0(name,"_K",K,"_c",c))
+      message("K",K,"_c",c,'_random',i)
+      if(paste0('random',i,'.RData') %in% files){
+        load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }else{
+        iter=iter_max=1
+        while(iter==iter_max){
+          start=proc.time()
+          probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c,v_init=v_init),probKMA_options))
+          end=proc.time()
+          time=end-start
+          iter=probKMA_results$iter
+          iter_max=probKMA_results$iter_max
+          if(iter==iter_max)
+            warning('Maximum number of iteration reached. Re-starting.')
+        }
+        transformed=probKMA_results$transformed
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE,transformed=transformed)
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=TRUE,transformed=transformed)
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
+        silhouette=probKMA_silhouette(probKMA_results,align=silhouette_align,plot=TRUE)
+        dev.off()
+        save(probKMA_results,time,silhouette,
+             file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],V_init_unlist,SIMPLIFY=FALSE)}
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
   
@@ -1546,7 +1868,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-
+  
   ### plot processing time ####################################################################################
   times=lapply(results,
                function(results){
@@ -1563,7 +1885,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                              lapply(seq_along(c),
                                     function(j)
                                       as.matrix(times[[i]][[j]][order(silhouette_average_sd[[i]][[j]][,1],decreasing=TRUE)]))
-                             )
+      )
       silhouette_order=matrix(unlist(lapply(silhouette_average_sd[[i]],function(average_sd) order(average_sd[,1],decreasing=TRUE))),ncol=length(c))
       matplot(matrix(rep(1:n_init,length(c))+rep(seq(-0.1,0.1,length.out=length(c)),each=n_init),ncol=length(c)),
               times_plot[[i]],type='b',pch=16,lty=1,col=1+seq_along(c),ylim=c(0,y_max),xaxt='n',
@@ -1582,7 +1904,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-
+  
   ### plot dissimilarities ####################################################################################
   if(plot){
     D=lapply(results,
@@ -1593,8 +1915,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                    function(results){
                                      D=as.vector(results$probKMA_results$D)
                                    })
-                          })
-               })
+                        })
+             })
     pdf(paste0(name,'_dissimilarities.pdf'),width=7,height=5)
     y_max=max(unlist(D))
     for(i in seq_along(K)){
@@ -1643,26 +1965,26 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-
+  
   ### plot motif lengths ######################################################################################
   if(plot){
     motif_length=mapply(function(results){
-                          motif_length=mapply(function(results){
-                                                motif_length=as.matrix(Reduce(cbind,lapply(results,
-                                                                                           function(results){
-                                                                                             unlist(lapply(results$probKMA_results$V0,nrow))
-                                                                                           })))
-                                                return(as.matrix(motif_length))
-                                              },results,SIMPLIFY=FALSE)
-                        },results,SIMPLIFY=FALSE)
+      motif_length=mapply(function(results){
+        motif_length=as.matrix(Reduce(cbind,lapply(results,
+                                                   function(results){
+                                                     unlist(lapply(results$probKMA_results$V0,nrow))
+                                                   })))
+        return(as.matrix(motif_length))
+      },results,SIMPLIFY=FALSE)
+    },results,SIMPLIFY=FALSE)
     pdf(paste0(name,'_lengths.pdf'),width=7,height=5)
     motif_length_plot=lapply(motif_length,
                              function(motif_length){
                                lapply(motif_length,
                                       function(motif_length){
                                         motif_length=motif_length+matrix(rnorm(nrow(motif_length)*n_init,mean=0,sd=0.05),ncol=n_init)
-                                    })
-                               })
+                                      })
+                             })
     ymax=max(unlist(motif_length_plot))
     for(i in seq_along(K)){
       plot(1:n_init,type="n",xaxt='n',xlab='',ylim=c(-1,ymax),ylab='Motif lengths',main=paste0('K=',K[i]))
@@ -1682,14 +2004,14 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     dev.off()
     
     motif_clean_length=mapply(function(results){
-                                motif_length=mapply(function(results){
-                                                      motif_length=as.matrix(Reduce(cbind,lapply(results,
-                                                                                                   function(results){
-                                                                                                     unlist(lapply(results$probKMA_results$V0_clean,nrow))
-                                                                                                   })))
-                                                      return(as.matrix(motif_length))
-                                                    },results,SIMPLIFY=FALSE)
-                              },results,SIMPLIFY=FALSE)
+      motif_length=mapply(function(results){
+        motif_length=as.matrix(Reduce(cbind,lapply(results,
+                                                   function(results){
+                                                     unlist(lapply(results$probKMA_results$V0_clean,nrow))
+                                                   })))
+        return(as.matrix(motif_length))
+      },results,SIMPLIFY=FALSE)
+    },results,SIMPLIFY=FALSE)
     pdf(paste0(name,'_lengths_clean.pdf'),width=7,height=5)
     motif_length_plot=lapply(motif_clean_length,
                              function(motif_length){
@@ -1718,14 +2040,14 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     
     pdf(paste0(name,'_lengths_perc.pdf'),width=7,height=5)
     motif_length_perc=mapply(function(results){
-                               motif_length=mapply(function(results){
-                                                     motif_length=as.matrix(Reduce(cbind,lapply(results,
-                                                                                                function(results){
-                                                                                                  unlist(lapply(results$probKMA_results$V0,nrow))/results$probKMA_results$c*100
-                                                                                                })))
-                                                     return(as.matrix(motif_length))
-                                                   },results,SIMPLIFY=FALSE)
-                             },results,SIMPLIFY=FALSE)
+      motif_length=mapply(function(results){
+        motif_length=as.matrix(Reduce(cbind,lapply(results,
+                                                   function(results){
+                                                     unlist(lapply(results$probKMA_results$V0,nrow))/results$probKMA_results$c*100
+                                                   })))
+        return(as.matrix(motif_length))
+      },results,SIMPLIFY=FALSE)
+    },results,SIMPLIFY=FALSE)
     motif_length_plot=lapply(motif_length_perc,
                              function(motif_length){
                                lapply(motif_length,
@@ -1753,14 +2075,14 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     
     pdf(paste0(name,'_lengths_clean_perc.pdf'),width=7,height=5)
     motif_clean_length_perc=mapply(function(results){
-                                     motif_length=mapply(function(results){
-                                                           motif_length=as.matrix(Reduce(cbind,lapply(results,
-                                                                                                      function(results){
-                                                                                                        unlist(lapply(results$probKMA_results$V0_clean,nrow))/results$probKMA_results$c*100
-                                                                                                      })))
-                                                           return(as.matrix(motif_length))
-                                                         },results,SIMPLIFY=FALSE)
-                                   },results,SIMPLIFY=FALSE)
+      motif_length=mapply(function(results){
+        motif_length=as.matrix(Reduce(cbind,lapply(results,
+                                                   function(results){
+                                                     unlist(lapply(results$probKMA_results$V0_clean,nrow))/results$probKMA_results$c*100
+                                                   })))
+        return(as.matrix(motif_length))
+      },results,SIMPLIFY=FALSE)
+    },results,SIMPLIFY=FALSE)
     motif_length_plot=lapply(motif_clean_length_perc,
                              function(motif_length){
                                lapply(motif_length,
@@ -1786,10 +2108,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     }
     dev.off()
   }
-
+  
   ### output ##################################################################################################
-  return(list(name=name,K=K,c=c,n_init=n_init,silhouette_average_sd=silhouette_average_sd,times=times))
+  return(list(name=name,K=K,c=c,n_init=n_init,silhouette_average_sd=silhouette_average_sd,times=times,V_init=V_init))
 }
+
 
 
 .probKMA_silhouette_filter <- function(probKMA_results,silhouette,sil_threshold=0.5,size_threshold=2){
@@ -1813,7 +2136,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
 filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=0.5,size_threshold=2,
                                     K=find_candidate_motifs_results$K,c=find_candidate_motifs_results$c){
   # Filter the candidate motifs on the basis of a threshold on the average silhouette index
-  # and a threshold on the size of the curves in the motif. 
+  # and a threshold on the size of the curves in the motif.
   # find_candidate_motifs_results: output of find_candidate_motif function.
   # sil_threshold: threshold on the average silhouette index.
   # size_threshold: threshold on the size of the motif (number of curves in the cluster).
@@ -1843,8 +2166,8 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
     warning('c is not a subset of find_candidate_motifs_results$c. Using default c.')
     c=find_candidate_motifs_results$c
   }
-
-  ### filter motifs ###########################################################################################  
+  
+  ### filter motifs ###########################################################################################
   n_init=find_candidate_motifs_results$n_init
   name=find_candidate_motifs_results$name
   motifs=lapply(K,
@@ -1857,11 +2180,9 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
                                     motifs=.probKMA_silhouette_filter(probKMA_results,silhouette,sil_threshold,size_threshold)
                                     return(motifs)
                                   })
-                          })
-                 })
+                         })
+                })
   motifs=unlist(unlist(motifs,recursive=FALSE),recursive=FALSE)
-  if(is.null(unlist(motifs)))
-    stop("No motif present after filtering. Please re-run the function with less stringent parameters.")
   V0_clean=unlist(lapply(motifs,function(motifs) motifs$V0_clean),recursive=FALSE)
   V_clean_length=unlist(lapply(V0_clean,length))
   index=order(V_clean_length,decreasing=TRUE) # order from the longest to the shortest
@@ -1871,50 +2192,87 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
   P_clean=Reduce(cbind,lapply(motifs,function(motifs) motifs$P_clean))[,index]
   c=Reduce(c,lapply(motifs,function(motifs) motifs$c))[index]
   K=Reduce(c,lapply(motifs,function(motifs) motifs$K))[index]
-
+  
   ### output ##################################################################################################
   load(paste0(name,"_K",K[1],"_c",c[1],'/random',1,'.RData'))
-  return(list(V0_clean=V0_clean,V1_clean=V1_clean,D_clean=as.matrix(D_clean),P_clean=as.matrix(P_clean),c=c,K=K,
+  return(list(V0_clean=V0_clean,V1_clean=V1_clean,D_clean=D_clean,P_clean=P_clean,c=c,K=K,transformed=probKMA_results$transformed,
               Y0=probKMA_results$Y0,Y1=probKMA_results$Y1,
               diss=probKMA_results$diss,alpha=probKMA_results$alpha,w=probKMA_results$w,max_gap=probKMA_results$max_gap))
 }
 
 
-.find_occurrences <- function(v,Y,R,alpha,w,c_k,use0,use1){
+
+.find_occurrences <- function(v,Y,R,alpha,w,c_k,use0,use1,transformed=FALSE){
   # Find occurrences of a motif in a set of curves (dimesion=d), with dissimilarity lower than R.
   # Return curve id, shift and dissimilarity.
   # v: list of 2 elements, v0, v1, matrices with d columns.
   # Y: list of N lists of two elements, Y0, Y1, matrices with d columns.
-  # R: maximum dissimilarity allowed. 
+  # R: maximum dissimilarity allowed.
   # alpha: if diss_fun=diss_d0_d1_L2, weight coefficient between d0_L2 and d1_L2.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
   
-  .diss_d0_d1_L2 <- function(y,v,w,alpha){
+  
+  .diss_d0_d1_L2 <- function(y,v,w,alpha,transformed=FALSE){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
     # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
     # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
+    #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+    y_norm=v_norm=list()
+    y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
+    v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
     
-    .diss_L2 <- function(y,v,w){
+    if(transformed){
+      y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
+      y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
+      y0_diff = y0_max - y0_min
+      y0_const = unlist(lapply(y0_diff, function(diff) all.equal(diff, 0) == TRUE))
+      y_norm[[1]] = t( (t(y[[1]]) - y0_min) / y0_diff )
+      y_norm[[2]] = t( t(y[[2]]) / y0_diff )
+      y_norm[[1]][,y0_const]=0.5
+      y_norm[[2]][,y0_const] = 0
+      
+      v0_min=apply(v[[1]],2,min,na.rm=TRUE)
+      v0_max=apply(v[[1]],2,max,na.rm=TRUE)
+      v0_diff=v0_max-v0_min
+      v0_const=unlist(lapply(v0_diff,function(diff) all.equal(diff,0)==TRUE))
+      v_norm[[1]]=t( (t(v[[1]]) - v0_min)/v0_diff)
+      v_norm[[2]]=t( t(v[[2]])/v0_diff)
+      v_norm[[1]][,v0_const]=0.5
+      v_norm[[2]][,v0_const]=0
+    }
+    else{
+      y_norm=y
+      v_norm=v
+    }
+    .diss_L2 <- function(y_norm,v_norm,w){
       # Dissimilarity index for multidimensional curves (dimension=d).
       # L2 distance with normalization on common support.
       # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
       # w: weights for the dissimilarity index in the different dimensions (w>0).
       
-      sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y) # NB: divide for the length of the interval, not for the squared length!
+      sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+      # NB: divide for the length of the interval, not for the squared length!
     }
     
-    if(alpha==0){
-      return(.diss_L2(y[[1]],v[[1]],w))
-    }else if(alpha==1){
-      return(.diss_L2(y[[2]],v[[2]],w))
-    }else{
-      return((1-alpha)*.diss_L2(y[[1]],v[[1]],w)+alpha*.diss_L2(y[[2]],v[[2]],w))
+    if(alpha==0){#L2-like distance which focuses excusively on the levels
+      return(.diss_L2(y_norm[[1]],v_norm[[1]],w))
+    }else if(alpha==1){#L2-like pseudo distance, which uses only weak
+      #derivative information
+      return(.diss_L2(y_norm[[2]],v_norm[[2]],w))
+    }else{#Sobolev-like distance that allows to highlight
+      #more complex features of curve shapes,taking into account
+      #both levels and variations
+      return((1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w))
     }
   }
+  
+  
+  
+  
   .domain <- function(v,use0){
     if(use0){
       rowSums(!is.na(v[[1]]))!=0
@@ -1948,15 +2306,15 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
                     valid=unlist(lapply(lapply(y_rep,.domain,use0),sum))>=c_k
                     s_rep=s_rep[valid]
                     y_rep=y_rep[valid]
-                    d_rep=unlist(lapply(y_rep,.diss_d0_d1_L2,.select_domain(v,v_dom,use0,use1),w,alpha))
+                    d_rep=unlist(lapply(y_rep,.diss_d0_d1_L2,.select_domain(v,v_dom,use0,use1),w,alpha,transformed))
                     d_rep_R=c(FALSE,d_rep<=R,FALSE)
                     diff_d_rep_R=diff(d_rep_R)
                     start=which(diff_d_rep_R==1)
                     end=which(diff_d_rep_R==(-1))-1
                     SD_motif=mapply(function(start,end){
-                                      index=(start:end)[which.min(d_rep[start:end])]
-                                      return(c(s_rep[index],d_rep[index]))
-                                    },start,end)
+                      index=(start:end)[which.min(d_rep[start:end])]
+                      return(c(s_rep[index],d_rep[index]))
+                    },start,end)
                     return(SD_motif)
                   })
   if(!is.null(unlist(SD_motif))){
@@ -1972,18 +2330,19 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
 
 
 cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overlap=0.6,
-                                     k_knn=3,votes_knn_Rall=0.5,votes_knn_Rm=0.5,worker_number=NULL){
-  # Determine a global radius Rall (based on distances between all motifs and all curves), 
-  # and cluster candidate motifs based on their distance, requiring groups to be more than 2*Rall apart. 
-  # Then for each group m=1,...,M, determine a group-specific radius Rm (based on distances between motifs of the same group and all curves). 
+                                     k_knn=6,votes_knn_Rall=0.5,votes_knn_Rm=0.5,votes_knn_Rm_finding=NULL,worker_number=NULL){#votes_knn_Rm=0.5
+  # Determine a global radius Rall (based on distances between all motifs and all curves),
+  # and cluster candidate motifs based on their distance, requiring groups to be more than 2*Rall apart.
+  # Then for each group m=1,...,M, determine a group-specific radius Rm (based on distances between motifs of the same group and all curves).
   # filter_candidate_motifs_results: output of filter_candidate_motifs function.
   # motif_overlap: minimum overlap required between candidate motifs in their distance computation, in % of the shortest motif.
   # k_knn: number of neighbors to be used in k-nearest neighbors, in order to determine Rall and Rm when the two groups (curves with/without motif) are not separated.
   # votes_knn_Rall: threshold on the percentage of votes for class 1 (curve has the motif) in k-nearest neighbors, in order to determine Rall.
   # votes_knn_Rm: threshold on the percentage of votes for class 1 (curve has the motif) in k-nearest neighbors, in order to determine Rm.
-  # plot: if TRUE, histohrams and dendrogram are drawn. 
+  # votes_knn_Rm_finding: threshold on the percentage of votes for class 1 (curve has the motif) in k-nearest neighbors, in order to determine Rm for the finding step (more permissive than Rm).
+  # plot: if TRUE, histohrams and dendrogram are drawn.
   # ask: if TRUE the user is prompted before a new plot is drawn.
-  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores). If worker_number=1, the function is run sequentially. 
+  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores). If worker_number=1, the function is run sequentially.
   
   ### set parallel jobs ###################################################################################
   library(parallel)
@@ -2033,6 +2392,7 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
     V=mapply(function(v0,v1) list(v0=v0,v1=v1),filter_candidate_motifs_results$V0_clean,filter_candidate_motifs_results$V1_clean,SIMPLIFY=FALSE)
   }
   w=filter_candidate_motifs_results$w
+  transformed=filter_candidate_motifs_results$transformed
   max_gap=filter_candidate_motifs_results$max_gap
   d=ncol(filter_candidate_motifs_results$Y0[[1]])
   N=nrow(filter_candidate_motifs_results$D)
@@ -2042,23 +2402,18 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
   
   
   ### compute distances between motifs ####################################################################
-  if(length(V)==1){
-    VV_D=as.matrix(0)
-    VV_S=as.matrix(1)
-  }else{
-    VV=combn(V,2,simplify=FALSE)
-    VV=array(unlist(VV,recursive=FALSE),dim=c(2,length(VV)))
-    VV_lengths=as.matrix(combn(V_length,2))
-    VV_motif_overlap=floor(apply(VV_lengths,2,min)*motif_overlap)
-    SD=mapply(.find_min_diss,VV[1,],VV[2,],VV_motif_overlap,
-              MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1),SIMPLIFY=TRUE)
-    VV_D=matrix(0,nrow=length(V),ncol=length(V))
-    VV_D[lower.tri(VV_D)]=SD[2,]
-    VV_D=VV_D+t(VV_D) # matrix of distances
-    VV_S=matrix(0,nrow=length(V),ncol=length(V))
-    VV_S[lower.tri(VV_S)]=SD[1,]
-    VV_S=VV_S+t(VV_S)+diag(1,nrow=length(V)) # matrix of shifts
-  }
+  VV=combn(V,2,simplify=FALSE)
+  VV=array(unlist(VV,recursive=FALSE),dim=c(2,length(VV)))
+  VV_lengths=as.matrix(combn(V_length,2))
+  VV_motif_overlap=floor(apply(VV_lengths,2,min)*motif_overlap)
+  SD=mapply(.find_min_diss,VV[1,],VV[2,],VV_motif_overlap,
+            MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1,transformed=transformed),SIMPLIFY=TRUE)
+  VV_D=matrix(0,nrow=length(V),ncol=length(V))
+  VV_D[lower.tri(VV_D)]=SD[2,]
+  VV_D=VV_D+t(VV_D) # matrix of distances
+  VV_S=matrix(0,nrow=length(V),ncol=length(V))
+  VV_S[lower.tri(VV_S)]=SD[1,]
+  VV_S=VV_S+t(VV_S)+diag(1,nrow=length(V)) # matrix of shifts
   
   ### determine a global radius Rall ######################################################################
   dataR=data.frame(P=as.vector(filter_candidate_motifs_results$P_clean),D=as.vector(filter_candidate_motifs_results$D_clean))
@@ -2070,17 +2425,21 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
     R_all=D_new[which(ifelse(pred_knn==1,attributes(pred_knn)$prob,1-attributes(pred_knn)$prob)<=votes_knn_Rall)[1]]
   }
   
+  
   ### cluster motifs and determine a group-specific radius Rm ##############################################
-  if(length(V)==1){
-    hclust_res=NULL
-    R_m=R_all
-  }else{
-    VV_dist=as.dist(VV_D)
-  hclust_res=hclust(VV_dist,method='average') # hierarchical clustering based on motif-motif distances
+  
+  
+  VV_dist=as.dist(VV_D)
+  #print(is.infinite(VV_dist) %>% table())
+  #print(is.na(VV_dist) %>% table())
+  
+  hclust_res=hclust(VV_dist,method='average') # hierarchical clustering based on
+  #motif-motif distances
   V_hclust=cutree(hclust_res,h=2*R_all) # cut at high 2*R_all
   n_hclust=max(V_hclust)
   
   R_m=rep(NA,n_hclust)
+  R_m_finding=rep(NA,n_hclust)
   for(i_hclust in seq_len(n_hclust)){
     index_i=which(V_hclust==i_hclust) # motifs in cluster i
     V_length_i=V_length[index_i]
@@ -2090,22 +2449,23 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
     dataR=data.frame(P=as.vector(V_P_i),D=as.vector(V_D_i))
     if(max(dataR$D[dataR$P==1])<=min(dataR$D[dataR$P==0])){
       R_m[i_hclust]=max(dataR$D[dataR$P==1])
+      R_m_finding[i_hclust]=max(dataR$D[dataR$P==1])
     }else{
       D_new=seq(0,max(V_D_i),length.out=10000)
       pred_knn=knn(train=dataR$D,test=as.matrix(D_new),cl=dataR$P,k=k_knn,prob=TRUE)
       R_m[i_hclust]=D_new[which(ifelse(pred_knn==1,attributes(pred_knn)$prob,1-attributes(pred_knn)$prob)<=votes_knn_Rm)[1]]
+      R_m_finding[i_hclust]=D_new[which(ifelse(pred_knn==1,attributes(pred_knn)$prob,1-attributes(pred_knn)$prob)<=votes_knn_Rm_finding)[1]]
     }
-  }
   }
   
   ### output ###############################################################################################
-  return(c(list(VV_D=VV_D,VV_S=VV_S,k_knn=k_knn,votes_knn_Rall=votes_knn_Rall,R_all=R_all,hclust_res=hclust_res,votes_knn_Rm=votes_knn_Rm,R_m=R_m),filter_candidate_motifs_results)) 
+  return(c(list(VV_D=VV_D,VV_S=VV_S,k_knn=k_knn,votes_knn_Rall=votes_knn_Rall,R_all=R_all,hclust_res=hclust_res,votes_knn_Rm=votes_knn_Rm,R_m=R_m,votes_knn_Rm_finding=votes_knn_Rm_finding,R_m_finding=R_m_finding),filter_candidate_motifs_results))
 }
 
 
 cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab='',
-                                          R_all=cluster_candidate_motifs_results$R_all,R_m=NULL,ask=TRUE){
-  # Plot the results of cluster_candidate_motifs. 
+                                          R_all=cluster_candidate_motifs_results$R_all,R_m=NULL,R_m_finding=NULL,ask=TRUE){
+  # Plot the results of cluster_candidate_motifs.
   # cluster_candidate_motifs_results: output of cluster_candidate_motifs function.
   # R_all: global radius, used to cut the dendrogram (requiring groups to be more than 2*Rall apart).
   # R_m: vector with group-specific radii. The length of the vector must match the number of clusters
@@ -2135,6 +2495,7 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
     V=mapply(function(v0,v1) list(v0=v0,v1=v1),cluster_candidate_motifs_results$V0_clean,cluster_candidate_motifs_results$V1_clean,SIMPLIFY=FALSE)
   }
   w=cluster_candidate_motifs_results$w
+  transformed=cluster_candidate_motifs_results$transformed
   max_gap=cluster_candidate_motifs_results$max_gap
   d=ncol(cluster_candidate_motifs_results$Y0[[1]])
   N=nrow(cluster_candidate_motifs_results$D)
@@ -2169,28 +2530,27 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
   legend('topright',legend=c('Curves with motif','Curves without motif'),lwd=2,col=c('red','blue'))
   
   ### cut dendrogram and check group-specific radius Rm ##################################################
-  if(is.null(cluster_candidate_motifs_results$hclust_res)){
-    V_hclust=1
-  }else{
-    V_hclust=cutree(cluster_candidate_motifs_results$hclust_res,h=2*R_all) # cut at high 2*R_all
-  }
+  V_hclust=cutree(cluster_candidate_motifs_results$hclust_res,h=2*R_all) # cut at high 2*R_all
   n_hclust=max(V_hclust)
-  if(!is.null(cluster_candidate_motifs_results$hclust_res)){
-    par(mfrow=c(1,1))
-    dendr=as.dendrogram(cluster_candidate_motifs_results$hclust_res,hang=1)
-    labels_cex(dendr)=0.8
-    plot(dendr,ylab='Distance motif-motif',main='Dendrogram of motifs')
-    abline(h=2*R_all,col='black',lwd=2)
-    text(x=1,y=2*R_all,labels=expression('2R'[all]),pos=3,offset=0.5)
-    if(n_hclust>1)
-      rect.dendrogram(dendr,k=n_hclust)
-  }
+  par(mfrow=c(1,1))
+  dendr=as.dendrogram(cluster_candidate_motifs_results$hclust_res,hang=1)
+  labels_cex(dendr)=0.8
+  plot(dendr,ylab='Distance motif-motif',main='Dendrogram of motifs')
+  abline(h=2*R_all,col='black',lwd=2)
+  text(x=1,y=2*R_all,labels=expression('2R'[all]),pos=3,offset=0.5)
+  if(n_hclust>1)
+    rect.dendrogram(dendr,k=n_hclust)
   
-  # re-compute or check group-specific radius Rm, and plot
+  # re-compute or check group-specific radius Rm,Rm_finding and plot
   if(is.null(R_m))
     R_m=rep(NA,n_hclust)
+  if(is.null(R_m_finding))
+    R_m_finding=rep(NA,n_hclust)
+  
   if(length(R_m)!=n_hclust)
     stop(paste0('The length of the vector R_m must match the number of clusters: ',n_hclust))
+  if(length(R_m_finding)!=n_hclust)
+    stop(paste0('The length of the vector R_m_finding must match the number of clusters: ',n_hclust))
   
   for(i_hclust in seq_len(n_hclust)){
     index_i=which(V_hclust==i_hclust) # motifs in cluster i
@@ -2206,8 +2566,23 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
         D_new=seq(0,max(V_D_i),length.out=10000)
         pred_knn=knn(train=dataR$D,test=as.matrix(D_new),cl=dataR$P,k=cluster_candidate_motifs_results$k_knn,prob=TRUE)
         R_m[i_hclust]=D_new[which(ifelse(pred_knn==1,attributes(pred_knn)$prob,1-attributes(pred_knn)$prob)<=cluster_candidate_motifs_results$votes_knn_Rm)[1]]
+        
       }
     }
+    
+    if(is.na(R_m_finding[i_hclust])){
+      dataR=data.frame(P=as.vector(V_P_i),D=as.vector(V_D_i))
+      if(max(dataR$D[dataR$P==1])<=min(dataR$D[dataR$P==0])){
+        R_m_finding[i_hclust]=max(dataR$D[dataR$P==1])
+      }else{
+        D_new=seq(0,max(V_D_i),length.out=10000)
+        pred_knn=knn(train=dataR$D,test=as.matrix(D_new),cl=dataR$P,k=cluster_candidate_motifs_results$k_knn,prob=TRUE)
+        R_m_finding[i_hclust]=D_new[which(ifelse(pred_knn==1,attributes(pred_knn)$prob,1-attributes(pred_knn)$prob)<=cluster_candidate_motifs_results$votes_knn_Rm_finding)[1]]
+        
+      }
+    }
+    
+    
     
     # plot histograms and motifs
     par(mfrow=c(2,1))
@@ -2218,6 +2593,8 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
     lines(D_clean_density$x,D_clean_density$y,lwd=2)
     abline(v=R_m[i_hclust],lwd=2)
     text(x=R_m[i_hclust],y=max(hist_res$density),labels=bquote(R[.(i_hclust)]),pos=4)
+    abline(v=R_m_finding[i_hclust],lwd=2)
+    text(x=R_m_finding[i_hclust],y=max(hist_res$density),labels=bquote(R_m_finding[.(i_hclust)]),pos=4)
     
     # histogram of distances for motifs in cluster i, separately for curves with the motifs and for curves without the motifs
     hist_res=hist(V_D_i[V_P_i==1],breaks=breaks,probability=TRUE,xlim=xlim,xlab='Distances motif-curve',main=paste0('Distances motif-curve - Cluster ',i_hclust))
@@ -2228,6 +2605,8 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
     lines(D_clean_density0$x,D_clean_density0$y,col='blue',lwd=2)
     abline(v=R_m[i_hclust],lwd=2)
     text(x=R_m[i_hclust],y=max(hist_res$density),labels=bquote(R[.(i_hclust)]),pos=4)
+    abline(v=R_m_finding[i_hclust],lwd=2)
+    text(x=R_m_finding[i_hclust],y=max(hist_res$density),labels=bquote(R_m_finding[.(i_hclust)]),pos=4)
     legend('topright',legend=c('Curves with motif','Curves without motif'),lwd=2,col=c('red','blue'))
     
     par(mfrow=c(2+d,1))
@@ -2253,7 +2632,7 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
     
     # plot
     V_mean_diss_approx_i=apply(V_D_i,2,function(x) mean(x[x<=R_m[i_hclust]])) # approximate average distance (actual radius)
-    V_frequencies_approx_i=colSums(V_D_i<=R_m[i_hclust]) # approximate frequency 
+    V_frequencies_approx_i=colSums(V_D_i<=R_m[i_hclust]) # approximate frequency
     V_frequencies_approx_i_scatter=V_frequencies_approx_i+rnorm(length(V_frequencies_approx_i),sd=0.1)
     plot(V_mean_diss_approx_i,V_frequencies_approx_i_scatter,cex=V_length_i/min(V_length_i),col=seq_along(V_length_i),
          xlab='Approx average distance',ylab='Approx frequency',main=paste0('Motif in Cluster ',i_hclust),yaxt='n',cex.axis=1.5,cex.main=1.5,cex.lab=1.5)
@@ -2265,21 +2644,24 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
 
 
 motifs_search <- function(cluster_candidate_motifs_results,
-                          R_all=cluster_candidate_motifs_results$R_all,R_m=NULL,
+                          R_all=cluster_candidate_motifs_results$R_all,R_m=NULL,different_R_m_finding=FALSE,R_m_finding=NULL,
                           use_real_occurrences=FALSE,length_diff=Inf,worker_number=NULL){
   # Find occurrences of the candidate motifs in the curves and sort them according to their frequencies and radius.
-  # In each group (as defined by cutting the dendrogram at high 2*Rall), we choose the motif 
-  # with highest frequency and lower mean dissimilarity (the one ranking best in both dimensions). 
+  # In each group (as defined by cutting the dendrogram at high 2*Rall), we choose the motif
+  # with highest frequency and lower mean dissimilarity (the one ranking best in both dimensions).
   # Additional motifs can be chosen in a group, if their lengths differ enough from the length of the first motif chosen.
   # A candidate motif matches a piece of curve if their dissimilarity is less than the corresponding R_m.
   # cluster_candidate_motifs_results: output of cluster_candidate_motifs function.
   # R_all: global radius, used to cut the dendrogram (requiring groups to be more than 2*Rall apart).
   # R_m: vector with group-specific radii, used to find motif occurrences. The length of the vector must match the number of clusters
   #      obtained cutting the dendrogram at height 2*Rall. If NULL, Rm is determined in each group (based on distances between motifs of the same group and all curves).
-  # use_real_occurrences: if TRUE, find occurrences for all candidate motifs and uses real frequency and mean dissimilarity to choose motifs 
+  # different_R_m_finding: if TRUE, find the final occurrences using the R_m_finding radius instead of the R_m
+  # R_m_finding: vector with group-specific radii, used to find motif occurrences if different_R_m_finding= TRUE. The length of the vector must match the number of clusters
+  #      obtained cutting the dendrogram at height 2*Rall. If NULL, Rm for finding is determined in each group (based on distances between motifs of the same group and all curves).
+  # use_real_occurrences: if TRUE, find occurrences for all candidate motifs and uses real frequency and mean dissimilarity to choose motifs
   #                       in groups (more accurate, but time consuming). Otherwise, uses approximate frequency and mean dissimilarity (default).
   # length_diff: minimum difference in length among motifs of the same group, required in ordered to keep more than one motif, in % of the most frequent motif.
-  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores). If worker_number=1, the function is run sequentially. 
+  # worker_number: number of CPU cores to be used for parallelization (default number of CPU cores). If worker_number=1, the function is run sequentially.
   
   ### set parallel jobs ###################################################################################
   library(parallel)
@@ -2305,7 +2687,7 @@ motifs_search <- function(cluster_candidate_motifs_results,
   }else{
     cl_search=NULL
   }
-
+  
   ### prepare input data ##################################################################################
   if(cluster_candidate_motifs_results$diss=='d0_L2'){
     alpha=0
@@ -2329,6 +2711,7 @@ motifs_search <- function(cluster_candidate_motifs_results,
     V=mapply(function(v0,v1) list(v0=v0,v1=v1),cluster_candidate_motifs_results$V0_clean,cluster_candidate_motifs_results$V1_clean,SIMPLIFY=FALSE)
   }
   w=cluster_candidate_motifs_results$w
+  transformed=cluster_candidate_motifs_results$transformed
   max_gap=cluster_candidate_motifs_results$max_gap
   d=ncol(cluster_candidate_motifs_results$Y0[[1]])
   N=nrow(cluster_candidate_motifs_results$D)
@@ -2337,14 +2720,10 @@ motifs_search <- function(cluster_candidate_motifs_results,
   V_length=unlist(lapply(V_dom,length))
   
   ### cut dendrogram and check group-specific radius Rm ##################################################
-  if(is.null(cluster_candidate_motifs_results$hclust_res)){
-    V_hclust=1
-  }else{
-    V_hclust=cutree(cluster_candidate_motifs_results$hclust_res,h=2*R_all) # cut at high 2*R_all
-  }
+  V_hclust=cutree(cluster_candidate_motifs_results$hclust_res,h=2*R_all) # cut at high 2*R_all
   n_hclust=max(V_hclust)
   
-  # re-compute or check group-specific radius Rm
+  # re-compute or check group-specific radius Rm and Rm for finding
   if(is.null(R_m)){
     R_m=rep(NA,n_hclust)
     for(i_hclust in seq_len(n_hclust)){
@@ -2365,6 +2744,26 @@ motifs_search <- function(cluster_candidate_motifs_results,
   }
   if(length(R_m)!=n_hclust)
     stop(paste0('The length of the vector R_m must match the number of clusters: ',n_hclust))
+  if(is.null(R_m_finding)){
+    R_m_finding=rep(NA,n_hclust)
+    for(i_hclust in seq_len(n_hclust)){
+      index_i=which(V_hclust==i_hclust) # motifs in cluster i
+      V_length_i=V_length[index_i]
+      V_P_i=as.matrix(cluster_candidate_motifs_results$P_clean[,index_i])
+      V_D_i=as.matrix(cluster_candidate_motifs_results$D_clean[,index_i])
+      
+      dataR=data.frame(P=as.vector(V_P_i),D=as.vector(V_D_i))
+      if(max(dataR$D[dataR$P==1])<=min(dataR$D[dataR$P==0])){
+        R_m_finding[i_hclust]=max(dataR$D[dataR$P==1])
+      }else{
+        D_new=seq(0,max(V_D_i),length.out=10000)
+        pred_knn=knn(train=dataR$D,test=as.matrix(D_new),cl=dataR$P,k=cluster_candidate_motifs_results$k_knn,prob=TRUE)
+        R_m_finding[i_hclust]=D_new[which(ifelse(pred_knn==1,attributes(pred_knn)$prob,1-attributes(pred_knn)$prob)<=cluster_candidate_motifs_results$votes_knn_Rm_finding)[1]]
+      }
+    }
+  }
+  if(length(R_m_finding)!=n_hclust)
+    stop(paste0('The length of the vector R_m_finding must match the number of clusters: ',n_hclust))
   
   ### select candidate motifs and find occurrences #######################################################
   if(use_real_occurrences){
@@ -2372,13 +2771,15 @@ motifs_search <- function(cluster_candidate_motifs_results,
     c_k=floor(V_length*(1-max_gap))
     c_k[c_k<cluster_candidate_motifs_results$c]=cluster_candidate_motifs_results$c[c_k<cluster_candidate_motifs_results$c]
     V_R_m=R_m[V_hclust]
+    V_R_m_finding=R_m_finding[V_hclust]
     # find occurrences
     V_occurrences=.mapply_custom(cl_search,.find_occurrences,
-                                 V,V_R_m,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1),SIMPLIFY=FALSE)
+                                 V,V_R_m,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1,transformed),SIMPLIFY=FALSE)
     not_null=which(!unlist(lapply(V_occurrences,is.null)))
     V=V[not_null]
     V_length=V_length[not_null]
     V_R_m=V_R_m[not_null]
+    V_R_m_finding=V_R_m_finding[not_null]
     V_hclust=V_hclust[not_null]
     
     ### select candidate motifs in each group ##############################################################
@@ -2386,7 +2787,7 @@ motifs_search <- function(cluster_candidate_motifs_results,
     for(i_hclust in seq_len(n_hclust)){
       index_i=which(V_hclust==i_hclust) # motifs in cluster i
       
-      V_frequencies_i=unlist(lapply(V_occurrences[index_i],nrow)) # real frequency 
+      V_frequencies_i=unlist(lapply(V_occurrences[index_i],nrow)) # real frequency
       V_mean_diss_i=unlist(lapply(V_occurrences[index_i],function(x) mean(x[,3]))) # real average distance (actual radius)
       # order based of frequency and average distance
       V_order_i=order(rank(-V_frequencies_i)+rank(V_mean_diss_i)) # sum of ranks in the two dimensions
@@ -2410,20 +2811,50 @@ motifs_search <- function(cluster_candidate_motifs_results,
     V=V[select]
     V_length=V_length[select]
     V_R_m=V_R_m[select]
-    V_occurrences=V_occurrences[select]
+    V_R_m_finding=V_R_m_finding[select]
     
-    V_frequencies=unlist(lapply(V_occurrences,nrow)) # real frequency
-    V_mean_diss=unlist(lapply(V_occurrences,function(x) mean(x[,3]))) # real average distance (actual radius)
-    # sort final motifs based of frequency and average distance
-    V_order=order(rank(-V_frequencies)+rank(V_mean_diss)) # sum of ranks in the two dimensions
-    V=V[V_order]
-    V_occurrences=V_occurrences[V_order]
-    V_length=V_length[V_order]
-    V_R_m=V_R_m[V_order]
-    V_frequencies=V_frequencies[V_order]
-    V_mean_diss=V_mean_diss[V_order]
-    
-    index_final=not_null[select][V_order]
+    if(!different_R_m_finding){
+      V_occurrences=V_occurrences[select]
+      V_frequencies=unlist(lapply(V_occurrences,nrow)) # real frequency
+      V_mean_diss=unlist(lapply(V_occurrences,function(x) mean(x[,3]))) # real average distance (actual radius)
+      # sort final motifs based of frequency and average distance
+      V_order=order(rank(-V_frequencies)+rank(V_mean_diss)) # sum of ranks in the two dimensions
+      V=V[V_order]
+      V_occurrences=V_occurrences[V_order]
+      V_length=V_length[V_order]
+      V_R_m=V_R_m[V_order]
+      V_R_m_finding=V_R_m_finding[V_order]
+      V_frequencies=V_frequencies[V_order]
+      V_mean_diss=V_mean_diss[V_order]
+      
+      index_final=not_null[select][V_order]
+    }else{
+      ### find candidate motifs in the curves ####################################################################
+      c_k=floor(V_length*(1-max_gap))
+      c_k[c_k<cluster_candidate_motifs_results$c[select]]=cluster_candidate_motifs_results$c[select][c_k<cluster_candidate_motifs_results$c[select]]
+      # find occurrences
+      V_occurrences=.mapply_custom(cl_search,.find_occurrences,
+                                   V,V_R_m_finding,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1,transformed),SIMPLIFY=FALSE)
+      not_null=which(!unlist(lapply(V_occurrences,is.null)))
+      V=V[not_null]
+      V_occurrences=V_occurrences[not_null]
+      V_length=V_length[not_null]
+      V_R_m=V_R_m[not_null]
+      V_R_m_finding=V_R_m_finding[not_null]
+      V_frequencies=unlist(lapply(V_occurrences,nrow)) # real frequency
+      V_mean_diss=unlist(lapply(V_occurrences,function(x) mean(x[,3]))) # real average distance (actual radius)
+      # sort final motifs based of frequency and average distance
+      V_order=order(rank(-V_frequencies)+rank(V_mean_diss)) # sum of ranks in the two dimensions
+      V=V[V_order]
+      V_occurrences=V_occurrences[V_order]
+      V_length=V_length[V_order]
+      V_R_m=V_R_m[V_order]
+      V_R_m_finding=V_R_m_finding[V_order]
+      V_frequencies=V_frequencies[V_order]
+      V_mean_diss=V_mean_diss[V_order]
+      
+      index_final=select[not_null][V_order]
+    }
   }else{
     ### select candidate motifs in each group ##############################################################
     select=c()
@@ -2431,7 +2862,7 @@ motifs_search <- function(cluster_candidate_motifs_results,
       index_i=which(V_hclust==i_hclust) # motifs in cluster i
       V_D_i=as.matrix(cluster_candidate_motifs_results$D_clean[,index_i])
       
-      V_frequencies_approx_i=colSums(V_D_i<=R_m[i_hclust]) # approximate frequency 
+      V_frequencies_approx_i=colSums(V_D_i<=R_m[i_hclust]) # approximate frequency
       V_mean_diss_approx_i=apply(V_D_i,2,function(x) mean(x[x<=R_m[i_hclust]])) # approximate average distance (actual radius)
       # order based of frequency and average distance
       V_order_i=order(rank(-V_frequencies_approx_i)+rank(V_mean_diss_approx_i)) # sum of ranks in the two dimensions
@@ -2455,18 +2886,25 @@ motifs_search <- function(cluster_candidate_motifs_results,
     V=V[select]
     V_length=V_length[select]
     V_R_m=R_m[V_hclust[select]]
+    V_R_m_finding=R_m_finding[V_hclust[select]]
     
     ### find candidate motifs in the curves ####################################################################
     c_k=floor(V_length*(1-max_gap))
     c_k[c_k<cluster_candidate_motifs_results$c[select]]=cluster_candidate_motifs_results$c[select][c_k<cluster_candidate_motifs_results$c[select]]
     # find occurrences
-    V_occurrences=.mapply_custom(cl_search,.find_occurrences,
-                                 V,V_R_m,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1),SIMPLIFY=FALSE)
+    if(different_R_m_finding){
+      V_occurrences=.mapply_custom(cl_search,.find_occurrences,
+                                   V,V_R_m_finding,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1,transformed),SIMPLIFY=FALSE)
+    }else{
+      V_occurrences=.mapply_custom(cl_search,.find_occurrences,
+                                   V,V_R_m,c_k,MoreArgs=list(Y=Y,alpha=alpha,w=w,use0,use1,transformed),SIMPLIFY=FALSE)
+    }
     not_null=which(!unlist(lapply(V_occurrences,is.null)))
     V=V[not_null]
     V_occurrences=V_occurrences[not_null]
     V_length=V_length[not_null]
     V_R_m=V_R_m[not_null]
+    V_R_m_finding=V_R_m_finding[not_null]
     V_frequencies=unlist(lapply(V_occurrences,nrow)) # real frequency
     V_mean_diss=unlist(lapply(V_occurrences,function(x) mean(x[,3]))) # real average distance (actual radius)
     # sort final motifs based of frequency and average distance
@@ -2475,6 +2913,7 @@ motifs_search <- function(cluster_candidate_motifs_results,
     V_occurrences=V_occurrences[V_order]
     V_length=V_length[V_order]
     V_R_m=V_R_m[V_order]
+    V_R_m_finding=V_R_m_finding[V_order]
     V_frequencies=V_frequencies[V_order]
     V_mean_diss=V_mean_diss[V_order]
     
@@ -2492,19 +2931,26 @@ motifs_search <- function(cluster_candidate_motifs_results,
     V0=lapply(V,function(v) v$v0)
     V1=lapply(V,function(v) v$v1)
   }
+  if(different_R_m_finding){
+    R_motifs=V_R_m_finding
+  }else{
+    R_motifs=V_R_m
+  }
   return(list(V0=V0,V1=V1,
               V_length=V_length,V_occurrences=V_occurrences,V_frequencies=V_frequencies,V_mean_diss=V_mean_diss,
-              Y0=cluster_candidate_motifs_results$Y0,Y1=cluster_candidate_motifs_results$Y1,R_motifs=V_R_m))
+              Y0=cluster_candidate_motifs_results$Y0,Y1=cluster_candidate_motifs_results$Y1,R_motifs=R_motifs))
 }
 
 
+#This function plots the motif search results without the option
+#of min-max normalization of the distance.
 motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,top_n='all',plot_curves=TRUE){
   # Plot the results of motifs_search.
   # motifs_search_results: output of motifs_search function.
   # ylab: a vector of length d, with the titles for the y axis for each dimension.
   # freq_threshold: plot only motifs with frequency at least equal to freq_threshold.
   # top_n: if 'all', plot all motifs found. If top_n is an integer, then all top top_n motifs are plotted.
-  # plot_curves: if TRUE, plot all the curves with coloured motifs.
+  # plot_curves: if TRUE, plot all the curves with colored motifs.
   
   ### check input ############################################################################################
   # check freq_threshold
@@ -2519,7 +2965,7 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
     if(top_n<1)
       stop('top_n should be at least 1.')
   }
-
+  
   ### select motifs to plot ##################################################################################
   d=ncol(motifs_search_results$Y0[[1]])
   N=length(motifs_search_results$Y0)
@@ -2537,7 +2983,7 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
   V_frequencies=motifs_search_results$V_frequencies[index_plot]
   V_mean_diss=motifs_search_results$V_mean_diss[index_plot]
   R_motifs=motifs_search_results$R_motifs[index_plot]
-
+  
   ### plot motifs ############################################################################################
   layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
   lapply(seq_len(d),
@@ -2565,152 +3011,1238 @@ motifs_search_plot <- function(motifs_search_results,ylab='',freq_threshold=5,to
     plot.new()
     legend('left',paste('motif',seq_len(K)),col=rainbow(K),lwd=7,lty=1,bty="n",xpd=TRUE)
   }
-
+  
   ### plot motifs with matched curves ########################################################################
   if(is.null(V1[[1]])){
     mapply(function(v,v_dom,v_occurrences,v_frequencies,k,R_motif){
-             Y_inters_k=mapply(function(y,s_k_i,v_dom){
-                          v_len=length(v_dom)
-                          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
-                          return(Y_inters_k)},
-                          motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-             layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-             lapply(seq_len(d),
-                    function(j){
-                      par(mar=c(3,4,4,2)+0.1)
-                      y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
-                      y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                      matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
-                              lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
-                      points(v[,j],type='l',col='black',lwd=7,lty=1)
-                      par(mar=c(0,0,0,0))
-                      plot.new()
-                      legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                      })
-             return()},V0,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
+      Y_inters_k=mapply(function(y,s_k_i,v_dom){
+        v_len=length(v_dom)
+        Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+        return(Y_inters_k)},
+        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(3,4,4,2)+0.1)
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y_inters_k))
+               y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
+               points(v[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+             })
+      return()},V0,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
   }else{
     mapply(function(v0,v1,v_dom,v_occurrences,v_frequencies,k,R_motif){
-             Y0_inters_k=mapply(
-                           function(y,s_k_i,v_dom){
-                             v_len=length(v_dom)
-                             Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
-                             return(Y_inters_k)},
-                           motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-             Y1_inters_k=mapply(
-                           function(y,s_k_i,v_dom){
-                             v_len=length(v_dom)
-                             Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
-                             return(Y_inters_k)},
-                           motifs_search_results$Y1[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
-             layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
-             lapply(seq_len(d),
-                    function(j){
-                      par(mar=c(3,4,4,2)+0.1)
-                      y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
-                      y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                      matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
-                              lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
-                      points(v0[,j],type='l',col='black',lwd=7,lty=1)
-                      par(mar=c(0,0,0,0))
-                      plot.new()
-                      legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                      })
-             lapply(seq_len(d),
-                    function(j){
-                      par(mar=c(3,4,4,2)+0.1)
-                      y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
-                      y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
-                      matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
-                              lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j],' derivative'))
-                      points(v1[,j],type='l',col='black',lwd=7,lty=1)
-                      par(mar=c(0,0,0,0))
-                      plot.new()
-                      legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
-                    })
-            return()},V0,V1,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
-    }
-
+      Y0_inters_k=mapply(
+        function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      Y1_inters_k=mapply(
+        function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+        motifs_search_results$Y1[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(3,4,4,2)+0.1)
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+               y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
+               points(v0[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+             })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(3,4,4,2)+0.1)
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
+               y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j],' derivative'))
+               points(v1[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+             })
+      return()},V0,V1,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
+  }
+  
   ### plot curves with motifs ################################################################################
   if(plot_curves){
     if(is.null(motifs_search_results$Y1[[1]])){
       mapply(function(y0,i){
-               s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
-               motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
-               s_i=unlist(s_i)
-               Y_inters_k=mapply(function(v_dom,s_i_k,y){
-                                   v_len=length(v_dom)
-                                   Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
-                                   Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
-                                   return(Y_inters_k)},
-                                 V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
-               layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
-               lapply(seq_len(d),
-                      function(j){
-                        par(mar=c(3,4,4,2)+0.1)
-                        plot(y0[,j],type='l',main=paste('Region',i,'-',ylab[j]),ylab=ylab[j])
-                        for(k in seq_along(motifs_in_curve)){
-                          lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
-                        }
-                      })
-               plot.new()
-               if(length(motifs_in_curve)==0){
-                 legend_text=''
-               }else{
-                 legend_text=paste('motif',unique(motifs_in_curve))
-               }
-               legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
-               return()},motifs_search_results$Y0,seq_len(N))
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
+        s_i=unlist(s_i)
+        Y_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
+        layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 plot(y0[,j],type='l',main=paste('Curve',i,'-',ylab[j]),ylab=ylab[j])
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
+        return()},motifs_search_results$Y0,seq_len(N))
     }else{
       mapply(function(y0,y1,i){
-                s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
-                motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
-                s_i=unlist(s_i)
-                Y0_inters_k=mapply(function(v_dom,s_i_k,y){
-                                     v_len=length(v_dom)
-                                     Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
-                                     Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
-                                     return(Y_inters_k)},
-                                   V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
-                Y1_inters_k=mapply(function(v_dom,s_i_k,y){
-                                     v_len=length(v_dom)
-                                     Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
-                                     Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
-                                     return(Y_inters_k)},
-                                   V_dom[motifs_in_curve],s_i,MoreArgs=list(y1),SIMPLIFY=FALSE)
-                layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
-                lapply(seq_len(d),
-                       function(j){
-                         par(mar=c(3,4,4,2)+0.1)
-                         plot(y0[,j],type='l',main=paste('Region',i,'-',ylab[j]),ylab=ylab[j],xlab='')
-                         for(k in seq_along(motifs_in_curve)){
-                           lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y0_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
-                         }
-                       })
-                plot.new()
-                if(length(motifs_in_curve)==0){
-                  legend_text=''
-                }else{
-                  legend_text=paste('motif',unique(motifs_in_curve))
-                }
-                legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
-                lapply(seq_len(d),
-                       function(j){
-                         par(mar=c(3,4,4,2)+0.1)
-                         plot(y1[,j],type='l',main=paste('Region',i,'-',paste(ylab[j],'derivative')),ylab=ylab[j])
-                         for(k in seq_along(motifs_in_curve)){
-                           lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y1_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
-                         }
-                       })
-                plot.new()
-                if(length(motifs_in_curve)==0){
-                  legend_text=''
-                }else{
-                  legend_text=paste('motif',unique(motifs_in_curve))
-                }
-                legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
-                return()},motifs_search_results$Y0,motifs_search_results$Y1,seq_len(N))
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
+        s_i=unlist(s_i)
+        Y0_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
+        Y1_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y1),SIMPLIFY=FALSE)
+        layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 plot(y0[,j],type='l',main=paste('Curve',i,'-',ylab[j]),ylab=ylab[j],xlab='')
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y0_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 plot(y1[,j],type='l',main=paste('Curve',i,'-',paste(ylab[j],'derivative')),ylab=ylab[j])
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y1_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
+        return()},motifs_search_results$Y0,motifs_search_results$Y1,seq_len(N))
     }
   }
-
+  
   return()
+}
+
+
+
+############################PLOTTING THE NORMALIZED MOTIFS
+motifs_search_plot_norm <- function(motifs_search_results,ylab='',freq_threshold=5,top_n='all',
+                                    plot_curves=TRUE,
+                                    transformed=FALSE){
+  # Plot the results of motifs_search.
+  # motifs_search_results: output of motifs_search function.
+  # ylab: a vector of length d, with the titles for the y axis for each dimension.
+  # freq_threshold: plot only motifs with frequency at least equal to freq_threshold.
+  # top_n: if 'all', plot all motifs found. If top_n is an integer, then all top top_n motifs are plotted.
+  # plot_curves: if TRUE, plot all the curves with colored motifs.
+  # transformed: if TRUE, the distance is min-max normalized
+  
+  ### check input ############################################################################################
+  # check freq_threshold
+  if(max(motifs_search_results$V_frequencies)<freq_threshold)
+    stop('There are no motifs with frequency at least equal to freq_threshold.')
+  # check top_n
+  if(top_n!='all'){
+    if(length(top_n)!=1)
+      stop('top_n not valid.')
+    if(top_n%%1!=0)
+      stop('top_n should be an integer.')
+    if(top_n<1)
+      stop('top_n should be at least 1.')
+  }
+  
+  ### select motifs to plot ##################################################################################
+  d=ncol(motifs_search_results$Y0[[1]])
+  N=length(motifs_search_results$Y0)
+  index_plot=which(motifs_search_results$V_frequencies>=freq_threshold)
+  if(top_n!='all'){
+    if(length(index_plot)>top_n)
+      index_plot=index_plot[seq_len(top_n)]
+  }
+  K=length(index_plot)
+  V0=motifs_search_results$V0[index_plot]
+  V1=motifs_search_results$V1[index_plot]
+  V_dom=lapply(V0,function(v) rowSums(!is.na(v))!=0)
+  V_length=motifs_search_results$V_length[index_plot]
+  V_occurrences=motifs_search_results$V_occurrences[index_plot]
+  V_frequencies=motifs_search_results$V_frequencies[index_plot]
+  V_mean_diss=motifs_search_results$V_mean_diss[index_plot]
+  R_motifs=motifs_search_results$R_motifs[index_plot]
+  
+  ### plot motifs ############################################################################################
+  layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+  lapply(seq_len(d),
+         function(j){
+           par(mar=c(3,4,4,2)+0.1)
+           plot(V0[[1]][,j],type='l',col=rainbow(K),lwd=5,lty=1,main=ylab[j],xlim=c(1,max(V_length)),
+                ylab=ylab[j],ylim=c(min(unlist(V0)),max(unlist(V0))))
+           mapply(function(v,k) points(v[,j],type='l',col=rainbow(K)[k+1],lwd=5,lty=1,ylab=ylab),
+                  V0[-1],seq_len(K-1))
+           par(mar=c(0,0,0,0))
+           return()})
+  plot.new()
+  legend('left',paste('motif',seq_len(K)),col=rainbow(K),lwd=7,lty=1,bty="n",xpd=TRUE)
+  if(!is.null(V1[[1]])){
+    layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+    lapply(seq_len(d),
+           function(j){
+             par(mar=c(3,4,4,2)+0.1)
+             plot(V1[[1]][,j],type='l',col=rainbow(K),lwd=5,lty=1,main=paste(ylab[j],'derivative'),xlim=c(1,max(V_length)),
+                  ylab=ylab[j],ylim=c(min(unlist(V1)),max(unlist(V1))))
+             mapply(function(v,k) points(v[,j],type='l',col=rainbow(K)[k+1],lwd=5,lty=1,ylab=ylab),
+                    V1[-1],seq_len(K-1))
+             par(mar=c(0,0,0,0))
+             return()})
+    plot.new()
+    legend('left',paste('motif',seq_len(K)),col=rainbow(K),lwd=7,lty=1,bty="n",xpd=TRUE)
+  }
+  
+  ### plot motifs with matched curves ########################################################################
+  if(is.null(V1[[1]])){
+    mapply(function(v,v_dom,v_occurrences,v_frequencies,k,R_motif){
+      Y_inters_k=mapply(function(y,s_k_i,v_dom){
+        v_len=length(v_dom)
+        Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+        return(Y_inters_k)},
+        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+      Y0_diff_k=lapply(Y0_inters_k,
+                       function(Y0_inters_k){
+                         y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                         y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                         y0_diff=y0_max-y0_min
+                         return(y0_diff)
+                       })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(3,4,4,2)+0.1)
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+               if(transformed){
+                 y_plot[v_dom,]=Reduce('cbind',
+                                       mapply(function(Y_inters_k, Y_diff_k) {
+                                         y0_min=min(Y_inters_k[,j])
+                                         y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                         #print(dim(y0_norm))
+                                         y0_const = (Y_diff_k[j] == 0)
+                                         y0_norm[,y0_const] = 0.5
+                                         return(y0_norm)},
+                                         Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) )
+               } else {
+                 y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               }
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
+               points(v[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+             })
+      return()},V0,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
+  }else{
+    mapply(function(v0,v1,v_dom,v_occurrences,v_frequencies,k,R_motif){
+      Y0_inters_k=mapply(
+        function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      Y1_inters_k=mapply(
+        function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+        motifs_search_results$Y1[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+      Y0_diff_k=lapply(Y0_inters_k,
+                       function(Y0_inters_k){
+                         y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                         y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                         y0_diff=y0_max-y0_min
+                         return(y0_diff)
+                       })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(3,4,4,2)+0.1)
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+               if(transformed){
+                 y_plot[v_dom,]=Reduce('cbind',
+                                       mapply(function(Y_inters_k, Y_diff_k) {
+                                         y0_min=min(Y_inters_k[,j])
+                                         y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                         #print(dim(y0_norm))
+                                         y0_const = (Y_diff_k[j] == 0)
+                                         y0_norm[,y0_const] = 0.5
+                                         return(y0_norm)},
+                                         Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) 
+                 )
+               } else {
+                 y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               }
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j]))
+               points(v0[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+             })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(3,4,4,2)+0.1)
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
+               if(transformed){
+                 y_plot[v_dom,]=Reduce('cbind',
+                                       mapply(function(Y1_inters_k, Y_diff_k) {
+                                         y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
+                                         #print(dim(y1_norm))
+                                         y0_const = (Y_diff_k[j] == 0)
+                                         y1_norm[,y0_const] = 0
+                                         return(y1_norm)},
+                                         Y1_inters_k, Y0_diff_k, SIMPLIFY=FALSE)
+                 ) 
+               } else {
+                 y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               }
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j],' derivative'))
+               points(v1[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE)
+             })
+      return()},V0,V1,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
+  }
+  
+  ### plot curves with motifs ################################################################################
+  if(plot_curves){
+    if(is.null(motifs_search_results$Y1[[1]])){
+      mapply(function(y0,i){
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
+        s_i=unlist(s_i)
+        Y_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
+        layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 plot(y0[,j],type='l',main=paste('Curve',i,'-',ylab[j]),ylab=ylab[j])
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
+        return()},motifs_search_results$Y0,seq_len(N))
+    }else{
+      mapply(function(y0,y1,i){
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
+        s_i=unlist(s_i)
+        Y0_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
+        Y1_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y1),SIMPLIFY=FALSE)
+        layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 plot(y0[,j],type='l',main=paste('Curve',i,'-',ylab[j]),ylab=ylab[j],xlab='')
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y0_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(3,4,4,2)+0.1)
+                 plot(y1[,j],type='l',main=paste('Curve',i,'-',paste(ylab[j],'derivative')),ylab=ylab[j])
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y1_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs')
+        return()},motifs_search_results$Y0,motifs_search_results$Y1,seq_len(N))
+    }
+  }
+  
+  return()
+}
+
+
+############################PLOTTING THE NORMALIZED MOTIFS WITH TIME ON THE X-AXIS
+#The same function for plotting the motif search results as before,
+#but here the normalized motifs can be plotted (if transformed=TRUE)
+#and the dates (time) ticks are added on the x-axis.
+motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_threshold=5,top_n='all',
+                                         plot_curves=TRUE,
+                                         transformed=FALSE,data_smoothed){
+  # Plot the results of motifs_search.
+  # motifs_search_results: output of motifs_search function.
+  # ylab: a vector of length d, with the titles for the y axis for each dimension.
+  # freq_threshold: plot only motifs with frequency at least equal to freq_threshold.
+  # top_n: if 'all', plot all motifs found. If top_n is an integer, then all top top_n motifs are plotted.
+  # plot_curves: if TRUE, plot all the curves with colored motifs.
+  
+  ### check input ############################################################################################
+  # check freq_threshold
+  if(max(motifs_search_results$V_frequencies)<freq_threshold)
+    stop('There are no motifs with frequency at least equal to freq_threshold.')
+  # check top_n
+  if(top_n!='all'){
+    if(length(top_n)!=1)
+      stop('top_n not valid.')
+    if(top_n%%1!=0)
+      stop('top_n should be an integer.')
+    if(top_n<1)
+      stop('top_n should be at least 1.')
+  }
+  
+  ### select motifs to plot ##################################################################################
+  d=ncol(motifs_search_results$Y0[[1]])
+  N=length(motifs_search_results$Y0)
+  index_plot=which(motifs_search_results$V_frequencies>=freq_threshold)
+  if(top_n!='all'){
+    if(length(index_plot)>top_n)
+      index_plot=index_plot[seq_len(top_n)]
+  }
+  K=length(index_plot)
+  V0=motifs_search_results$V0[index_plot]
+  V1=motifs_search_results$V1[index_plot]
+  V_dom=lapply(V0,function(v) rowSums(!is.na(v))!=0)
+  V_length=motifs_search_results$V_length[index_plot]
+  V_occurrences=motifs_search_results$V_occurrences[index_plot]
+  V_frequencies=motifs_search_results$V_frequencies[index_plot]
+  V_mean_diss=motifs_search_results$V_mean_diss[index_plot]
+  R_motifs=motifs_search_results$R_motifs[index_plot]
+  
+  ### plot motifs ############################################################################################
+  layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+  lapply(seq_len(d),
+         function(j){
+           par(mar=c(3,4,4,2)+0.1)
+           plot(V0[[1]][,j],type='l',col=rainbow(K),lwd=5,lty=1,main=ylab[j],xlim=c(1,max(V_length)),
+                ylab=ylab[j],ylim=c(min(unlist(V0)),max(unlist(V0))),cex.lab=3, cex.axis=3, cex.main=3, cex.sub=3)
+           mapply(function(v,k) points(v[,j],type='l',col=rainbow(K)[k+1],lwd=5,lty=1,ylab=ylab),
+                  V0[-1],seq_len(K-1))
+           par(mar=c(0,0,0,0))
+           return()})
+  plot.new()
+  legend('left',paste('motif',seq_len(K)),col=rainbow(K),lwd=7,lty=1,bty="n",xpd=TRUE,cex=1.5)
+  if(!is.null(V1[[1]])){
+    layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+    lapply(seq_len(d),
+           function(j){
+             par(mar=c(3,4,4,2)+0.1)
+             plot(V1[[1]][,j],type='l',col=rainbow(K),lwd=5,lty=1,main=paste(ylab[j],'derivative'),xlim=c(1,max(V_length)),
+                  ylab=ylab[j],ylim=c(min(unlist(V1)),max(unlist(V1))),cex.lab=3, cex.axis=3, cex.main=3, cex.sub=3)
+             mapply(function(v,k) points(v[,j],type='l',col=rainbow(K)[k+1],lwd=5,lty=1,ylab=ylab),
+                    V1[-1],seq_len(K-1))
+             par(mar=c(0,0,0,0))
+             return()})
+    plot.new()
+    legend('left',paste('motif',seq_len(K)),col=rainbow(K),lwd=7,lty=1,bty="n",xpd=TRUE,cex=1.5)
+  }
+  
+  ### plot motifs with matched curves ########################################################################
+  if(is.null(V1[[1]])){
+    mapply(function(v,v_dom,v_occurrences,v_frequencies,k,R_motif){
+      Y_inters_k=mapply(function(y,s_k_i,v_dom){
+        v_len=length(v_dom)
+        Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+        return(Y_inters_k)},
+        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+      Y0_diff_k=lapply(Y0_inters_k,
+                       function(Y0_inters_k){
+                         y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                         y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                         y0_diff=y0_max-y0_min
+                         return(y0_diff)
+                       })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(7,9,5,2)+0.1,mgp=c(6,3,0))
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+               if(transformed){
+                 y_plot[v_dom,]=Reduce('cbind',
+                                       mapply(function(Y_inters_k, Y_diff_k) {
+                                         y0_min=min(Y_inters_k[,j])
+                                         y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                         #print(dim(y0_norm))
+                                         y0_const = (Y_diff_k[j] == 0)
+                                         y0_norm[,y0_const] = 0.5
+                                         return(y0_norm)},
+                                         Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) )
+               } else {
+                 y_plot[v_dom,]=Reduce('cbind',lapply(Y_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               }
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab="v(t)",main=paste0('Motif ',k,' (',v_frequencies,' occurrences)'),#' occurrences) - ',ylab[j]),
+                       cex.lab=4, cex.axis=4, cex.main=5, cex.sub=4,xlab="Time")
+               points(v[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               #legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE,cex=1.5)
+             })
+      return()},V0,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
+  }else{
+    mapply(function(v0,v1,v_dom,v_occurrences,v_frequencies,k,R_motif){
+      Y0_inters_k=mapply(
+        function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+        motifs_search_results$Y0[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      Y1_inters_k=mapply(
+        function(y,s_k_i,v_dom){
+          v_len=length(v_dom)
+          Y_inters_k=as.matrix(as.matrix(y[s_k_i-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+        motifs_search_results$Y1[v_occurrences[,'curve']],v_occurrences[,'shift'],MoreArgs=list(v_dom),SIMPLIFY=FALSE)
+      layout(matrix(1:(2*d),ncol=2,byrow=TRUE),widths=c(7,1))
+      Y0_diff_k=lapply(Y0_inters_k,
+                       function(Y0_inters_k){
+                         y0_min=apply(Y0_inters_k, 2, min, na.rm = TRUE)
+                         y0_max=apply(Y0_inters_k, 2, max, na.rm = TRUE)
+                         y0_diff=y0_max-y0_min
+                         return(y0_diff)
+                       })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(7,9,5,2)+0.1,mgp=c(6,3,0))
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y0_inters_k))
+               if(transformed){
+                 y_plot[v_dom,]=Reduce('cbind',
+                                       mapply(function(Y_inters_k, Y_diff_k) {
+                                         y0_min=min(Y_inters_k[,j])
+                                         y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
+                                         #print(dim(y0_norm))
+                                         y0_const = (Y_diff_k[j] == 0)
+                                         y0_norm[,y0_const] = 0.5
+                                         return(y0_norm)},
+                                         Y0_inters_k, Y0_diff_k, SIMPLIFY=FALSE) 
+                 )
+               } else {
+                 y_plot[v_dom,]=Reduce('cbind',lapply(Y0_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               }
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab="v(t)",main=paste0('Motif ',k,' (',v_frequencies,' occurrences)'),# - ',ylab[j]
+                       cex.lab=4, cex.axis=4, cex.main=5, cex.sub=4,xlab="Time")
+               points(v0[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               #legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE,cex=1.5)
+             })
+      lapply(seq_len(d),
+             function(j){
+               par(mar=c(7,9,5,2)+0.1,mgp=c(6,3,0))
+               y_plot=matrix(NA,nrow=length(v_dom),ncol=length(Y1_inters_k))
+               if(transformed){
+                 y_plot[v_dom,]=Reduce('cbind',
+                                       mapply(function(Y1_inters_k, Y_diff_k) {
+                                         y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
+                                         #print(dim(y1_norm))
+                                         y0_const = (Y_diff_k[j] == 0)
+                                         y1_norm[,y0_const] = 0
+                                         return(y1_norm)},
+                                         Y1_inters_k, Y0_diff_k, SIMPLIFY=FALSE)
+                 ) 
+               } else {
+                 y_plot[v_dom,]=Reduce('cbind',lapply(Y1_inters_k,function(Y_inters_k) Y_inters_k[,j]))
+               }
+               matplot(y_plot,type='l',col=v_occurrences[,'curve']+1,lwd=round(-4/R_motif*v_occurrences[,'diss']+5,2),
+                       lty=1,ylab=ylab[j],main=paste0('Motif ',k,' (',v_frequencies,' occurrences) - ',ylab[j],' derivative'),
+                       cex.lab=4, cex.axis=4, cex.main=5, cex.sub=4)
+               points(v1[,j],type='l',col='black',lwd=7,lty=1)
+               par(mar=c(0,0,0,0))
+               plot.new()
+               legend('left',legend='motif center',col='black',lwd=7,lty=1,bty="n",xpd=TRUE,cex=1.5)
+             })
+      return()},V0,V1,V_dom,V_occurrences,V_frequencies,seq_len(K),R_motifs)
+  }
+  
+  ### plot curves with motifs ################################################################################
+  if(plot_curves){
+    if(is.null(motifs_search_results$Y1[[1]])){
+      mapply(function(y0,i){
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
+        s_i=unlist(s_i)
+        Y_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
+        layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(7,9,5,2)+0.1,mgp=c(6,3,0))
+                 plot(y0[,j],type='l',main=paste(names(data_smoothed)[i]),ylab=ylab[j],#,'-',ylab[j]
+                      xaxt="n",cex.lab=4, cex.axis=4, cex.main=5, cex.sub=4,xlab="Time")
+                 axis(side=1,at=ticks_all[[i]],las=1,labels=years_all[[i]],cex.axis=3)
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs',cex=2)
+        return()},motifs_search_results$Y0,seq_len(N))
+    }else{
+      mapply(function(y0,y1,i){
+        s_i=lapply(V_occurrences,function(occurrences) occurrences[occurrences[,'curve']==i,'shift'])
+        motifs_in_curve=rep(seq_len(K),unlist(lapply(s_i,length)))
+        s_i=unlist(s_i)
+        Y0_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y0),SIMPLIFY=FALSE)
+        Y1_inters_k=mapply(function(v_dom,s_i_k,y){
+          v_len=length(v_dom)
+          Y_inters_k=matrix(NA,nrow=length(v_dom),ncol=d)
+          Y_inters_k[v_dom,]=as.matrix(as.matrix(y[s_i_k-1+seq_len(v_len),])[v_dom,])
+          return(Y_inters_k)},
+          V_dom[motifs_in_curve],s_i,MoreArgs=list(y1),SIMPLIFY=FALSE)
+        layout(matrix(c(seq_len(d),rep(d+1,d)),ncol=2),widths=c(7,1))
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(7,9,5,2)+0.1,mgp=c(6,3,0))
+                 #plot(y0[,j],type='l',main=paste(names(data_smoothed)[i],'-',ylab[j]),ylab=ylab[j])
+                 plot(y0[,j],type='l',main=paste(names(data_smoothed)[i]),ylab=ylab[j],las=2,#,'-',ylab[j]
+                      xaxt="n",cex.lab=4, cex.axis=4, cex.main=5, cex.sub=4,xlab="Time")
+                 axis(side=1,at=ticks_all[[i]],las=1,labels=years_all[[i]],cex.axis=3)
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y0_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs',cex=2)
+        lapply(seq_len(d),
+               function(j){
+                 par(mar=c(7,9,5,2)+0.1,mgp=c(6,3,0))
+                 plot(y1[,j],type='l',main=paste(names(data_smoothed)[i],'-',paste(ylab[j],'derivative')),ylab=ylab[j],
+                      xaxt="n",cex.lab=4, cex.axis=4, cex.main=5, cex.sub=4,xlab="Time")
+                 axis(side=1,las=1,at=ticks_all[[i]],labels=years_all[[i]],cex.axis=3)
+                 for(k in seq_along(motifs_in_curve)){
+                   lines(s_i[k]-1+seq_len(V_length[motifs_in_curve[k]]),Y1_inters_k[[k]][,j],col=rainbow(K)[motifs_in_curve[k]],lwd=5)
+                 }
+               })
+        plot.new()
+        if(length(motifs_in_curve)==0){
+          legend_text=''
+        }else{
+          legend_text=paste('motif',unique(motifs_in_curve))
+        }
+        legend('left',legend_text,col=rainbow(K)[unique(motifs_in_curve)],lwd=7,lty=1,bty="n",xpd=TRUE,title='Motifs',cex=2)
+        return()},motifs_search_results$Y0,motifs_search_results$Y1,seq_len(N))
+    }
+  }
+  
+  return()
+}
+
+
+
+
+
+
+
+
+#Find only positive shifts using the alignment 
+.find_min_diss_positive <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE){
+  # Find shift warping minimizing dissimilarity between multidimensional
+  # curves (dimension=d).
+  # Return shift and dissimilarity.
+  # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
+  # alpha: weight coefficient between d0.L2 and d1.L2.
+  # if alpha=0, then use0=TRUE, since the derivative is zero.
+  # if alpha=1, then use1=TRUE, since only the derivative will be used in the computation of the distance;
+  # if 0<alpha<1, then use0=TRUE and use1=TRUE, since both the curve and its derivative will be used to compute the distance.
+  # w: weights for the dissimilarity index in the
+  #different dimensions (w>0).
+  # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
+  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  v_dom=.domain(v,use0)
+  v=.select_domain(v,v_dom,use0,use1)
+  v_len=length(v_dom)
+  y_len=unlist(lapply(y,nrow))[1]
+  #s_rep=(1-(v_len-c_k)):(y_len-v_len+1+(v_len-c_k))
+  #I want to consider only the positive shifts
+  s_rep=0:(y_len-v_len+1+(v_len-c_k))
+  y_rep=lapply(s_rep,
+               function(i){
+                 index=i-1+seq_len(v_len)
+                 y_rep_i=list(y0=NULL,y1=NULL)
+                 if(use0){
+                   y_rep_i$y0=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[1]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 if(use1){
+                   y_rep_i$y1=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[2]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
+                 return(y_rep_i)
+               })
+  length_inter=unlist(lapply(y_rep,
+                             function(y_rep_i){
+                               if(use0)
+                                 return(sum((!is.na(y_rep_i$y0[,1]))))
+                               return(sum((!is.na(y_rep_i$y1[,1]))))
+                             }))
+  valid=length_inter>=c_k
+  if(sum(valid)==0){
+    valid[length_inter==max(length_inter)]=TRUE
+  }
+  s_rep=s_rep[valid]
+  y_rep=y_rep[valid]
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
+  return(c(s_rep[which.min(d_rep)],min(d_rep)))
+}
+
+require(KernSmooth)
+smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1=TRUE){
+  # smooth a single rate curve using local polynomials
+  # rate_filled: vector with rates in the windows of the considered region, after filling gaps
+  # degree: degree of local polynomial used
+  # bandwidth: bandwidth to be used in local polynomial fitting 
+  #            (if NULL, bandwidth is selected by direct plug-in methodology for local linear Gaussian kernel regression)
+  # D0: if TRUE, return the vector of the smoothed rate
+  # D1: if TRUE, return the vector of the derivative of the smoothed rate
+  
+  require(KernSmooth)
+  
+  index=which(!is.na(rate_filled))
+  # find subsegments and their lengths
+  rate_not_na=!is.na(rate_filled)
+  subsegments=which((rate_not_na[2:length(rate_not_na)]-rate_not_na[1:(length(rate_not_na)-1)])==1)+1
+  if(rate_not_na[1])
+    subsegments=c(1,subsegments)
+  subsegments_lengths=rle(rate_not_na)$lengths[rle(rate_not_na)$values==TRUE]
+  index=setdiff(index,subsegments[subsegments_lengths==1])
+  rate_smoothed=list()
+  if(is.null(bandwidth)){
+    bandwidth=tryCatch(dpill(index,rate_filled[index]),error=function(e) e)
+    message('bandwidth selected: ',bandwidth)
+    if(is.list(bandwidth)){
+      bandwidth=20
+    }else{
+      if(is.nan(bandwidth))
+        bandwidth=20
+    }
+    
+  }
+  if(v0){
+    rate_smoothed$v0=rep(NA,length(rate_filled))
+    rate_smoothed$v0[index]=locpoly(index,rate_filled[index],drv=0,kernel='normal',degree=degree,bandwidth=bandwidth,
+                                    gridsize=length(rate_filled),range.x=c(1,length(rate_filled)))$y[index]
+  }
+  if(v1){
+    rate_smoothed$v1=rep(NA,length(rate_filled))
+    rate_smoothed$v1[index]=locpoly(index,rate_filled[index],drv=1,kernel='normal',degree=degree,bandwidth=bandwidth,
+                                    gridsize=length(rate_filled),range.x=c(1,length(rate_filled)))$y[index]
+  }
+  return(rate_smoothed)
+}
+
+
+
+
+#Find the shifts (positive and negative) by making the alignment matching the last points.
+.diss_d0_d1_L2_last_point <- function(y,v,w,alpha,transformed=FALSE,last_point=FALSE){
+  # Dissimilarity index for multidimensional curves (dimension=d).
+  # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
+  # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
+  # w: weights for the dissimilarity index in the different dimensions (w>0).
+  # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
+  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  y_norm=v_norm=list()
+  y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
+  v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
+  
+  if(transformed){
+    y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
+    y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
+    y0_diff = y0_max - y0_min
+    y0_const = unlist(lapply(y0_diff, function(diff) all.equal(diff, 0) == TRUE))
+    y_norm[[1]] = t( (t(y[[1]]) - y0_min) / y0_diff )
+    y_norm[[2]] = t( t(y[[2]]) / y0_diff )
+    y_norm[[1]][,y0_const]=0.5
+    y_norm[[2]][,y0_const] = 0
+    
+    v0_min=apply(v[[1]],2,min,na.rm=TRUE)
+    v0_max=apply(v[[1]],2,max,na.rm=TRUE)
+    v0_diff=v0_max-v0_min
+    v0_const=unlist(lapply(v0_diff,function(diff) all.equal(diff,0)==TRUE))
+    v_norm[[1]]=t( (t(v[[1]]) - v0_min)/v0_diff)
+    v_norm[[2]]=t( t(v[[2]])/v0_diff)
+    v_norm[[1]][,v0_const]=0.5
+    v_norm[[2]][,v0_const]=0
+    
+    # qui
+    if(last_point){
+      v_norm[[1]]=t(t(v_norm[[1]])+as.vector(tail(y_norm[[1]],1)-tail(v_norm[[1]],1)))
+      v_norm[[2]]=v_norm[[2]]
+    }else
+    {
+      v_norm[[1]]=v_norm[[1]]
+      v_norm[[2]]=v_norm[[2]]
+    }
+  }
+  else{
+    if(last_point){
+      y_norm=y
+      v_norm[[1]]=t(t(v[[1]])+as.vector(tail(y[[1]],1)-tail(v[[1]],1)))
+      v_norm[[2]]=v[[2]]
+    }else{
+      y_norm=y
+      v_norm=v
+    }
+  }
+  .diss_L2 <- function(y_norm,v_norm,w){
+    # Dissimilarity index for multidimensional curves (dimension=d).
+    # L2 distance with normalization on common support.
+    # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
+    # w: weights for the dissimilarity index in the different dimensions (w>0).
+    
+    sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+    # NB: divide for the length of the interval, not for the squared length!
+  }
+  
+  if(alpha==0){#L2-like distance which focuses excusively on the levels
+    return(.diss_L2(y_norm[[1]],v_norm[[1]],w))
+  }else if(alpha==1){#L2-like pseudo distance, which uses only weak
+    #derivative information
+    return(.diss_L2(y_norm[[2]],v_norm[[2]],w))
+  }else{#Sobolev-like distance that allows to highlight
+    #more complex features of curve shapes,taking into account
+    #both levels and variations
+    #return(list(
+    #  (1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w),
+    #  y_norm[[1]],y_norm[[2]],v_norm[[1]],v_norm[[2]]))
+    return((1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w))
+  }
+}
+
+#Find only positive shifts by making the alignment matching the last points.
+#This function is needed in the forecasting step.
+.find_min_diss_positive_last_point <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE,last_point=FALSE){
+  # Find shift warping minimizing dissimilarity between multidimensional
+  # curves (dimension=d).
+  # Return shift and dissimilarity.
+  # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
+  # alpha: weight coefficient between d0.L2 and d1.L2.
+  # if alpha=0, then use0=TRUE, since the derivative is zero.
+  # if alpha=1, then use1=TRUE, since only the derivative will be used in the computation of the distance;
+  # if 0<alpha<1, then use0=TRUE and use1=TRUE, since both the curve and its derivative will be used to compute the distance.
+  # w: weights for the dissimilarity index in the
+  #different dimensions (w>0).
+  # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
+  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  v_dom=.domain(v,use0)
+  v=.select_domain(v,v_dom,use0,use1)
+  v_len=length(v_dom)
+  y_len=unlist(lapply(y,nrow))[1]
+  #s_rep=(1-(v_len-c_k)):(y_len-v_len+1+(v_len-c_k))
+  #I want to consider only the positive shifts
+  s_rep=0:(y_len-v_len+1+(v_len-c_k))
+  y_rep=lapply(s_rep,
+               function(i){
+                 index=i-1+seq_len(v_len)
+                 y_rep_i=list(y0=NULL,y1=NULL)
+                 if(use0){
+                   y_rep_i$y0=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[1]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 if(use1){
+                   y_rep_i$y1=rbind(matrix(NA,nrow=sum(index<=0),ncol=d),
+                                    as.matrix(y[[2]][index[(index>0)&(index<=y_len)],]),
+                                    matrix(NA,nrow=sum(index>y_len),ncol=d))
+                 }
+                 y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
+                 return(y_rep_i)
+               })
+  length_inter=unlist(lapply(y_rep,
+                             function(y_rep_i){
+                               if(use0)
+                                 return(sum((!is.na(y_rep_i$y0[,1]))))
+                               return(sum((!is.na(y_rep_i$y1[,1]))))
+                             }))
+  valid=length_inter>=c_k
+  if(sum(valid)==0){
+    valid[length_inter==max(length_inter)]=TRUE
+  }
+  s_rep=s_rep[valid]
+  y_rep=y_rep[valid]
+  if(last_point){
+    d_rep=unlist(mapply(.diss_d0_d1_L2_last_point,y_rep,MoreArgs=list(v,w,alpha,transformed,last_point)))
+  }else{
+    d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))  
+  }
+  return(c(s_rep[which.min(d_rep)],min(d_rep)))
+}
+
+
+########################
+########################
+#Motif-based forecast
+
+motifs_forecast=function(motifs_search_results,list_test,list_training_ts,closest,overlap){
+  #This function computes the Motif-Based forecast
+  
+  #motifs_search_results represent the output of the motif_search function
+  
+  #list_test represents the list where each component is the data frame with a column "Date" and "Price" in the test period
+  #list_training_ts represents the list where each component is the vector of the prices time series (the data needs to be
+  #converted in time series using the comand ts() first) in the training period
+  
+  #closest is the number of the less distant motifs we want to consider for the forecast
+  
+  #overlap is the parameter which represents what percentage of the motif needs to overlap with the final
+  #portion of the curve during the alignment in the forecast step. If we want the overlap of 40%, overlap=0.4
+
+  length_test=length(list_test[[1]]$Price)
+  
+  
+  found_motifs=list()
+  observed=list()
+  min_diss=list()
+  diss_shift=list()
+  Y_test=list()
+  
+  #Putting in a list all the found motifs and their derivatives
+  for(j in 1:length(motifs_search_results$V0)){
+    found_motifs[[j]]=list(as.matrix(motifs_search_results$V0[[j]]),as.matrix(motifs_search_results$V1[[j]]))
+  }
+  
+  #Creating the list for the predictions
+  Y_test_rescaled=min_rescaled=max_rescaled=list()
+  for(i in 1:length(motifs_search_results$Y0)){
+    Y_test[[i]]=Y_test_rescaled[[i]]=matrix(NA,nrow=length_test,ncol=1)
+  }
+  
+  min_unlist=max_unlist=motives_rescaled=list()
+  list_test_detrend=list()
+  
+  new_v0=new_v1=new_v0_fin=new_v1_fin=list_new_training_detrend=list()
+  list_test_detrend=list_test_to_smooth=list_test_detrend_smoothed=list() #here I am adding one true price at a time
+  data_train_test_v0=data_train_test_v1=list() #here i add 1 new detrended test observation to the training set
+  bandwidth_smooth=10
+  list_training_detrend=list()
+  portion_of_motif=list()
+  
+  whole_motif=list()
+  
+  rescaled_motifs=rescaled_motifs_derivative=list()
+  distance_motifs=shift_motifs=list()
+  
+  which_min_motif=which_min_distance=which_min_shift=list()
+  
+  portion_of_motif=list()
+  predictions_rescaled=predictions_fin=predictions_fin_unlist=list()
+  
+  portion_of_motif_min=portion_of_motif_second_min=portion_of_motif_third_min=list()
+  
+  predictions_rescaled_min=list()
+  
+  predictions_fin_min=list()
+  
+  predictions_average=predictions_average_current=predictions_denominator=predictions_denominator_current=
+    predictions_average_final=list()
+  forecast=list()
+  #The function that calculates the linear trend
+  trend_calculate=function(original_series,t){
+    reg=lm(original_series ~ seq(1:length(original_series)))
+    trend_test_estimated=reg$coefficients[1]+reg$coefficients[2]*t
+    return(trend_test_estimated)
+  }
+  
+  for(i in 1:length(list_test)){
+    whole_motif[[i]]=list()
+    observed[[i]]=list()
+    min_rescaled[[i]]=max_rescaled[[i]]=min_unlist[[i]]=max_unlist[[i]]=list()
+    min_diss[[i]]=list()
+    diss_shift[[i]]=list()
+    portion_of_motif[[i]]=list()
+    list_new_training_detrend[[i]]=list() 
+    list_test_to_smooth[[i]]=list_test_detrend_smoothed[[i]]=list()
+    data_train_test_v0[[i]]=data_train_test_v1[[i]]=list()
+    list_test_detrend[[i]]=list_training_detrend[[i]]=list()
+    
+    distance_motifs[[i]]=shift_motifs[[i]]=list()
+    rescaled_motifs[[i]]=rescaled_motifs_derivative[[i]]=list()
+    portion_of_motif_min[[i]]=portion_of_motif_second_min[[i]]=portion_of_motif_third_min[[i]]=list()
+    predictions_average_current[[i]]=predictions_denominator[[i]]=predictions_denominator_current[[i]]=list()
+    predictions_average[[i]]=predictions_average_final[[i]]=list()
+    for(t in 1:(length_test)){
+      #I need to remove the trend and resmooth the list_test prices
+      #Here I detrend the test period using the trend of the training period:
+      list_test_detrend[[i]][[t]]=list_test[[i]]$Price[t]-trend_calculate(list_training_ts[[i]],t=(length(list_training_ts[[i]])+t))
+    }
+    
+    list_test_detrend[[i]]=c(unlist(list_test_detrend[[i]]))
+    which_min_motif[[i]]=which_min_distance[[i]]=which_min_shift[[i]]=list()
+    
+    predictions_rescaled_min[[i]]=predictions_fin_min[[i]]=list()
+    for(j in 1:closest){
+      which_min_motif[[i]][[j]]=which_min_distance[[i]][[j]]=which_min_shift[[i]][[j]]=list()
+      predictions_rescaled_min[[i]][[j]]=predictions_fin_min[[i]][[j]]=list()
+      portion_of_motif_min[[i]][[j]]=list()
+    }
+    
+    
+    for(t in 1:(length_test)){
+      #Here I merge the detrended train period with detrended test period
+      list_new_training_detrend[[i]][[t]]=c(titles_of_interest_detrend[[i]],list_test_detrend[[i]][1:t])
+      
+      #I smooth the whole time series
+      list_test_to_smooth[[i]][[t]]=list_new_training_detrend[[i]][[t]][1:(length(list_new_training_detrend[[i]][[t]]))]
+      
+      list_test_detrend_smoothed[[i]][[t]]=smooth_locpoly_single(list_test_to_smooth[[i]][[t]],degree=3,bandwidth=bandwidth_smooth,v0=TRUE,v1=TRUE)
+      
+      observed[[i]][[t]]=list()
+      min_diss[[i]][[t]]=list()
+      min_rescaled[[i]][[t]]=max_rescaled[[i]][[t]]=list() 
+      
+      data_train_test_v0[[i]][[t]]=list_test_detrend_smoothed[[i]][[t]]$v0
+      data_train_test_v1[[i]][[t]]=list_test_detrend_smoothed[[i]][[t]]$v1
+      
+      for(j in 1:length(motifs_search_results$V0)){
+        observed[[i]][[t]][[j]]=list(as.matrix(c(data_train_test_v0[[i]][[t]][(length(motifs_search_results$Y0[[i]])-length(motifs_search_results$V0[[j]])+t+1):(length(motifs_search_results$Y0[[i]])-1+t)],NA)),
+                                     as.matrix(c(data_train_test_v1[[i]][[t]][(length(motifs_search_results$Y1[[i]])-length(motifs_search_results$V1[[j]])+t+1):(length(motifs_search_results$Y1[[i]])-1+t)],NA)))
+        
+        min_diss[[i]][[t]][[j]]=.find_min_diss_positive_last_point(y=observed[[i]][[t]][[j]],v=found_motifs[[j]],alpha=0.9,use0=TRUE,use1=TRUE,w=1,c_k=ceiling(overlap*length(found_motifs[[j]][[1]])),d=1,transformed=TRUE,last_point=TRUE)
+        
+        min_rescaled[[i]][[t]][[j]]=min(as.matrix(data_train_test_v0[[i]][[t]][(length(motifs_search_results$Y0[[i]])-length(motifs_search_results$V0[[j]])+t+1+min_diss[[i]][[t]][[j]][1]):(length(motifs_search_results$Y0[[i]])-1+t)]))
+        max_rescaled[[i]][[t]][[j]]=max(as.matrix(data_train_test_v0[[i]][[t]][(length(motifs_search_results$Y0[[i]])-length(motifs_search_results$V0[[j]])+t+1+min_diss[[i]][[t]][[j]][1]):(length(motifs_search_results$Y0[[i]])-1+t)]))
+        
+        
+      }  
+      diss_shift[[i]][[t]]=matrix(unlist(min_diss[[i]][[t]]),ncol=2,byrow=TRUE)
+      min_unlist[[i]][[t]]=matrix(unlist(min_rescaled[[i]][[t]]),ncol=1)
+      max_unlist[[i]][[t]]=matrix(unlist(max_rescaled[[i]][[t]]),ncol=1)
+      colnames(diss_shift[[i]][[t]])=c("shift","distance")
+      
+      for(j in 1:closest){
+        #Here I calculate which is the closest (less distant) motif, the second closest motif and so on
+        #with the corresponding distances and shifts
+        which_min_motif[[i]][[j]][[t]]=order(diss_shift[[i]][[t]][,"distance"])[j]
+        which_min_distance[[i]][[j]][[t]]=min_diss[[i]][[t]][[which_min_motif[[i]][[j]][[t]]]][2]
+        which_min_shift[[i]][[j]][[t]]=min_diss[[i]][[t]][[which_min_motif[[i]][[j]][[t]]]][1]
+        
+        predictions_rescaled_min[[i]][[j]][[t]]=motifs_search_results$V0[[which_min_motif[[i]][[j]][[t]]]][length(motifs_search_results$V0[[which_min_motif[[i]][[j]][[t]]]])-
+                                                                                                             which_min_shift[[i]][[j]][[t]]]
+        
+        portion_of_motif_min[[i]][[j]][[t]]=motifs_search_results$V0[[which_min_motif[[i]][[j]][[t]]]][1:(length(motifs_search_results$V0[[which_min_motif[[i]][[j]][[t]]]])-
+                                                                                                            which_min_shift[[i]][[j]][[t]]-1)]
+        
+        #I am rescaling the motif so that the last points of the overlapped portion
+        #of the motif and the final portion of the curve match
+        predictions_fin_min[[i]][[j]][t]=((predictions_rescaled_min[[i]][[j]][[t]]-min(portion_of_motif_min[[i]][[j]][[t]]))/(max(portion_of_motif_min[[i]][[j]][[t]])-min(portion_of_motif_min[[i]][[j]][[t]]))+
+                                            ((tail(observed[[i]][[t]][[which_min_motif[[i]][[j]][[t]]]][[1]],2)[1]-min_unlist[[i]][[t]][which_min_motif[[i]][[j]][[t]]])/(max_unlist[[i]][[t]][which_min_motif[[i]][[j]][[t]]]-min_unlist[[i]][[t]][which_min_motif[[i]][[j]][[t]]]))-
+                                            ((found_motifs[[which_min_motif[[i]][[j]][[t]]]][[1]][length(found_motifs[[which_min_motif[[i]][[j]][[t]]]][[1]])-which_min_shift[[i]][[j]][[t]]-1]-min(portion_of_motif_min[[i]][[j]][[t]]))/(max(portion_of_motif_min[[i]][[j]][[t]])-min(portion_of_motif_min[[i]][[j]][[t]]))))*
+          (max_unlist[[i]][[t]][which_min_motif[[i]][[j]][[t]]]-min_unlist[[i]][[t]][which_min_motif[[i]][[j]][[t]]])+
+          min_unlist[[i]][[t]][which_min_motif[[i]][[j]][[t]]]
+      }
+      
+      if(closest==1){
+        predictions_average_final[[i]][[t]]=predictions_fin_min[[i]][[1]][[t]]
+      }else{
+        predictions_average_current[[i]][[t]]=list()
+        predictions_denominator_current[[i]][[t]]=list()
+        for(j in 1:closest){
+          predictions_average_current[[i]][[t]][[j]]=predictions_fin_min[[i]][[j]][[t]]*(1/which_min_distance[[i]][[j]][[t]])
+          predictions_denominator_current[[i]][[t]][[j]]=1/(which_min_distance[[i]][[j]][[t]])
+        }
+        
+        predictions_average[[i]][[t]]=sum(unlist(predictions_average_current[[i]][[t]]))
+        predictions_denominator[[i]][[t]]=sum(unlist(predictions_denominator_current[[i]][[t]]))
+        
+        predictions_average_final[[i]][[t]]=predictions_average[[i]][[t]]/predictions_denominator[[i]][[t]]
+      }
+    }
+    #names(predictions_average_final[[i]])=names(list_test[[i]])
+    predictions_fin_unlist[[i]]=unlist(predictions_average_final[[i]])
+    
+    #Readding the trend of the training period
+    forecast[[i]]=matrix(NA,nrow=length_test,ncol=1)
+    for(t in 1:length_test){
+      forecast[[i]][t]=predictions_fin_unlist[[i]][t]+trend_calculate(list_training_ts[[i]],t=(length(list_training_ts[[i]])+t))
+    }
+    
+  }
+  return(list(forecast=forecast))
+}
+
+
+
+
+#Functions to initialize the motifs of a certain shape
+#in the case of partially random initialization.
+#for normal triangles
+motifs_init=function(length,start,start_max,min,max){
+  l=sample(2:(length-2),1)#where the peak is
+  initt=runif(1,min,max)#the value of peak
+  v_simulated=matrix(NA,nrow=length+1,ncol=1)
+  length1=length2=c()
+  length1=seq(runif(1,start,start_max),initt,length.out=l)
+  v_simulated[(1:(l-1)),1]=length1[1:(l-1)]#in increasing order before the peak
+  v_simulated[l,1]=initt
+  length2=rev(seq(runif(1,start,start_max),initt,length.out=((length+1)-l+1)))
+  v_simulated[((l+1):(length+1)),1]=length2[2:((length+1)-l+1)]#in decreasing order after peak
+  #after peak
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1,]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
+
+#for reversed triangles
+motifs_init_rev=function(length,start,start_max,min,max){
+  l=sample(2:(length-2),1)#where the peak is
+  initt=runif(1,min,max)#the value of peak
+  v_simulated=matrix(NA,nrow=length+1,ncol=1)
+  length1=length2=c()
+  length1=seq(runif(1,start,start_max),initt,length.out=l)
+  v_simulated[(1:(l-1)),1]=length1[1:(l-1)]#in increasing order before the peak
+  v_simulated[l,1]=initt
+  length2=rev(seq(runif(1,start,start_max),initt,length.out=((length+1)-l+1)))
+  v_simulated[((l+1):(length+1)),1]=length2[2:((length+1)-l+1)]#in decreasing order after peak
+  #after peak
+  v_simulated=-v_simulated
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1,]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
+
+
+
+#function for increasing line
+motifs_line=function(length,start,start_max,min,max){
+  initt=runif(1,min,max)#the value of peak
+  length1=seq(runif(1,start,start_max),initt,length.out=length)
+  v_simulated=c(0,length1) #the first element is 0 because I will remove it anyway
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
+
+
+#function for decreasing line
+motifs_line_rev=function(length,start,start_max,min,max){
+  initt=runif(1,min,max)#the value of peak
+  length1=seq(runif(1,start,start_max),initt,length.out=length)
+  v_simulated=c(0,length1) #the first element is 0 because I will remove it anyway
+  v_simulated=-v_simulated
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
 }

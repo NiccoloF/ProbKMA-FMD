@@ -47,6 +47,9 @@ MotifSobol::compute_motif_helper(const arma::urowvec& v_dom,
       Y_inters_k(i,1).shed_rows(indeces_dom);
       Y_inters_k(i,1).replace(arma::datum::nan,0);
     }
+    if (_transformed){
+      Y_inters_k.row(i) = util::transform_curves<use1>(Y_inters_k.row(i));
+    }
   }
 
   KMA::Mfield v_new(1,Y.n_cols);

@@ -52,6 +52,37 @@ concept IsArmaVector = std::is_same_v<T, KMA::uvector> ||
     }
     return result;
   }
+
+  // to be generalized fully using template programming
+  inline arma::rowvec apply_rmNA(const arma::mat & y0, 
+                                 std::function<double(const arma::vec &)> func) { 
+    arma::rowvec result(y0.n_cols);
+    for (arma::uword j = 0; j < y0.n_cols; ++j)
+    {
+      const arma::vec & col_j = y0.col(j);
+      result(j) = func(col_j.elem(arma::find_finite(col_j)));
+    }
+    return result;
+
+  }
+
+  template<bool use1>
+  KMA::Mfield transform_curves(const KMA::Mfield &y) {
+    KMA::Mfield y_transformed(1,1);
+    if constexpr(use1)
+      y_transformed.set_size(1,2);
+    arma::rowvec y_min = apply_rmNA(y(0,0), [](const arma::vec & v){ return arma::min(v); }); 
+    arma::rowvec y_max = apply_rmNA(y(0,0), [](const arma::vec & v){ return arma::max(v); }); 
+    arma::rowvec diff = y_max - y_min;
+    y_transformed(0,0) = ((y(0,0)- arma::repmat(y_min,y(0,0).n_rows,1))/ arma::repmat(diff,y(0,0).n_rows,1));
+    y_transformed(0,0).cols(arma::find(diff == 0)).eval().fill(0.5); 
+    if constexpr(use1)
+    {
+      y_transformed(0,1) = y(0,1)/ arma::repmat(diff,y(0,1).n_rows,1); 
+      y_transformed(0,1).cols(arma::find(diff == 0)).eval().fill(0.0); 
+    }
+    return y_transformed;
+  }
   
 }
   

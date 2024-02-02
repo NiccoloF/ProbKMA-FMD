@@ -2,17 +2,24 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp20)]]
 
-L2::L2(const KMA::vector& w):SobolDiss(w) {};
+L2::L2(const KMA::vector& w, bool transformed):SobolDiss(w, transformed) {};
 
 
 double L2::computeDissimilarity(const KMA::Mfield& Y_i,
                                 const KMA::Mfield& V_i) const
 {
+    if(_transformed)
+    { 
+      const KMA::Mfield & Y_i_transf = util::transform_curves<false>(Y_i);
+      const KMA::Mfield & V_i_transf = util::transform_curves<false>(V_i);
+      return this->distance(Y_i_transf(0,0),V_i_transf(0,0));
+    }
     return this->distance(Y_i(0,0),V_i(0,0));
 }
 
 void L2::set_parameters(const Parameters & newParameters){
     _w = newParameters._w;
+    _transformed = newParameters._transformed;
 }
 
 void L2::computeDissimilarityClean(KMA::matrix & D_clean,
