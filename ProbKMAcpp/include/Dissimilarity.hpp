@@ -46,6 +46,7 @@ class SobolDiss : public Dissimilarity
 public:
 
     SobolDiss(const KMA::vector& w);
+    virtual ~SobolDiss();
 
 protected:
 

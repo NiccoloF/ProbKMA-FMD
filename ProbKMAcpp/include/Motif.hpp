@@ -51,6 +51,7 @@ class MotifSobol: public MotifPure
 public:
   
   MotifSobol() = default;
+  virtual ~MotifSobol();
   
 protected:
   
