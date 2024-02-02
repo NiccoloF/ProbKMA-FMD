@@ -17,12 +17,12 @@ initialChecks(Y0, Y1, P0, S0, params, diss, seed)
 
 \item{params}{list of parameters}
 
-\item{diss}{dissimilarity. Possible choices are 'd0_L2','d1_L2','d0_d1_L2'}
+\item{diss}{dissimilarity. Possible choices are d0_L2,d1_L2,d0_d1_L2}
 
 \item{seed}{for reproducibility}
 }
 \value{
-\item{List} {returns a list containing FuncData and Parameters useful for initializing the probKMA object}
+\item{List}{returns a list containing FuncData and Parameters useful for initializing the probKMA object}
 }
 \description{
 checks inputs provided by the user for running ProbKMA

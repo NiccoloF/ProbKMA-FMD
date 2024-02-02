@@ -51,7 +51,7 @@ class MotifSobol: public MotifPure
 public:
   
   MotifSobol() = default;
-  virtual ~MotifSobol() = default;
+  virtual ~MotifSobol() override = default;
   
 protected:
   
@@ -121,7 +121,7 @@ public:
                        const std::shared_ptr<Dissimilarity>& diss,
                        const Rcpp::Function & quantile_func) const override;
   
-  virtual ~MotifL2() = default;
+  virtual ~MotifL2() override = default;
   
 };
 
@@ -131,7 +131,7 @@ public:
   
   MotifH1() = default;
   
-  virtual ~MotifH1() = default;
+  virtual ~MotifH1() override = default;
   
   virtual std::variant<indexField,KMA::Mfield>
     compute_motif(const arma::urowvec& v_dom,

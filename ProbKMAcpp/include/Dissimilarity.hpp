@@ -46,7 +46,7 @@ class SobolDiss : public Dissimilarity
 public:
 
     SobolDiss(const KMA::vector& w);
-    virtual ~SobolDiss() = default;
+    virtual ~SobolDiss() override = default;
 
 protected:
 
@@ -78,7 +78,7 @@ class L2 final: public SobolDiss
 public:
 
   L2(const KMA::vector& w);
-  virtual ~L2() = default;
+  virtual ~L2() override = default;
 
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;
@@ -103,7 +103,7 @@ class H1 final: public SobolDiss
 public:
 
   H1(const KMA::vector& w,double alpha);
-  virtual ~H1() = default;
+  virtual ~H1() override = default;
 
   virtual double computeDissimilarity(const KMA::Mfield& Y_i,
                                       const KMA::Mfield& V_i) const override;

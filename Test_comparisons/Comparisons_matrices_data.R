@@ -41,7 +41,7 @@ output <- c(output, list(Y0 = data$Y$Y0,Y1 = data$Y$Y1,
 
 # plot the results of probKMA
 pdf(paste0('our_plot_matrix','.pdf'),width=20,height=10)
-probKMA_plot(output)
+probKMA_plot(output, cleaned = TRUE)
 dev.off()
 
 # comparison with previous implementation
@@ -59,7 +59,7 @@ true_output <- probKMA(Y0=Y$Y0,Y1=Y$Y1,standardize=params$standardize,K=params$K
 
 # true plot
 pdf(paste0('true_plot_matrix','.pdf'),width=20,height=10)
-probKMA_plot(true_output)
+probKMA_plot(true_output, cleaned = TRUE)
 dev.off()
 
 ########################################################
