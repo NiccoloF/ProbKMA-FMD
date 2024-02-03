@@ -45,6 +45,7 @@ Starting from R functions **ProbKMA** and **find_candidate_motifs** we have deve
 ### Example
 
 ```
+library(ProbKMAcpp)
 c_min <- 41
 c_max <- 71
 seed <- 1
