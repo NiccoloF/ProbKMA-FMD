@@ -1,7 +1,26 @@
 # ProbKMA-FMD
 
-R code implementing **ProbKMA** (probabilistic K-means with local alignment) for local clustering of functional data and functional motif discovery, proposed in the paper [Probabilistic K-means with local alignment for clustering and motif discovery in functional data](https://doi.org/10.1080/10618600.2022.2156522), by Marzia A. Cremona and Francesca Chiaromonte. 
+**R/C++** code implementing **ProbKMA** (probabilistic K-means with local alignment) for local clustering of functional data and functional motif discovery, proposed in the paper [Probabilistic K-means with local alignment for clustering and motif discovery in functional data](https://doi.org/10.1080/10618600.2022.2156522), by Marzia A. Cremona and Francesca Chiaromonte.
 
+### Prerequisites
+
+The package is linked against **OpenMP**, the **BLAS** and **LAPACK** libraries in Makevars.
+
+To install the package locally, **Rcpp** and **RcppArmadillo** packages need to be installed.\
+Using ```install_github()``` will install the dependencies (**Rcpp** and **RcppArmadillo**) automatically.
+
+### Installing
+
+Up to now it is possible to install the package easily on **Linux**,**Windows** and **MacOS**
+- Install **R** development version https://cran.r-project.org/
+- open **R** with the command `R` in command line or, if you have installed [Rstudio desktop version](https://posit.co/download/rstudio-desktop/),open it;
+- Install the library `devtools` with the command `install.packages('devtools')`, this may take a while;
+- Install `ProbKMA.package` using the command:
+```
+devtools::install_github('NiccoloF/ProbKMA-FMD',ref = "main_1",subdir ='ProbKMA.package')
+```
+**NB**: For Windows you may need to install [Rtools](https://cran.r-project.org/bin/windows/Rtools/)\
+**NB**: To launch the examples and computational tests, it is necessary to clone the entire Github directory
 
 ## Code
 
@@ -16,9 +35,39 @@ R functions for ProbKMA, cluster evaluation and functional motif discovery.
 - `motifs_search`: find occurrences of the candidate motifs in the curves and sort them according to their frequencies and radius
 - `motifs_search_plot`: plot the results of motifs_search
 
+### Easy example
+
+```
+library(ProbKMA.package)
+
+# set seed
+seed = 123
+set.seed(seed)
+
+# load data
+data(sim_motifs)
+
+diss = 'd0_d1_L2'
+alpha = 0.5
+max_gap = 0
+trials_elong = 201
+c_max = 71
+K = 2
+c = 41
+P0 = NULL
+S0 = NULL
+
+my_output = ProbKMA.package::probKMA(Y0,Y1,standardize=TRUE,K=K,c=c,c_max=c_max,P0=P0,S0=S0,
+                                     diss=diss,alpha=alpha,w=1,m=2,
+                                     iter_max=1000,stop_criterion='max',quantile=NULL,tol=1e-8,
+                                     iter4elong=1,tol4elong=1e-3,max_elong=0.5,trials_elong=trials_elong,
+                                     deltaJk_elong=0.05,max_gap=max_gap,
+                                     iter4clean=50,tol4clean=1e-4,quantile4clean=1/K,
+                                     return_options=TRUE,return_init=TRUE,worker_number=1)
+```
 
 ## Functional motif discovery example
-Functional motif discovery on simulated data: 20 curves embedding 2 functional motifs of length 60, each with 12 occurrences. 
+Functional motif discovery on simulated data: 20 curves embedding 2 functional motifs of length 60, each with 12 occurrences.
 - `len200_sd0.1.RData`: simulated curves
 - `len200_sd0.1_simulated_curves_with_motifs.pdf`: plot of curves with true motifs
 - `FMD_simulated_data.r`: script to run the example
@@ -41,6 +90,10 @@ Probabilitic local clustering of Covid-19 excess mortality rate curves (daily di
 - `results`: probabilistic local clustering results
 
 ### Computational tests
-Within the `Test_probKMA` directory you can see the differences in computational terms between the original library and the new **C++** implementation. In particular, one can find : 
+Within the `Test_probKMA` directory you can see the differences in computational terms between the original library and the new **C++** implementation. In particular, one can find :
 - `Comparison_probKMA_vector.R`: contains a computational test using one-dimensional data
 - `Comparison_probKMA_matrix.R`: contains a computational test using multi-dimensional data
+
+## Report
+
+For more details on the implementation choices and a review of the theory behind the algorithm see the report: `PACS_project_report.pdf`
