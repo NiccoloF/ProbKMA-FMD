@@ -70,7 +70,8 @@ probKMA_wrap <- function(Y0 = NULL,Y1 = NULL,P0 = matrix(),S0 = matrix(),
                          tol = 1e-8, tol4elong = 1e-3, max_elong = 0.5, deltaJK_elong = 0.05, 
                          iter4clean = 50, tol4clean = 1e-4,m = 2,w = 1, seed = 1, 
                          K = 2, c = 40, quantile4clean = 1/K, exe_print = FALSE,
-                         set_seed = FALSE,n_threads = 7,diss = 'd0_2'){
+                         set_seed = FALSE,n_threads = 7,diss = 'd0_2', 
+                         transformed = FALSE,v_init = NULL){
   
   params = list(standardize=standardize,c_max = c_max,iter_max = iter_max,
                 iter4elong = iter4elong,trials_elong = trials_elong,
@@ -81,9 +82,10 @@ probKMA_wrap <- function(Y0 = NULL,Y1 = NULL,P0 = matrix(),S0 = matrix(),
                 deltaJK_elong = deltaJK_elong, iter4clean = iter4clean, 
                 tol4clean = tol4clean,quantile4clean = quantile4clean, 
                 m = m, w = w, seed = seed, K = K, c = c, exe_print = exe_print,
-                set_seed = set_seed,n_threads = n_threads, transformed = TRUE) 
+                set_seed = set_seed,n_threads = n_threads, 
+                transformed = transformed, v_init = v_init) 
   
-  checked_data <- initialChecks(Y0,Y1,P0,S0,params,diss)
+  checked_data <- initialChecks(Y0,Y1,P0,S0,params,diss,v_init)
   
   params <- checked_data$Parameters
   
@@ -91,19 +93,31 @@ probKMA_wrap <- function(Y0 = NULL,Y1 = NULL,P0 = matrix(),S0 = matrix(),
   
   if ( alpha == 0 ||  alpha == 1)
   {
-    string  = "L2"
+    string_diss = "L2"
   } 
   else 
   {
-    string = "H1"
+    string_diss = "H1"
   }
   
-  prok = new(ProbKMA,data$Y,params,data$P0,data$S0,string)
+  
+  if ( !is.null(data$v_init) )
+  {
+    prok = new(ProbKMA,data$Y,params,data$P0,data$S0,string_diss, data$v_init)
+  }
+  else
+  {
+    prok = new(ProbKMA,data$Y,params,data$P0,data$S0,string_diss)
+  }
   
   rm(params)
   
-  probKMA_results_1 = list(Y0 = data$Y$Y0,Y1 = data$Y$Y1,
-                           diss = diss, w = w, alpha = alpha)
+  probKMA_results_1 = list(Y0 = data$Y$Y0,
+                           Y1 = data$Y$Y1,
+                           diss = diss, w = w, 
+                           alpha = alpha, 
+                           v_init = data$v_init, 
+                           transformed = transformed)
   
   rm(data)
   

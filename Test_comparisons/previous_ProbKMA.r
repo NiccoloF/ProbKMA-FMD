@@ -1632,7 +1632,7 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
 
 
 find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_var='',V_init=NULL,
-                                  probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL){
+                                  probKMA_options=NULL,silhouette_align=FALSE,plot=TRUE,worker_number=NULL, set_seed = TRUE){
   # Run multiple times probKMA function with different K,c and initializations,
   # with the aim to find a set of candidate motifs.
   # If the folder name_KK_cc is already present and n result files are already present,
@@ -1749,8 +1749,9 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
+  vector_seed = seq(1,length(i_c_K$Var1))
   if(is.null(V_init)){
-    results=.mapply_custom(cl_find,function(K,c,i){
+    results=.mapply_custom(cl_find,function(K,c,i,small_seed){
       dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
       files=list.files(paste0(name,"_K",K,"_c",c))
       message("K",K,"_c",c,'_random',i)
@@ -1762,6 +1763,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         iter=iter_max=1
         while(iter==iter_max){
           start=proc.time()
+          if(set_seed)
+          {
+            set.seed(small_seed)
+          }
+          small_seed = small_seed + 1
           probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c),probKMA_options))
           end=proc.time()
           time=end-start
@@ -1786,7 +1792,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(list(probKMA_results=probKMA_results,
                     time=time,silhouette=silhouette))
       }
-    },i_c_K[,3],i_c_K[,2],i_c_K[,1],SIMPLIFY=FALSE)
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
   }else{
     V_init_unlist=unlist(unlist(V_init,recursive=FALSE),recursive=FALSE)
     results=.mapply_custom(cl_find,function(K,c,i,v_init){

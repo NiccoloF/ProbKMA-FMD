@@ -20,6 +20,12 @@ class ProbKMA
 {
  public:
 
+    ProbKMA(const Rcpp::List& Y,
+            const Rcpp::List& parameters,
+            const KMA::matrix& P0,const KMA::imatrix& S0,
+            const std::string& diss, 
+            const Rcpp::List& V_init);
+
     // Y: a list containing two list -> Y0 and Y1
     ProbKMA(const Rcpp::List& Y,
             const Rcpp::List& parameters,

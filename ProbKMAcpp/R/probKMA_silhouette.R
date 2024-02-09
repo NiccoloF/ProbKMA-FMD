@@ -14,6 +14,11 @@
 #' @author Marzia Angela Cremona  & Francesca Chiaromonte
 #' @export
 probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
+  # Compute the adapted silhouette index on the results of probKMA.
+  # probKMA_results: output of probKMA function (with return_options=TRUE).
+  # align: if TRUE, try all possible alignements between pieces of curves (corresponding to the same or to different motifs).
+  # plot: if TRUE, the silhouette plot is drawn.
+  
   ### compute silhouette #####################################################################################
   if(probKMA_results$diss=='d0_L2'){
     alpha=0
@@ -33,6 +38,7 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
     use1=TRUE
     Y=mapply(function(y0,y1) list(y0=y0,y1=y1),probKMA_results$Y0,probKMA_results$Y1,SIMPLIFY=FALSE)
   }
+  transformed=probKMA_results$transformed
   w=probKMA_results$w
   d=ncol(probKMA_results$Y0[[1]])
   N=nrow(probKMA_results$P_clean)
@@ -85,13 +91,13 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
     # alignment for pieces corresponding to motifs with different lengths (requiring one piece inside the other)
     equal_length=(YY_lengths[1,]==YY_lengths[2,])
     SD=mapply(.find_diss,YY[1,],YY[2,],equal_length,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
+              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transformed),SIMPLIFY=TRUE)
   }else{
     # find minimum distance between the two pieces of curves, allowing alignment
     # minimum overlap required: minimum motif length
     cc_motifs=apply(combn(probKMA_results$c[Y_motifs],2),2,min)
     SD=mapply(.find_min_diss,YY[1,],YY[2,],cc_motifs,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1),SIMPLIFY=TRUE)
+              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transformed),SIMPLIFY=TRUE)
   }
   YY_D=matrix(0,nrow=length(Y_motifs),ncol=length(Y_motifs))
   YY_D[lower.tri(YY_D)]=SD[2,]

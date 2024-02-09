@@ -35,7 +35,8 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                                   tol4clean = 1e-4, quantile4clean = 1/2, 
                                   m = 2, w = 1, seed = 1,exe_print = FALSE,
                                   set_seed = FALSE, 
-                                  n_threads = 7, worker_number = NULL){
+                                  n_threads = 7, worker_number = NULL,
+                                  V_init=NULL){
   
   ### check input #############################################################################################
   # check required input
@@ -54,6 +55,12 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     stop('Number of initializations n_init should be an integer.')
   if(n_init<1)
     stop('Number of initializations n_init should be at least 1.')
+  #check V_init
+  if((!is.null(V_init))&(length(unlist(unlist(V_init,recursive=FALSE),recursive=FALSE))!=(length(K)*length(c)*n_init))){
+    V_init=NULL
+    warning('The length of the list does not represent the number of clusters. The random
+         initialization will be used.')
+  }
   # check name
   if(!is.character(name))
     stop('name should be a string.')
@@ -73,7 +80,6 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   if(N<5)
     stop('More curves y_i(x) needed.')
   Y0=lapply(Y0,as.matrix)
-  
   # set return_options=TRUE
   if(!is.null(probKMA_options$return_options)){
     if(probKMA_options$return_options==FALSE){
@@ -95,6 +101,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
                      alpha = probKMA_options$alpha,
                      max_gap = probKMA_options$max_gap,
                      diss = probKMA_options$diss,
+                     transformed = probKMA_options$transformed,
                      quantile = quantile, 
                      stopCriterion = stopCriterion, 
                      tol = tol, 
@@ -155,49 +162,94 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
   ### run probKMA ##########################################################################################
   i_c_K=expand.grid(seq_len(n_init),c,K)
   vector_seed = seq(1,length(i_c_K$Var1))
-  
-  results=.mapply_custom(cl_find, function(K,c,i,small_seed){ 
-    dir.create(paste0(name,"_K",K,"_c",c),showWarnings=TRUE,recursive = TRUE)
-    files=list.files(paste0(name,"_K",K,"_c",c))
-    message("K",K,"_c",c,'_random',i)
-    if(paste0('random',i,'.RData') %in% files){
-      load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-      return(list(probKMA_results=probKMA_results,
-                  time=time,silhouette=silhouette))
-    }else{
-      iter=iter_max=1
-      while(iter==iter_max){
-        start=proc.time()
-        set.seed(small_seed)
-        small_seed = small_seed + 1
-        arguments$K = K
-        arguments$c = c
-        arguments$quantile4clean = 1/K
-        probKMA_results = do.call(probKMA_wrap,arguments)
-        end=proc.time()
-        time=end-start
-        iter=probKMA_results$iter
-        iter_max=arguments$iter_max
-        if(iter==iter_max)
-          warning('Maximum number of iteration reached. Re-starting.')
+  if(is.null(V_init)){
+    results=.mapply_custom(cl_find, function(K,c,i,small_seed){ 
+      dir.create(paste0(name,"_K",K,"_c",c),showWarnings=TRUE,recursive = TRUE)
+      files=list.files(paste0(name,"_K",K,"_c",c))
+      message("K",K,"_c",c,'_random',i)
+      if(paste0('random',i,'.RData') %in% files){
+        load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }else{
+        iter=iter_max=1
+        while(iter==iter_max){
+          start=proc.time()
+          arguments$seed = small_seed
+          small_seed = small_seed + 1
+          arguments$K = K
+          arguments$c = c
+          arguments$quantile4clean = 1/K
+          probKMA_results = do.call(probKMA_wrap,arguments)
+          end=proc.time()
+          time=end-start
+          iter=probKMA_results$iter
+          iter_max=arguments$iter_max
+          if(iter==iter_max)
+            warning('Maximum number of iteration reached. Re-starting.')
+        }
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE) 
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=TRUE) 
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
+        silhouette=probKMA_silhouette(probKMA_results,
+                                      align=silhouette_align,
+                                      plot=TRUE) 
+        dev.off()
+        save(probKMA_results,time,silhouette,
+             file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
       }
-      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
-      probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE) 
-      dev.off()
-      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
-      probKMA_plot(probKMA_results,ylab=names_var,cleaned=TRUE) 
-      dev.off()
-      pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
-      silhouette=probKMA_silhouette(probKMA_results,
-                                    align=silhouette_align,
-                                    plot=TRUE) 
-      dev.off()
-      save(probKMA_results,time,silhouette,
-           file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
-      return(list(probKMA_results=probKMA_results,
-                  time=time,silhouette=silhouette))
-    }
-  },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
+  } else {
+    V_init_unlist=unlist(unlist(V_init,recursive=FALSE),recursive=FALSE)
+    results=.mapply_custom(cl_find,function(K,c,i,v_init,small_seed){
+      dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
+      files=list.files(paste0(name,"_K",K,"_c",c))
+      message("K",K,"_c",c,'_random',i)
+      if(paste0('random',i,'.RData') %in% files){
+        load(paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }else{
+        iter=iter_max=1
+        while(iter==iter_max){
+          start=proc.time()
+          set.seed(small_seed)
+          small_seed = small_seed + 1
+          arguments$K = K
+          arguments$c = c
+          arguments$quantile4clean = 1/K
+          arguments$v_init = v_init
+          probKMA_results = do.call(probKMA_wrap,arguments)
+          end=proc.time()
+          time=end-start
+          iter=probKMA_results$iter
+          iter_max=arguments$iter_max
+          if(iter==iter_max)
+            warning('Maximum number of iteration reached. Re-starting.')
+        }
+        transformed=probKMA_results$transformed
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE,transformed=transformed)
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'clean.pdf'),width=20,height=10)
+        probKMA_plot(probKMA_results,ylab=names_var,cleaned=TRUE,transformed=transformed)
+        dev.off()
+        pdf(paste0(name,"_K",K,"_c",c,'/random',i,'silhouette.pdf'),width=7,height=10)
+        silhouette=probKMA_silhouette(probKMA_results,align=silhouette_align,plot=TRUE)
+        dev.off()
+        save(probKMA_results,time,silhouette,
+             file=paste0(name,"_K",K,"_c",c,'/random',i,'.RData'))
+        return(list(probKMA_results=probKMA_results,
+                    time=time,silhouette=silhouette))
+      }
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],V_init_unlist,vector_seed,SIMPLIFY=FALSE)
+  }
   
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))

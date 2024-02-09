@@ -7,6 +7,18 @@
 class ProbKMA::_probKMAImp
 {
 public:
+    enum class StructType {motifs, curves};
+
+    _probKMAImp(const Rcpp::List& Y,
+                const Rcpp::List& parameters,
+                const KMA::matrix& P0,const KMA::imatrix& S0,
+                const std::string_view diss, 
+                const Rcpp::List& V_init): 
+                _probKMAImp(Y,parameters,P0,S0,diss)
+                {
+                  init_motifs = true;
+                  initial_motifs(V_init, diss); 
+                }; 
 
     _probKMAImp(const Rcpp::List& Y,
                 const Rcpp::List& parameters,
@@ -49,42 +61,74 @@ public:
       const Rcpp::List& Y1 = Y[1];
 
       if (diss == "H1") {
-        handleCaseH1(Y0, Y1);
+        handleCaseH1<StructType::curves>(Y0, Y1);
       } else if (diss == "L2") {
-        handleCaseL2(Y0, Y1);
+        handleCaseL2<StructType::curves>(Y0, Y1);
       }
       reinit_motifs(_parameters._c,_Y.front().n_cols);
     }
 
       // Support function for the case "H1"
+      template<StructType T>
       void handleCaseH1(const Rcpp::List& Y0, const Rcpp::List& Y1) {
         const arma::uword Y_size = Y0.size();
-        _Y.set_size(Y_size, 2);
+        if constexpr (T == StructType::curves)
+        {
+          _Y.set_size(Y_size, 2);
+        }
+        else
+        {
+          _V.set_size(Y_size, 2);
+        }
 
         for (arma::uword i = 0; i < Y_size; i++) {
-          _Y(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
-          _Y(i, 1) = Rcpp::as<KMA::matrix>(Y1[i]);
+          if constexpr (T == StructType::curves)
+          {
+            _Y(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
+            _Y(i, 1) = Rcpp::as<KMA::matrix>(Y1[i]);
+          }
+          else
+          {
+            _V(i, 0) = Rcpp::as<KMA::matrix>(Y0[i]);
+            _V(i, 1) = Rcpp::as<KMA::matrix>(Y1[i]);
+          }
         }
       }
 
       // Support function for the case "L2"
+      template<StructType T>
       void handleCaseL2(const Rcpp::List& Y0, const Rcpp::List& Y1) {
         if (!Rf_isNull(Y0[0])) {
           _isY1 = false;
-          handleNonNullY(Y0);
+          handleNonNullY<T>(Y0);
         } else {
           _isY0 = false;
-          handleNonNullY(Y1);
+          handleNonNullY<T>(Y1);
         }
       }
 
       // Support function for the case "L2"
+      template<StructType T>
       void handleNonNullY(const Rcpp::List& Y) {
         const arma::uword Y_size = Y.size();
-        _Y.set_size(Y_size, 1);
+        if constexpr (T == StructType::curves)
+        {
+          _Y.set_size(Y_size, 1);
+        }
+        else
+        {
+          _V.set_size(Y_size, 1);
+        }
 
         for (arma::uword i = 0; i < Y_size; i++) {
-          _Y(i, 0) = Rcpp::as<KMA::matrix>(Y[i]);
+          if constexpr (T == StructType::curves)
+          {
+            _Y(i, 0) = Rcpp::as<KMA::matrix>(Y[i]);
+          }
+          else 
+          {
+            _V(i, 0) = Rcpp::as<KMA::matrix>(Y[i]);
+          }
         }
       }
 
@@ -160,25 +204,31 @@ public:
         }
 
         ///// compute motifs ///////////////////////
+        if((iter != 1) || (!init_motifs)){ 
+          for(arma::uword i = 0;i < _n_rows_V;++i)
+          {
+            const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
+
+            const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,
+                                                              S.col(i),
+                                                              P.col(i),_Y,
+                                                              _parameters._m);
+            if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
+            {
+              Rcpp::Rcout << "Warning: no test for this in compute motifs shifts changes" <<std::endl;
+              const arma::sword& index = ptr_1->second;
+              S.col(i) += index;
+              _V.row(i) = ptr_1->first;
+            }
+            else
+            {
+              _V.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
+            }
+          }
+        }
+
         for(arma::uword i = 0;i < _n_rows_V;++i)
         {
-          const arma::urowvec& V_dom_temp = util::findDomain<KMA::matrix>(_V(i,0));
-
-          const auto& V_new_variant = _motfac->compute_motif(V_dom_temp,
-                                                             S.col(i),
-                                                             P.col(i),_Y,
-                                                             _parameters._m);
-          if(auto ptr_1 = std::get_if<MotifPure::indexField>(&V_new_variant))
-          {
-            Rcpp::Rcout << "Warning: no test for this in compute motifs shifts changes" <<std::endl;
-            const arma::sword& index = ptr_1->second;
-            S.col(i) += index;
-            _V.row(i) = ptr_1->first;
-          }
-          else
-          {
-            _V.row(i) = *(std::get_if<KMA::Mfield>(&V_new_variant));
-          }
           V_dom[i] = util::findDomain<KMA::matrix>(_V(i,0));
         }
 
@@ -315,6 +365,18 @@ public:
       _parameters = newParameters;
 
       _dissfac -> set_parameters(_parameters);
+    }
+
+    void initial_motifs(const Rcpp::List& V_init,std::string_view diss)
+    {
+      const Rcpp::List& V0_init = V_init[0];
+      const Rcpp::List& V1_init = V_init[1];
+
+      if (diss == "H1") {
+        handleCaseH1<StructType::motifs>(V0_init, V1_init);
+      } else if (diss == "L2") {
+        handleCaseL2<StructType::motifs>(V0_init, V1_init);
+      }
     }
 
 
@@ -516,6 +578,7 @@ public:
     KMA::imatrix _S0;
     bool _isY0 = true;
     bool _isY1 = true;
+    bool init_motifs = false;
 };
 
 
@@ -527,6 +590,13 @@ ProbKMA::ProbKMA(const Rcpp::List& Y,
                  const KMA::matrix& P0,const KMA::imatrix& S0,
                  const std::string& diss):
                  _probKMA(std::make_unique<_probKMAImp>(Y,parameters,P0,S0,diss)) {};
+
+ProbKMA::ProbKMA(const Rcpp::List& Y,
+                 const Rcpp::List& parameters,
+                 const KMA::matrix& P0,const KMA::imatrix& S0,
+                 const std::string& diss,
+                 const Rcpp::List & V_init):
+                 _probKMA(std::make_unique<_probKMAImp>(Y,parameters,P0,S0,diss,V_init)) {};
 
 
 Rcpp::List ProbKMA::probKMA_run() const
@@ -591,6 +661,9 @@ RCPP_MODULE(ProbKMAModule) {
   Rcpp::class_<ProbKMA>("ProbKMA")
   .constructor<Rcpp::List,Rcpp::List,
                KMA::matrix,KMA::imatrix,std::string>()
+  .constructor<Rcpp::List,Rcpp::List,
+               KMA::matrix,KMA::imatrix,
+               std::string,Rcpp::List>()
   .method("probKMA_run",&ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters)
   .method("get_motifs", &ProbKMA::get_motifs)

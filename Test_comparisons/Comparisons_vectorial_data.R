@@ -11,7 +11,7 @@ diss = 'd0_d1_L2' # try with d0_L2 d0_d1_L2 d1_L2
 P0= matrix() 
 S0= matrix() 
 
-params <- list(standardize=FALSE, K=2,c = 41,c_max = 71,iter_max = 1000, 
+params <- list(standardize=FALSE, K=2,c = 40,c_max = 70,iter_max = 1000, 
                quantile = 0.25,stopCriterion = 'max',tol = 1e-8,
                iter4elong = 1,tol4elong = 1e-3,max_elong = 0.5, 
                trials_elong = 201, deltaJK_elong = 0.05,max_gap = 0,iter4clean = 50,
@@ -21,14 +21,15 @@ params <- list(standardize=FALSE, K=2,c = 41,c_max = 71,iter_max = 1000,
                set_seed = FALSE, n_threads = 7, transformed = TRUE) 
 
 # check input data are correct
-a <- initialChecks(simulated200$Y0,simulated200$Y1,P0,S0,params,diss)
+# per usare v_init_test load(v_init_tes.RData), da gestire il caso in cui v_init è null
+a <- initialChecks(simulated200$Y0,simulated200$Y1,P0,S0,params,diss, v_init_test) 
 
 # take checked data and parameters  
 params <- a$Parameters
 data <- a$FuncData
 
 # create an object of the class ProbKMA 
-prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
+prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1", data$v_init) #data$v_init
 
 # run the probKMA algorithm 
 output <- prok$probKMA_run()
@@ -46,9 +47,9 @@ dev.off()
 source(file ="../Test_comparisons/previous_ProbKMA.R") # @TODO: load using the library
 
 true_output <- probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$standardize,
-                       transformed = TRUE,K=params$K,c=params$c,c_max=params$c_max,
+                       transformed = TRUE,K=params$K,c=params$c[1],c_max=params$c_max,
                        P0=data$P0,S0=data$S0,
-                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,v_init = NULL,
+                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,v_init = v_init_test, # v_init_test
                        iter_max=params$iter_max,
                        stop_criterion=params$stopCriterion,
                        quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
@@ -148,5 +149,69 @@ system.time(find_candidate_motifs(simulated200$Y0, simulated200$Y1, K, c, n_init
                                                          diss = diss, alpha = alpha),
                                   plot = FALSE, worker_number = NULL))
 
+
+# test wrap 
+# lanciare fino a riga 29
+arguments =   list(Y0 = simulated200$Y0, 
+                   Y1 = simulated200$Y1,
+                   P0 = data$P0, 
+                   S0 = data$S0,
+                   standardize=params$standardize,
+                   c_max = params$c_max,
+                   iter_max = params$iter_max,
+                   iter4elong = params$iter4elong,
+                   trials_elong = params$trials_elong,
+                   return_options = params$return_options,
+                   alpha = params$alpha,
+                   max_gap = params$max_gap,
+                   diss = diss,
+                   quantile = params$quantile, 
+                   stopCriterion = params$stopCriterion, 
+                   tol = params$tol, 
+                   tol4elong = params$tol4elong, 
+                   max_elong = params$max_elong, 
+                   deltaJK_elong = params$deltaJK_elong, 
+                   iter4clean = params$iter4clean, 
+                   tol4clean = params$tol4clean,
+                   quantile4clean = params$quantile4clean, 
+                   m = params$m,
+                   w = params$w, 
+                   seed = seed, 
+                   K = params$K, 
+                   c = params$c[1],
+                   exe_print = TRUE,
+                   set_seed = TRUE,
+                   n_threads = 7,
+                   transformed = TRUE,
+                   v_init = v_init_test)
+
+probKMA_results = do.call(probKMA_wrap,arguments)
+
+
+
+# test find candidate
+library(ProbKMAcpp)
+library(parallel)
+diss = 'd0_d1_L2'
+alpha = 0.9
+max_gap = 0 # no gaps allowed
+iter4elong =1 #5-10 # perform elongation
+trials_elong =150 # try all possible elongations 60-70
+c_max = 150 # maximum motif length 60-70
+initializations=10
+n_init = initializations # number of random initializations to try
+K = c(2, 3) # number of clusters to try
+c=c(40,50,60)
+load("../Test_comparisons/V_init.RData")
+
+find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(simulated200$Y0,simulated200$Y1,K,c,n_init,
+                                                                  name = '../Test_comparisons/results/our/len200_sd0.1', names_var = 'x(t)',
+                                                                  probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+                                                                                         iter4elong = iter4elong, trials_elong = trials_elong, 
+                                                                                         max_gap = max_gap,
+                                                                                         return_options = TRUE, return_init = TRUE,
+                                                                                         diss = diss, alpha = alpha),
+                                                                  plot = TRUE,exe_print = FALSE,set_seed = FALSE, 
+                                                                  V_init = V_init, transformed = TRUE)
 
 

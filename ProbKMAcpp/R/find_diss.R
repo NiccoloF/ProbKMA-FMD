@@ -11,7 +11,19 @@
 #' @return shift and dissimilarity
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
 #' @export
-.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1){
+.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1,transformed=FALSE){
+  # Find dissimilarity between multidimensional curves (dimension=d),
+  #without alignment unless their lengths are different.
+  # Return shift and dissimilarity.
+  # To be used by probKMA_silhouette function.
+  # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
+  # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
+  # alpha: weight coefficient between d0.L2 and d1.L2.
+  # w: weights for the dissimilarity index in the different
+  #dimensions (w>0).
+  # aligned: if TRUE, curves are already aligned. If FALSE,
+  #the shortest curve is aligned inside the longest.
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -38,6 +50,6 @@
                  y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
                  return(y_rep_i)
                })
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }

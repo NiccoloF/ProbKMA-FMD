@@ -9,7 +9,7 @@
 #' @param diss dissimilarity type
 #' @return \item{List}{returns a list containing FuncData and Parameters useful for initializing the probKMA object}
 #' @export
-initialChecks <- function(Y0,Y1,P0,S0,params,diss){
+initialChecks <- function(Y0,Y1,P0,S0,params,diss,v_init){
   ### Unpacking #############################################################################
   standardize = params$standardize
   K = params$K
@@ -40,6 +40,15 @@ initialChecks <- function(Y0,Y1,P0,S0,params,diss){
   
   if(set_seed){
     set.seed(seed)
+  }
+  
+  Y0_f <- function(y_i)
+  {
+    return(y_i[[1]])
+  }
+  Y1_f <- function(y_i)
+  {
+    return(y_i[[2]])
   }
   
   ### check input ####################################################################################
@@ -174,6 +183,29 @@ initialChecks <- function(Y0,Y1,P0,S0,params,diss){
     stop('Minimum motif lengths should be integers.')
   if(sum(c<=1))
     stop('Minimum motif lengths should be at least 2.')
+  
+  #check v_init
+  if(!is.null(v_init)){
+    if(length(v_init)!=K){
+      v_init=NULL
+      warning('The length of the list does not represent the number of clusters. The random
+         initialization will be used.')
+    }
+    for(i in 1:length(v_init)){
+      if((nrow(v_init[[i]][[1]])!=c)&(nrow(v_init[[i]][[2]])!=c)){ 
+        #use nrow instead of length so it will work in a d-dimensional case as well.
+        v_init=NULL
+        warning('The length of the list does not represent the number of clusters. The random
+         initialization will be used.')  
+      }
+    }
+    
+  }
+  
+  if(!is.null(v_init)){
+    v_init <- list(lapply(v_init,Y0_f), lapply(v_init,Y1_f))
+  }
+  
   c=rep(c,length.out=K)
   # find all intervals contained in supp(y_i) and their lengths
   Y_intervals=lapply(Y0,
@@ -338,18 +370,9 @@ initialChecks <- function(Y0,Y1,P0,S0,params,diss){
               nrow=N,ncol=K,byrow=TRUE)
   }
   
-  Y0_f <- function(Y_i)
-  {
-    return(Y_i$y0)
-  }
-  Y1_f <- function(Y_i)
-  {
-    return(Y_i$y1)
-  }
-  
   Y <- list("Y0" = lapply(Y,Y0_f),"Y1" = lapply(Y,Y1_f))
 
-  return(list("FuncData" = list("Y"=Y,"P0"=P0,"S0"=S0),
+  return(list("FuncData" = list("Y"=Y,"P0"=P0,"S0"=S0,"v_init"=v_init),
               "Parameters" = list("standardize"=standardize,"K"=K,"c"=c,"c_max"=c_max,
                                   "iter_max"=iter_max,"quantile"=quantile,
                                   "stopCriterion"=stop_criterion,"m"=m,"w"=w,
