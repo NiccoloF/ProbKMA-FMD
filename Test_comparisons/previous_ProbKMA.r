@@ -1739,7 +1739,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
       cl_find=makeCluster(worker_number,timeout=60*60*24*30)
       clusterExport(cl_find,c('name','names_var','Y0','Y1','probKMA_options',
                               'probKMA','probKMA_plot','probKMA_silhouette','.compute_motif', # delete these in the package
-                              '.mapply_custom','.diss_d0_d1_L2','.domain','.select_domain','.find_min_diss','.compute_Jk'),envir=environment())
+                              '.mapply_custom','.diss_d0_d1_L2','.domain','.select_domain','.find_min_diss','.compute_Jk','set_seed'),envir=environment())
       clusterCall(cl_find,function()library(parallel,combinat))
       on.exit(stopCluster(cl_find))
     }else{
@@ -1795,7 +1795,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
   }else{
     V_init_unlist=unlist(unlist(V_init,recursive=FALSE),recursive=FALSE)
-    results=.mapply_custom(cl_find,function(K,c,i,v_init){
+    results=.mapply_custom(cl_find,function(K,c,i,v_init, small_seed){
       dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
       files=list.files(paste0(name,"_K",K,"_c",c))
       message("K",K,"_c",c,'_random',i)
@@ -1807,6 +1807,11 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         iter=iter_max=1
         while(iter==iter_max){
           start=proc.time()
+          if(set_seed)
+          {
+            set.seed(small_seed)
+          }
+          small_seed = small_seed + 1
           probKMA_results=do.call(probKMA,c(list(Y0=Y0,Y1=Y1,K=K,c=c,v_init=v_init),probKMA_options))
           end=proc.time()
           time=end-start
@@ -1830,7 +1835,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(list(probKMA_results=probKMA_results,
                     time=time,silhouette=silhouette))
       }
-    },i_c_K[,3],i_c_K[,2],i_c_K[,1],V_init_unlist,SIMPLIFY=FALSE)}
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],V_init_unlist,vector_seed,SIMPLIFY=FALSE)}
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
   

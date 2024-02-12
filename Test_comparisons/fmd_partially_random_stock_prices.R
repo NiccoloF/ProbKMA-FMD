@@ -221,7 +221,7 @@ n_init = 4 # number of partially random initializations to try
 # NOTE: rename "results" folder to re-run everything
 #(TIME CONSUMING)
 
-# resize V_init
+# resize V_init for n_init smaller than 10
 V_init[[1]] <- list(V_init[[1]][[1]],V_init[[1]][[2]])
 V_init[[2]] <- list(V_init[[2]][[1]],V_init[[2]][[2]])
 V_init[[1]][[1]] <- list(V_init[[1]][[1]][[1]],V_init[[1]][[1]][[2]],V_init[[1]][[1]][[3]],V_init[[1]][[1]][[4]])
