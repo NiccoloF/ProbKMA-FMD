@@ -5,8 +5,90 @@
 #motifs in order to merge them with the candidate motifs resulting 
 #from the random initialization and run the final FMD and search.
 
+#Functions to initialize the motifs of a certain shape
+#in the case of partially random initialization.
+#for normal triangles
+motifs_init=function(length,start,start_max,min,max){
+  l=sample(2:(length-2),1)#where the peak is
+  initt=runif(1,min,max)#the value of peak
+  v_simulated=matrix(NA,nrow=length+1,ncol=1)
+  length1=length2=c()
+  length1=seq(runif(1,start,start_max),initt,length.out=l)
+  v_simulated[(1:(l-1)),1]=length1[1:(l-1)]#in increasing order before the peak
+  v_simulated[l,1]=initt
+  length2=rev(seq(runif(1,start,start_max),initt,length.out=((length+1)-l+1)))
+  v_simulated[((l+1):(length+1)),1]=length2[2:((length+1)-l+1)]#in decreasing order after peak
+  #after peak
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1,]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
 
-source(file ="../Test_comparisons/previous_ProbKMA.R")
+#for reversed triangles
+motifs_init_rev=function(length,start,start_max,min,max){
+  l=sample(2:(length-2),1)#where the peak is
+  initt=runif(1,min,max)#the value of peak
+  v_simulated=matrix(NA,nrow=length+1,ncol=1)
+  length1=length2=c()
+  length1=seq(runif(1,start,start_max),initt,length.out=l)
+  v_simulated[(1:(l-1)),1]=length1[1:(l-1)]#in increasing order before the peak
+  v_simulated[l,1]=initt
+  length2=rev(seq(runif(1,start,start_max),initt,length.out=((length+1)-l+1)))
+  v_simulated[((l+1):(length+1)),1]=length2[2:((length+1)-l+1)]#in decreasing order after peak
+  #after peak
+  v_simulated=-v_simulated
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1,]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
+
+#function for increasing line
+motifs_line=function(length,start,start_max,min,max){
+  initt=runif(1,min,max)#the value of peak
+  length1=seq(runif(1,start,start_max),initt,length.out=length)
+  v_simulated=c(0,length1) #the first element is 0 because I will remove it anyway
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
+
+#function for decreasing line
+motifs_line_rev=function(length,start,start_max,min,max){
+  initt=runif(1,min,max)#the value of peak
+  length1=seq(runif(1,start,start_max),initt,length.out=length)
+  v_simulated=c(0,length1) #the first element is 0 because I will remove it anyway
+  v_simulated=-v_simulated
+  #motifs between value "start" and the peaks
+  x=seq(1:length(v_simulated))
+  x_diff=diff(x)
+  v_diff=diff(v_simulated)
+  v_derivative=v_diff/x_diff
+  v_simulated=v_simulated[-1]#removing the first element since for derivative
+  #we made differences
+  newlist=list(motif=v_simulated,motif_derivative=v_derivative)
+  return(newlist)
+}
+
+
+#source(file ="../Test_comparisons/previous_ProbKMA.R")
 #file with all the necessary functions
 
 load("../Test_comparisons/data_wrds.Rdata",smoothed_part2_env <- new.env())
@@ -129,10 +211,10 @@ for(i in 5:8){
   
 }
 
-plot(motifs_init(40,10,40,80,100)$motif,type="l",ylab="",xlab="Motif length")
-lines(motifs_init(40,10,40,80,100)$motif,col="red")
-lines(motifs_init(40,10,40,80,100)$motif,col="green")
-lines(motifs_init(40,10,40,80,100)$motif,col="blue")
+#plot(motifs_init(40,10,40,80,100)$motif,type="l",ylab="",xlab="Motif length")
+#lines(motifs_init(40,10,40,80,100)$motif,col="red")
+#lines(motifs_init(40,10,40,80,100)$motif,col="green")
+#lines(motifs_init(40,10,40,80,100)$motif,col="blue")
 
 
 
@@ -216,12 +298,14 @@ for(i in 10:10){
 
 V_init=V_initt
 K = c(2, 3) # number of clusters to try
-c=c(40,50)
-n_init = 4 # number of partially random initializations to try
+c=c(40,50,60)
+#n_init = 4 # number of partially random initializations to try
 # NOTE: rename "results" folder to re-run everything
 #(TIME CONSUMING)
 
 # resize V_init for n_init smaller than 10
+c=c(40,50)
+n_init = 4
 V_init[[1]] <- list(V_init[[1]][[1]],V_init[[1]][[2]])
 V_init[[2]] <- list(V_init[[2]][[1]],V_init[[2]][[2]])
 V_init[[1]][[1]] <- list(V_init[[1]][[1]][[1]],V_init[[1]][[1]][[2]],V_init[[1]][[1]][[3]],V_init[[1]][[1]][[4]])
@@ -253,20 +337,21 @@ if('motifs_candidate.RData' %in% files){
   load('./motifs_partially_random/motifs_candidate.RData')
 }else{
   # find candidate motifs
-  find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y0, Y1, K, c, n_init,V_init=V_init,
+  library(ProbKMAcpp)
+  find_candidate_motifs_results = ProbKMAcpp::find_candidate_motifs(Y0, Y1, K, c, n_init,V_init=V_init, 
                                                                     name = '../Test_comparisons/results/our/stock.1', names_var = 'x(t)',
                                                                     probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
                                                                                            iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
                                                                                            return_options = TRUE, return_init = TRUE,
-                                                                                           diss = diss, alpha = alpha,transformed=TRUE),
-                                                                    plot = TRUE, exe_print = FALSE, n_threads = 7, set_seed = TRUE, worker_number = NULL)
-  find_candidate_motifs_results = find_candidate_motifs(Y0, Y1, K, c, n_init,V_init=V_init,
-                                                        name = '../Test_comparisons/results/prof/stock.1', names_var = 'x(t)',
-                                                        probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
-                                                                               iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
-                                                                               return_options = TRUE, return_init = TRUE,
-                                                                               diss = diss, alpha = alpha,transformed=TRUE),
-                                                        plot = TRUE, worker_number = NULL, set_seed = TRUE)
+                                                                                           diss = diss, alpha = alpha,transformed= TRUE),
+                                                                    plot = TRUE, exe_print = FALSE, n_threads = 7, set_seed = TRUE, worker_number = NULL, n_init_motif = n_init)
+  #find_candidate_motifs_results = find_candidate_motifs(Y0, Y1, K, c, n_init,V_init=V_init, # V_init
+  #                                                      name = '../Test_comparisons/results/prof/stock.1', names_var = 'x(t)',
+  #                                                      probKMA_options = list(c_max = c_max, standardize = FALSE, iter_max = 1000,
+  #                                                                             iter4elong = iter4elong, trials_elong = trials_elong, max_gap = max_gap,
+  #                                                                             return_options = TRUE, return_init = TRUE,
+  #                                                                             diss = diss, alpha = alpha,transformed= TRUE), 
+  #                                                      plot = TRUE, worker_number = NULL, set_seed = TRUE)
   save(find_candidate_motifs_results, file = './motifs_partially_random/motifs_candidate.RData')
 }
 

@@ -7,7 +7,7 @@
 #' @return plot of memberships motifs, objective function and Bhattacharyya distance
 #' @author Marzia Angela Cremone & Francesca Chiaromonte
 #' @export
-probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE){ 
+probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE){
   # Plot the results of probKMA.
   # probKMA_results: output of probKMA function.
   # ylab: a vector of length d, with the titles for the y axis for each dimension.
@@ -56,7 +56,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -114,7 +113,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -135,7 +133,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                    y_plot[v_dom,]=Reduce('cbind',
                                          mapply(function(Y1_inters_k, Y_diff_k) {
                                            y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
-                                           #print(dim(y1_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y1_norm[,y0_const] = 0
                                            return(y1_norm)},
@@ -182,7 +179,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -236,7 +232,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -257,7 +252,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                    y_plot[v_dom,]=Reduce('cbind',
                                          mapply(function(Y1_inters_k, Y_diff_k) {
                                            y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
-                                           #print(dim(y1_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y1_norm[,y0_const] = 0
                                            return(y1_norm)},

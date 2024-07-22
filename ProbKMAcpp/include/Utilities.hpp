@@ -2,6 +2,7 @@
 #define __UTILITIES_HPP__
 #include "RcppArmadillo.h"
 #include "TypeTraits.hpp"
+#include <ranges>
 #include <vector>
 
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -83,7 +84,40 @@ concept IsArmaVector = std::is_same_v<T, KMA::uvector> ||
     }
     return y_transformed;
   }
+
+  template<typename T>
+  arma::Mat<T> combn2(const arma::Col<T> & y){  // Col<double> = vec, Col<uword> = uvec, Col<sword> = ivec
+    int n = y.n_elem;
+    KMA::uvector v(n,arma::fill::zeros);  
+    v(0) = 1;
+    v(1) = 1;
+    arma::uword l = 0;
+    arma::Mat<T> result(2,n*(n-1)/2, arma::fill::zeros); 
+    arma::uword k;
+    do {
+      k = 0;
+      auto filter_index = std::views::iota(0,n) 
+        | std::views::filter([&v](int i){return v(i);});
+      for(auto i: filter_index) 
+        result(k++,l) = y(i); 
+      l++;
+    } while (std::prev_permutation(v.begin(), v.end())); 
+    return result;
+  }
   
+  template<class T>
+  T repLem(const T & v,
+           const arma::ivec & times){
+    T result(arma::accu(times));
+    arma::uword k = 0;
+    arma::uword times_size = times.size();
+    for (arma::uword i = 0; i < times_size; ++i) 
+      for (arma::ivec::value_type j = 0; j < times[i]; ++j)
+        result(k++) = v(i);
+    return result;
+  }
+
+
 }
   
 

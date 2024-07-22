@@ -1,6 +1,7 @@
-#This code contains the functions for running the
-#Functional Motif Discovery and Search with random and partially initializations,
-#as well as computing the MB-foresting of the stock prices.
+# This code contains the functions for running the
+# Functional Motif Discovery and Search with random and partially initializations,
+# as well as computing the MB-foresting of the stock prices.
+
 library(combinat)
 library(parallel)
 library(class)
@@ -19,19 +20,20 @@ library(dendextend)
 
 
 
-.diss_d0_d1_L2 <- function(y,v,w,alpha,transformed=FALSE){
+.diss_d0_d1_L2 <- function(y,v,w,alpha,transform_y=FALSE,transform_v=FALSE){
   # Dissimilarity index for multidimensional curves (dimension=d).
   # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
   # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
-  y_norm=v_norm=list()
-  y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
-  v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
   
-  if(transformed){
+  y_norm=y
+  v_norm=v
+  
+  if(transform_y){
     y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
     y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
     y0_diff = y0_max - y0_min
@@ -40,7 +42,8 @@ library(dendextend)
     y_norm[[2]] = t( t(y[[2]]) / y0_diff )
     y_norm[[1]][,y0_const]=0.5
     y_norm[[2]][,y0_const] = 0
-    
+  } 
+  if(transform_v){
     v0_min=apply(v[[1]],2,min,na.rm=TRUE)
     v0_max=apply(v[[1]],2,max,na.rm=TRUE)
     v0_diff=v0_max-v0_min
@@ -50,17 +53,13 @@ library(dendextend)
     v_norm[[1]][,v0_const]=0.5
     v_norm[[2]][,v0_const]=0
   }
-  else{
-    y_norm=y
-    v_norm=v
-  }
-  .diss_L2 <- function(y_norm,v_norm,w){
+  .diss_L2 <- function(y,v,w){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # L2 distance with normalization on common support.
     # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     
-    sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+    sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y)
     # NB: divide for the length of the interval, not for the squared length!
   }
   
@@ -84,7 +83,8 @@ library(dendextend)
     rowSums(!is.na(v[[2]]))!=0
   }
 }
-.select_domain <- function(v,v_dom,use0,use1){#????
+
+.select_domain <- function(v,v_dom,use0,use1){
   if(use0)
     v[[1]]=as.matrix(v[[1]][v_dom,])
   if(use1)
@@ -93,17 +93,19 @@ library(dendextend)
 }
 
 
-.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE){
+.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1,transform_y=FALSE,transform_v=FALSE){
   # Find shift warping minimizing dissimilarity between multidimensional
-  #curves (dimension=d).
+  # curves (dimension=d).
   # Return shift and dissimilarity.
   # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the
-  #different dimensions (w>0).
+  # different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -138,23 +140,25 @@ library(dendextend)
   }
   s_rep=s_rep[valid]
   y_rep=y_rep[valid]
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transform_y,transform_v)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }
 
 
-.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1,transformed=FALSE){
+.find_diss <- function(y,v,alpha,w,aligned,d,use0,use1,transform_y=FALSE,transform_v=FALSE){
   # Find dissimilarity between multidimensional curves (dimension=d),
-  #without alignment unless their lengths are different.
+  # without alignment unless their lengths are different.
   # Return shift and dissimilarity.
   # To be used by probKMA_silhouette function.
   # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the different
-  #dimensions (w>0).
+  # dimensions (w>0).
   # aligned: if TRUE, curves are already aligned. If FALSE,
-  #the shortest curve is aligned inside the longest.
+  # the shortest curve is aligned inside the longest.
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
   
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
@@ -182,18 +186,19 @@ library(dendextend)
                  y_rep_i=.select_domain(y_rep_i,v_dom,use0,use1)
                  return(y_rep_i)
                })
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transform_y,transform_v)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }
 
 
-.compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1,transformed=FALSE){
+.compute_motif <- function(v_dom,s_k,p_k,Y,m,use0,use1,transform_y=FALSE){
   # Compute the new motif v_new.
   # v_dom: TRUE for x in supp(v).
   # s_k: shift vector for motif k.
   # p_k: membership vector for motif k.
   # Y: list of N lists of two elements, Y0=y_i(x), Y1=y'_i(x),
-  #matrices with d columns, for d-dimensional curves.
+  # matrices with d columns, for d-dimensional curves.
+  # transform_y: if TRUE, y is normalized to [0,1] before computing the motif.
   
   .domain <- function(v,use0){
     if(use0){
@@ -236,9 +241,6 @@ library(dendextend)
       y_inters_k$y0=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
                           matrix(y$y0[index[index<=y_len],],ncol=d),
                           matrix(NA,nrow=sum(index>y_len),ncol=d))
-    
-    
-    
     if(use1)
       y_inters_k$y1=rbind(matrix(NA,nrow=max(0,1-s_k_i),ncol=d),
                           matrix(y$y1[index[index<=y_len],],ncol=d),
@@ -251,15 +253,12 @@ library(dendextend)
       y_inters_k$y0[!y_inters_supp]=0
     if(use1)
       y_inters_k$y1[!y_inters_supp]=0
-    
-    
     return(y_inters_k)},
     Y_inters_k,Y_inters_supp,SIMPLIFY=FALSE,MoreArgs=list(use0,use1))
   
   v_new=list(v0=NULL,v1=NULL)
-  if(transformed){
+  if(transform_y){
     if(use0)
-      
       v_new$v0=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) {#y0 = y_inters_k$y0
         y0_min = apply(y_inters_k$y0, 2, min, na.rm = TRUE)
         y0_max = apply(y_inters_k$y0, 2, max, na.rm = TRUE)
@@ -271,7 +270,6 @@ library(dendextend)
         Y_inters_supp,v_dom,v_len,p_k,d,m)
     
     if(use1)
-      
       v_new$v1=.compute_v_new(lapply(Y_inters_k,function(y_inters_k){#y1 = y_inters_k$y1
         y0_min = apply(y_inters_k$y0, 2, min, na.rm = TRUE)
         y0_max = apply(y_inters_k$y0, 2, max, na.rm = TRUE)
@@ -289,7 +287,6 @@ library(dendextend)
       v_new$v1=.compute_v_new(lapply(Y_inters_k,function(y_inters_k) y_inters_k$y1),
                               Y_inters_supp,v_dom,v_len,p_k,d,m)
   }
-  # print(str(v_new))
   # check if there are NA at the corners (it can happen after cleaning), and remove it
   range_v_new=range(which(.domain(v_new,use0)))
   v_dom_new=rep(FALSE,v_len)
@@ -302,7 +299,7 @@ library(dendextend)
 }
 
 
-.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,c_k=NULL,keep_k=NULL,use0,use1,transformed=FALSE){
+.compute_Jk <- function(v,s_k,p_k,Y,alpha,w,m,c_k=NULL,keep_k=NULL,use0,use1,transform_y=FALSE){
   # Compute the objective function J for the motif k.
   # v: list of two elements, v0=v(x), v1=v'(x), matrices with d columns.
   # s_k: shift vector for motif k.
@@ -313,22 +310,22 @@ library(dendextend)
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
   # keep_k: check c_k only when keep=TRUE for y_shifted.
+  # transform_y: if TRUE, y is normalized to [0,1] before computing J.
   
-  
-  
-  .diss_d0_d1_L2 <- function(y,v,w,alpha,transformed=FALSE){
+  .diss_d0_d1_L2 <- function(y,v,w,alpha,transform_y=FALSE,transform_v=FALSE){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
     # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
     # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-    # transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
-    y_norm=v_norm=list()
-    y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
-    v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
+    # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+    # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
     
-    if(transformed){
+    y_norm=y
+    v_norm=v
+    
+    if(transform_y){
       y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
       y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
       y0_diff = y0_max - y0_min
@@ -337,7 +334,8 @@ library(dendextend)
       y_norm[[2]] = t( t(y[[2]]) / y0_diff )
       y_norm[[1]][,y0_const]=0.5
       y_norm[[2]][,y0_const] = 0
-      
+    } 
+    if(transform_v){
       v0_min=apply(v[[1]],2,min,na.rm=TRUE)
       v0_max=apply(v[[1]],2,max,na.rm=TRUE)
       v0_diff=v0_max-v0_min
@@ -347,17 +345,13 @@ library(dendextend)
       v_norm[[1]][,v0_const]=0.5
       v_norm[[2]][,v0_const]=0
     }
-    else{
-      y_norm=y
-      v_norm=v
-    }
-    .diss_L2 <- function(y_norm,v_norm,w){
+    .diss_L2 <- function(y,v,w){
       # Dissimilarity index for multidimensional curves (dimension=d).
       # L2 distance with normalization on common support.
       # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
       # w: weights for the dissimilarity index in the different dimensions (w>0).
       
-      sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+      sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y)
       # NB: divide for the length of the interval, not for the squared length!
     }
     
@@ -372,7 +366,6 @@ library(dendextend)
       return((1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w))
     }
   }
-  
   .domain <- function(v,use0){
     if(use0){
       rowSums(!is.na(v[[1]]))!=0
@@ -411,7 +404,8 @@ library(dendextend)
     if(TRUE %in% (supp_inters_length<c_k))
       return(NA)
   }
-  dist=unlist(mapply(.diss_d0_d1_L2,Y_inters_k,MoreArgs=list(v,w,alpha,transformed)))
+  transform_v=FALSE
+  dist=unlist(mapply(.diss_d0_d1_L2,Y_inters_k,MoreArgs=list(v,w,alpha,transform_y,transform_v)))
   return(sum(dist*(p_k^m),na.rm=TRUE))
 }
 
@@ -445,7 +439,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
   # v_init: in the case of a partially random initialization, represents a list of K sub-lists,
   #         where each sub-list contains two lists, corresponding to a univariate/d-dimensional
   #         cluster center v0 and to a univariate/d-dimensional derivative of the cluster center.
-  
   # c_max: maximum motif lengths. Can be an integer (or a vector of K
   #integers).
   # P0: initial membership matrix, with N row and K column
@@ -898,8 +891,6 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
                    SIMPLIFY=FALSE)
     }
     
-    #print(V_new)
-    #print(str(V_new))
     changed_s=which(unlist(lapply(V_new,length))>2)
     for(k in changed_s){
       S[,k]=S[,k]+V_new[[k]]$shift
@@ -920,10 +911,10 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
         V_filled=mapply(.compute_motif,V_dom_filled,S_k[with_gaps],P_k[with_gaps],MoreArgs=list(Y,m,use0,use1,transformed),SIMPLIFY=FALSE)
         Jk_before=mapply(.compute_Jk,
                          V_new[with_gaps],S_k[with_gaps],P_k[with_gaps],
-                         MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1,transformed=transformed))
+                         MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1,transform_y=transformed))
         Jk_after=mapply(.compute_Jk,
                         V_filled,S_k[with_gaps],P_k[with_gaps],
-                        MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1,transformed=transformed))
+                        MoreArgs=list(Y=Y,alpha=alpha,w=w,m=m,use0=use0,use1=use1,transform_y=transformed))
         fill=(Jk_after-Jk_before)/Jk_before<deltaJk_elong
         V_dom[with_gaps[fill]]=V_dom_filled[fill]
         V_new[with_gaps[fill]]=V_filled[fill]
@@ -965,11 +956,11 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
         start_with_NA=unlist(lapply(v_elong_left_right,length))>2
         v_elong_left_right=v_elong_left_right[!start_with_NA]
         s_k_elong_left_right=s_k_elong_left_right[!start_with_NA]
-        Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1,transformed=transformed)
+        Jk_before=.compute_Jk(v_new_k,s_k,p_k,Y,alpha,w,m,use0=use0,use1=use1,transform_y=transformed)
         c_k_after=floor(unlist(lapply(lapply(v_elong_left_right,.domain,use0),length))*(1-max_gap))
         c_k_after[c_k_after<c]=c
         Jk_after=unlist(mapply(.compute_Jk,v_elong_left_right,s_k_elong_left_right,c_k_after,
-                               MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1,transformed=transformed)))
+                               MoreArgs=list(p_k=p_k,Y=Y,alpha=alpha,w=w,m=m,keep_k=keep_k,use0=use0,use1=use1,transform_y=transformed)))
         best_elong=which.min((Jk_after-Jk_before)/Jk_before)
         if(length(best_elong)>0){
           elongate=((Jk_after-Jk_before)/Jk_before)[best_elong]<deltaJk_elong
@@ -1002,7 +993,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
     c_k=rep(c_k,each=length(Y))
     YV=expand.grid(Y,V_new)
     SD=.mapply_custom(cl_probKMA,.find_min_diss,YV[,1],YV[,2],c_k,
-                      MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1,transformed=transformed),SIMPLIFY=TRUE)
+                      MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1,transform_y=transformed,transform_v=FALSE),SIMPLIFY=TRUE)
     S_new=matrix(SD[1,],ncol=K)
     D_new=matrix(SD[2,],ncol=K)
     end=proc.time()
@@ -1107,7 +1098,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
       y=.select_domain(y,v_dom,use0,use1)
       return(y)
     },Y,s_k,SIMPLIFY=FALSE)
-    d=unlist(lapply(Y_in_motifs,.diss_d0_d1_L2,.select_domain(v_clean,v_dom,use0,use1),w,alpha,transformed))
+    d=unlist(lapply(Y_in_motifs,.diss_d0_d1_L2,.select_domain(v_clean,v_dom,use0,use1),w,alpha,transform_y=transformed,transform_v=FALSE))
     return(d)
   },S_k,V_dom,V_clean,MoreArgs=list(Y))
   output=list(Y0=Y0,Y1=Y1,
@@ -1132,7 +1123,7 @@ probKMA <- function(Y0,Y1=NULL,standardize=FALSE,transformed=FALSE,K,c,c_max=Inf
   return(output)
 }
 
-probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE){#transformed=FALSE
+probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE){
   # Plot the results of probKMA.
   # probKMA_results: output of probKMA function.
   # ylab: a vector of length d, with the titles for the y axis for each dimension.
@@ -1181,7 +1172,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -1239,7 +1229,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -1260,7 +1249,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                    y_plot[v_dom,]=Reduce('cbind',
                                          mapply(function(Y1_inters_k, Y_diff_k) {
                                            y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
-                                           #print(dim(y1_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y1_norm[,y0_const] = 0
                                            return(y1_norm)},
@@ -1307,7 +1295,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -1361,7 +1348,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                                          mapply(function(Y_inters_k, Y_diff_k) {
                                            y0_min=min(Y_inters_k[,j])
                                            y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                           #print(dim(y0_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y0_norm[,y0_const] = 0.5
                                            return(y0_norm)},
@@ -1382,7 +1368,6 @@ probKMA_plot <- function(probKMA_results,ylab='',cleaned=FALSE,transformed=FALSE
                    y_plot[v_dom,]=Reduce('cbind',
                                          mapply(function(Y1_inters_k, Y_diff_k) {
                                            y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
-                                           #print(dim(y1_norm))
                                            y0_const = (Y_diff_k[j] == 0)
                                            y1_norm[,y0_const] = 0
                                            return(y1_norm)},
@@ -1563,13 +1548,13 @@ probKMA_silhouette <- function(probKMA_results,align=FALSE,plot=TRUE){
     # alignment for pieces corresponding to motifs with different lengths (requiring one piece inside the other)
     equal_length=(YY_lengths[1,]==YY_lengths[2,])
     SD=mapply(.find_diss,YY[1,],YY[2,],equal_length,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transformed),SIMPLIFY=TRUE)
+              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transform_y=transformed,transform_v=transformed),SIMPLIFY=TRUE)
   }else{
     # find minimum distance between the two pieces of curves, allowing alignment
     # minimum overlap required: minimum motif length
     cc_motifs=apply(combn(probKMA_results$c[Y_motifs],2),2,min)
     SD=mapply(.find_min_diss,YY[1,],YY[2,],cc_motifs,
-              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transformed),SIMPLIFY=TRUE)
+              MoreArgs=list(alpha=alpha,w=w,d,use0,use1,transform_y=transformed,transform_v=transformed),SIMPLIFY=TRUE)
   }
   YY_D=matrix(0,nrow=length(Y_motifs),ncol=length(Y_motifs))
   YY_D[lower.tri(YY_D)]=SD[2,]
@@ -1777,7 +1762,6 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
             warning('Maximum number of iteration reached. Re-starting.')
         }
         transformed=probKMA_results$transformed
-        #if(transformed){
         pdf(paste0(name,"_K",K,"_c",c,'/random',i,'.pdf'),width=20,height=10)
         probKMA_plot(probKMA_results,ylab=names_var,cleaned=FALSE,transformed=transformed)
         dev.off()
@@ -1795,7 +1779,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
     },i_c_K[,3],i_c_K[,2],i_c_K[,1],vector_seed,SIMPLIFY=FALSE)
   }else{
     V_init_unlist=unlist(unlist(V_init,recursive=FALSE),recursive=FALSE)
-    results=.mapply_custom(cl_find,function(K,c,i,v_init, small_seed){
+    results=.mapply_custom(cl_find,function(K,c,i,v_init,  small_seed){
       dir.create(paste0(name,"_K",K,"_c",c),showWarnings=FALSE)
       files=list.files(paste0(name,"_K",K,"_c",c))
       message("K",K,"_c",c,'_random',i)
@@ -1835,7 +1819,7 @@ find_candidate_motifs <- function(Y0,Y1=NULL,K,c,n_init=10,name='results',names_
         return(list(probKMA_results=probKMA_results,
                     time=time,silhouette=silhouette))
       }
-    },i_c_K[,3],i_c_K[,2],i_c_K[,1],V_init_unlist,vector_seed,SIMPLIFY=FALSE)}
+    },i_c_K[,3],i_c_K[,2],i_c_K[,1],V_init_unlist, vector_seed, SIMPLIFY=FALSE)}
   results=split(results,list(factor(i_c_K[,2],c),factor(i_c_K[,3],K)))
   results=split(results,rep(K,each=length(c)))
   
@@ -2224,19 +2208,20 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
   
   
-  .diss_d0_d1_L2 <- function(y,v,w,alpha,transformed=FALSE){
+  .diss_d0_d1_L2 <- function(y,v,w,alpha,transform_y=FALSE,transform_v=FALSE){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
     # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
     # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-    #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
-    y_norm=v_norm=list()
-    y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
-    v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
+    # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+    # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
     
-    if(transformed){
+    y_norm=y
+    v_norm=v
+    
+    if(transform_y){
       y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
       y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
       y0_diff = y0_max - y0_min
@@ -2245,7 +2230,8 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
       y_norm[[2]] = t( t(y[[2]]) / y0_diff )
       y_norm[[1]][,y0_const]=0.5
       y_norm[[2]][,y0_const] = 0
-      
+    } 
+    if(transform_v){
       v0_min=apply(v[[1]],2,min,na.rm=TRUE)
       v0_max=apply(v[[1]],2,max,na.rm=TRUE)
       v0_diff=v0_max-v0_min
@@ -2255,17 +2241,13 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
       v_norm[[1]][,v0_const]=0.5
       v_norm[[2]][,v0_const]=0
     }
-    else{
-      y_norm=y
-      v_norm=v
-    }
-    .diss_L2 <- function(y_norm,v_norm,w){
+    .diss_L2 <- function(y,v,w){
       # Dissimilarity index for multidimensional curves (dimension=d).
       # L2 distance with normalization on common support.
       # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
       # w: weights for the dissimilarity index in the different dimensions (w>0).
       
-      sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+      sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y)
       # NB: divide for the length of the interval, not for the squared length!
     }
     
@@ -2280,10 +2262,6 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
       return((1-alpha)*.diss_L2(y_norm[[1]],v_norm[[1]],w)+alpha*.diss_L2(y_norm[[2]],v_norm[[2]],w))
     }
   }
-  
-  
-  
-  
   .domain <- function(v,use0){
     if(use0){
       rowSums(!is.na(v[[1]]))!=0
@@ -2317,7 +2295,7 @@ filter_candidate_motifs <- function(find_candidate_motifs_results,sil_threshold=
                     valid=unlist(lapply(lapply(y_rep,.domain,use0),sum))>=c_k
                     s_rep=s_rep[valid]
                     y_rep=y_rep[valid]
-                    d_rep=unlist(lapply(y_rep,.diss_d0_d1_L2,.select_domain(v,v_dom,use0,use1),w,alpha,transformed))
+                    d_rep=unlist(lapply(y_rep,.diss_d0_d1_L2,.select_domain(v,v_dom,use0,use1),w,alpha,transform_y=transformed,transform_v=FALSE))
                     d_rep_R=c(FALSE,d_rep<=R,FALSE)
                     diff_d_rep_R=diff(d_rep_R)
                     start=which(diff_d_rep_R==1)
@@ -2403,7 +2381,6 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
     V=mapply(function(v0,v1) list(v0=v0,v1=v1),filter_candidate_motifs_results$V0_clean,filter_candidate_motifs_results$V1_clean,SIMPLIFY=FALSE)
   }
   w=filter_candidate_motifs_results$w
-  transformed=filter_candidate_motifs_results$transformed
   max_gap=filter_candidate_motifs_results$max_gap
   d=ncol(filter_candidate_motifs_results$Y0[[1]])
   N=nrow(filter_candidate_motifs_results$D)
@@ -2418,7 +2395,7 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
   VV_lengths=as.matrix(combn(V_length,2))
   VV_motif_overlap=floor(apply(VV_lengths,2,min)*motif_overlap)
   SD=mapply(.find_min_diss,VV[1,],VV[2,],VV_motif_overlap,
-            MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1,transformed=transformed),SIMPLIFY=TRUE)
+            MoreArgs=list(alpha=alpha,w=w,d=d,use0=use0,use1=use1,transform_y=FALSE,transform_v=FALSE),SIMPLIFY=TRUE)
   VV_D=matrix(0,nrow=length(V),ncol=length(V))
   VV_D[lower.tri(VV_D)]=SD[2,]
   VV_D=VV_D+t(VV_D) # matrix of distances
@@ -2441,8 +2418,6 @@ cluster_candidate_motifs <- function(filter_candidate_motifs_results,motif_overl
   
   
   VV_dist=as.dist(VV_D)
-  #print(is.infinite(VV_dist) %>% table())
-  #print(is.na(VV_dist) %>% table())
   
   hclust_res=hclust(VV_dist,method='average') # hierarchical clustering based on
   #motif-motif distances
@@ -2506,7 +2481,6 @@ cluster_candidate_motifs_plot <- function(cluster_candidate_motifs_results,ylab=
     V=mapply(function(v0,v1) list(v0=v0,v1=v1),cluster_candidate_motifs_results$V0_clean,cluster_candidate_motifs_results$V1_clean,SIMPLIFY=FALSE)
   }
   w=cluster_candidate_motifs_results$w
-  transformed=cluster_candidate_motifs_results$transformed
   max_gap=cluster_candidate_motifs_results$max_gap
   d=ncol(cluster_candidate_motifs_results$Y0[[1]])
   N=nrow(cluster_candidate_motifs_results$D)
@@ -3184,7 +3158,7 @@ motifs_search_plot_norm <- function(motifs_search_results,ylab='',freq_threshold
   # freq_threshold: plot only motifs with frequency at least equal to freq_threshold.
   # top_n: if 'all', plot all motifs found. If top_n is an integer, then all top top_n motifs are plotted.
   # plot_curves: if TRUE, plot all the curves with colored motifs.
-  # transformed: if TRUE, the distance is min-max normalized
+  # transformed: if TRUE, y is normalized to [0,1].
   
   ### check input ############################################################################################
   # check freq_threshold
@@ -3271,7 +3245,6 @@ motifs_search_plot_norm <- function(motifs_search_results,ylab='',freq_threshold
                                        mapply(function(Y_inters_k, Y_diff_k) {
                                          y0_min=min(Y_inters_k[,j])
                                          y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                         #print(dim(y0_norm))
                                          y0_const = (Y_diff_k[j] == 0)
                                          y0_norm[,y0_const] = 0.5
                                          return(y0_norm)},
@@ -3318,7 +3291,6 @@ motifs_search_plot_norm <- function(motifs_search_results,ylab='',freq_threshold
                                        mapply(function(Y_inters_k, Y_diff_k) {
                                          y0_min=min(Y_inters_k[,j])
                                          y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                         #print(dim(y0_norm))
                                          y0_const = (Y_diff_k[j] == 0)
                                          y0_norm[,y0_const] = 0.5
                                          return(y0_norm)},
@@ -3342,7 +3314,6 @@ motifs_search_plot_norm <- function(motifs_search_results,ylab='',freq_threshold
                  y_plot[v_dom,]=Reduce('cbind',
                                        mapply(function(Y1_inters_k, Y_diff_k) {
                                          y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
-                                         #print(dim(y1_norm))
                                          y0_const = (Y_diff_k[j] == 0)
                                          y1_norm[,y0_const] = 0
                                          return(y1_norm)},
@@ -3546,7 +3517,6 @@ motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_thre
                                        mapply(function(Y_inters_k, Y_diff_k) {
                                          y0_min=min(Y_inters_k[,j])
                                          y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                         #print(dim(y0_norm))
                                          y0_const = (Y_diff_k[j] == 0)
                                          y0_norm[,y0_const] = 0.5
                                          return(y0_norm)},
@@ -3594,7 +3564,6 @@ motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_thre
                                        mapply(function(Y_inters_k, Y_diff_k) {
                                          y0_min=min(Y_inters_k[,j])
                                          y0_norm = t( (t(Y_inters_k[,j]) - y0_min[j]) / Y_diff_k[j] )
-                                         #print(dim(y0_norm))
                                          y0_const = (Y_diff_k[j] == 0)
                                          y0_norm[,y0_const] = 0.5
                                          return(y0_norm)},
@@ -3619,7 +3588,6 @@ motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_thre
                  y_plot[v_dom,]=Reduce('cbind',
                                        mapply(function(Y1_inters_k, Y_diff_k) {
                                          y1_norm = t( t(Y1_inters_k[,j])/ Y_diff_k[j] )
-                                         #print(dim(y1_norm))
                                          y0_const = (Y_diff_k[j] == 0)
                                          y1_norm[,y0_const] = 0
                                          return(y1_norm)},
@@ -3739,7 +3707,7 @@ motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_thre
 
 
 #Find only positive shifts using the alignment 
-.find_min_diss_positive <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE){
+.find_min_diss_positive <- function(y,v,alpha,w,c_k,d,use0,use1,transform_y=FALSE,transform_v=FALSE){
   # Find shift warping minimizing dissimilarity between multidimensional
   # curves (dimension=d).
   # Return shift and dissimilarity.
@@ -3752,7 +3720,9 @@ motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_thre
   # w: weights for the dissimilarity index in the
   #different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -3789,7 +3759,7 @@ motifs_search_plot_norm_time <- function(motifs_search_results,ylab='',freq_thre
   }
   s_rep=s_rep[valid]
   y_rep=y_rep[valid]
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transform_y,transform_v)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }
 
@@ -3842,19 +3812,21 @@ smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1
 
 
 #Find the shifts (positive and negative) by making the alignment matching the last points.
-.diss_d0_d1_L2_last_point <- function(y,v,w,alpha,transformed=FALSE,last_point=FALSE){
+.diss_d0_d1_L2_last_point <- function(y,v,w,alpha,transform_y=FALSE,transform_v=FALSE,last_point=FALSE){
   # Dissimilarity index for multidimensional curves (dimension=d).
   # Sobolev type distance with normalization on common support: (1-alpha)*d0.L2+alpha*d1.L2.
   # y: list of two elements y0=y(x), y1=y'(x) for x in dom(v), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x) for x in dom(v), matrices with d columns.
   # w: weights for the dissimilarity index in the different dimensions (w>0).
   # alpha: weight coefficient between d0.L2 and d1.L2 (alpha=0 means d0.L2, alpha=1 means d1.L2).
-  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
-  y_norm=v_norm=list()
-  y_norm[[1]]=y_norm[[2]]=matrix(NA,nrow=nrow(y[[1]]),ncol=ncol(y[[1]]))
-  v_norm[[1]]=v_norm[[2]]=matrix(NA,nrow=nrow(v[[1]]),ncol=ncol(v[[1]]))
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
+  # last_point: if TRUE, v is transformed in order to match the last point of the y portion.
   
-  if(transformed){
+  y_norm=y
+  v_norm=v
+  
+  if(transform_y){
     y0_min = apply(y[[1]], 2, min, na.rm = TRUE)
     y0_max = apply(y[[1]], 2, max, na.rm = TRUE)
     y0_diff = y0_max - y0_min
@@ -3863,7 +3835,8 @@ smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1
     y_norm[[2]] = t( t(y[[2]]) / y0_diff )
     y_norm[[1]][,y0_const]=0.5
     y_norm[[2]][,y0_const] = 0
-    
+  }
+  if(transform_v){
     v0_min=apply(v[[1]],2,min,na.rm=TRUE)
     v0_max=apply(v[[1]],2,max,na.rm=TRUE)
     v0_diff=v0_max-v0_min
@@ -3872,34 +3845,19 @@ smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1
     v_norm[[2]]=t( t(v[[2]])/v0_diff)
     v_norm[[1]][,v0_const]=0.5
     v_norm[[2]][,v0_const]=0
-    
-    # qui
-    if(last_point){
-      v_norm[[1]]=t(t(v_norm[[1]])+as.vector(tail(y_norm[[1]],1)-tail(v_norm[[1]],1)))
-      v_norm[[2]]=v_norm[[2]]
-    }else
-    {
-      v_norm[[1]]=v_norm[[1]]
-      v_norm[[2]]=v_norm[[2]]
-    }
   }
-  else{
-    if(last_point){
-      y_norm=y
-      v_norm[[1]]=t(t(v[[1]])+as.vector(tail(y[[1]],1)-tail(v[[1]],1)))
-      v_norm[[2]]=v[[2]]
-    }else{
-      y_norm=y
-      v_norm=v
-    }
+  # modification here
+  if(last_point){
+    v_norm[[1]]=t(t(v_norm[[1]])+as.vector(tail(y_norm[[1]],1)-tail(v_norm[[1]],1)))
+    v_norm[[2]]=v_norm[[2]]
   }
-  .diss_L2 <- function(y_norm,v_norm,w){
+  .diss_L2 <- function(y,v,w){
     # Dissimilarity index for multidimensional curves (dimension=d).
     # L2 distance with normalization on common support.
     # y=y(x), v=v(x) for x in dom(v), matrices with d columns.
     # w: weights for the dissimilarity index in the different dimensions (w>0).
     
-    sum(colSums((y_norm-v_norm)^2,na.rm=TRUE)/(colSums(!is.na(y_norm)))*w)/ncol(y_norm)
+    sum(colSums((y-v)^2,na.rm=TRUE)/(colSums(!is.na(y)))*w)/ncol(y)
     # NB: divide for the length of the interval, not for the squared length!
   }
   
@@ -3920,7 +3878,7 @@ smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1
 
 #Find only positive shifts by making the alignment matching the last points.
 #This function is needed in the forecasting step.
-.find_min_diss_positive_last_point <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE,last_point=FALSE){
+.find_min_diss_positive_last_point <- function(y,v,alpha,w,c_k,d,use0,use1,transform_y=FALSE,transform_v=FALSE,last_point=FALSE){
   # Find shift warping minimizing dissimilarity between multidimensional
   # curves (dimension=d).
   # Return shift and dissimilarity.
@@ -3933,7 +3891,10 @@ smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1
   # w: weights for the dissimilarity index in the
   #different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
+  # last_point: if TRUE, v is transformed in order to match the last point of the y portion.
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -3971,9 +3932,9 @@ smooth_locpoly_single <- function(rate_filled,degree=2,bandwidth=NULL,v0=TRUE,v1
   s_rep=s_rep[valid]
   y_rep=y_rep[valid]
   if(last_point){
-    d_rep=unlist(mapply(.diss_d0_d1_L2_last_point,y_rep,MoreArgs=list(v,w,alpha,transformed,last_point)))
+    d_rep=unlist(mapply(.diss_d0_d1_L2_last_point,y_rep,MoreArgs=list(v,w,alpha,transform_y,transform_v,last_point)))
   }else{
-    d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))  
+    d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transform_y,transform_v)))  
   }
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }
@@ -3996,7 +3957,7 @@ motifs_forecast=function(motifs_search_results,list_test,list_training_ts,closes
   
   #overlap is the parameter which represents what percentage of the motif needs to overlap with the final
   #portion of the curve during the alignment in the forecast step. If we want the overlap of 40%, overlap=0.4
-
+  
   length_test=length(list_test[[1]]$Price)
   
   
@@ -4107,7 +4068,7 @@ motifs_forecast=function(motifs_search_results,list_test,list_training_ts,closes
         observed[[i]][[t]][[j]]=list(as.matrix(c(data_train_test_v0[[i]][[t]][(length(motifs_search_results$Y0[[i]])-length(motifs_search_results$V0[[j]])+t+1):(length(motifs_search_results$Y0[[i]])-1+t)],NA)),
                                      as.matrix(c(data_train_test_v1[[i]][[t]][(length(motifs_search_results$Y1[[i]])-length(motifs_search_results$V1[[j]])+t+1):(length(motifs_search_results$Y1[[i]])-1+t)],NA)))
         
-        min_diss[[i]][[t]][[j]]=.find_min_diss_positive_last_point(y=observed[[i]][[t]][[j]],v=found_motifs[[j]],alpha=0.9,use0=TRUE,use1=TRUE,w=1,c_k=ceiling(overlap*length(found_motifs[[j]][[1]])),d=1,transformed=TRUE,last_point=TRUE)
+        min_diss[[i]][[t]][[j]]=.find_min_diss_positive_last_point(y=observed[[i]][[t]][[j]],v=found_motifs[[j]],alpha=0.9,use0=TRUE,use1=TRUE,w=1,c_k=ceiling(overlap*length(found_motifs[[j]][[1]])),d=1,transform_y=TRUE,tranform_v=FALSE,last_point=TRUE)
         
         min_rescaled[[i]][[t]][[j]]=min(as.matrix(data_train_test_v0[[i]][[t]][(length(motifs_search_results$Y0[[i]])-length(motifs_search_results$V0[[j]])+t+1+min_diss[[i]][[t]][[j]][1]):(length(motifs_search_results$Y0[[i]])-1+t)]))
         max_rescaled[[i]][[t]][[j]]=max(as.matrix(data_train_test_v0[[i]][[t]][(length(motifs_search_results$Y0[[i]])-length(motifs_search_results$V0[[j]])+t+1+min_diss[[i]][[t]][[j]][1]):(length(motifs_search_results$Y0[[i]])-1+t)]))

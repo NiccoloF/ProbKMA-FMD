@@ -10,17 +10,19 @@
 #' @return Shift warping and dissimilarity
 #' @author Marzia Angela Cremona & Francesca Chiaromonte
 #' @export
-.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1,transformed=FALSE){
+.find_min_diss <- function(y,v,alpha,w,c_k,d,use0,use1,transform_y=FALSE,transform_v=FALSE){
   # Find shift warping minimizing dissimilarity between multidimensional
-  #curves (dimension=d).
+  # curves (dimension=d).
   # Return shift and dissimilarity.
   # y: list of two elements y0=y(x), y1=y'(x), matrices with d columns.
   # v: list of two elements v0=v(x), v1=v'(x), matrices with d columns.
   # alpha: weight coefficient between d0.L2 and d1.L2.
   # w: weights for the dissimilarity index in the
-  #different dimensions (w>0).
+  # different dimensions (w>0).
   # c_k: minimum length of supp(y_shifted) and supp(v) intersection.
-  #transformed: if TRUE, the distance is min-max normalized. If FALSE, we use the original distance
+  # transform_y: if TRUE, y is normalized to [0,1] before applying the distance.
+  # transform_v: if TRUE, v is normalized to [0,1] before applying the distance.
+  
   v_dom=.domain(v,use0)
   v=.select_domain(v,v_dom,use0,use1)
   v_len=length(v_dom)
@@ -55,6 +57,6 @@
   }
   s_rep=s_rep[valid]
   y_rep=y_rep[valid]
-  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transformed)))
+  d_rep=unlist(mapply(.diss_d0_d1_L2,y_rep,MoreArgs=list(v,w,alpha,transform_y,transform_v)))
   return(c(s_rep[which.min(d_rep)],min(d_rep)))
 }

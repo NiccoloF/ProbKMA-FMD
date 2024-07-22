@@ -22,18 +22,18 @@ params <- list(standardize=FALSE, K=2,c = 40,c_max = 70,iter_max = 1000,
 
 # check input data are correct
 # per usare v_init_test load(v_init_tes.RData), da gestire il caso in cui v_init è null
-a <- initialChecks(Y0 = simulated200$Y0, Y1 = simulated200$Y1,P0 = P0,S0 = S0,params = params,diss = diss, v_init = v_init_test) #v_init_test
+#a <- initialChecks(Y0 = Y0, Y1 = Y1,P0 = P0,S0 = S0,params = params,diss = diss, v_init = v_init_test) #v_init_test
 # caso in cui v_init è nullo
-#a <- initialChecks(Y0 = simulated200$Y0, Y1 = simulated200$Y1,P0 = P0,S0 = S0,params = params,diss = diss, v_init = NULL)
+a <- initialChecks(Y0 = Y0, Y1 = Y1,P0 = P0,S0 = S0,params = params,diss = diss, v_init = NULL)
 
 # take checked data and parameters  
 params <- a$Parameters
 data <- a$FuncData
 
 # create an object of the class ProbKMA 
-prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1",data$v_init) #data$v_init to be removed if testing without v_init_test
+#prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1",data$v_init) #data$v_init to be removed if testing without v_init_test
 # caso in cui v_init è nullo
-#prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
+prok = new(ProbKMA,data$Y,params,data$P0,data$S0,"H1")
 
 # run the probKMA algorithm 
 output <- prok$probKMA_run()
@@ -53,10 +53,10 @@ dev.off()
 # comparison with previous implementation
 source(file ="../Test_comparisons/previous_ProbKMA.R")
 
-true_output <- probKMA(Y0=simulated200$Y0,Y1=simulated200$Y1,standardize=params$standardize,
+true_output <- probKMA(Y0=Y0,Y1=Y1,standardize=params$standardize,
                        transformed = FALSE,K=params$K,c=params$c[1],c_max=params$c_max,
                        P0=data$P0,S0=data$S0,
-                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,v_init = v_init_test, # v_init_test
+                       diss=diss,alpha=params$alpha,w=params$w,m=params$m,v_init = NULL, # v_init_test
                        iter_max=params$iter_max,
                        stop_criterion=params$stopCriterion,
                        quantile=params$quantile,tol=params$tol,iter4elong=params$iter4elong,
@@ -196,7 +196,7 @@ arguments =   list(Y0 = simulated200$Y0,
                    silhouette = TRUE) # TRUE or FALSE
 
 results = do.call(probKMA_wrap,arguments)
-probKMA_silhouette_plot(results = results)
+probKMA_silhouette_plot(probKMA_results = results[[1]],silhouette_results = results[[2]])
 
 # my plot
 pdf(paste0('my_plot_vectorial','.pdf'),width=20,height=10)

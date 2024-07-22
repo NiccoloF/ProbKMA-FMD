@@ -31,8 +31,8 @@ public:
 
                     // Create Dissimilarity factory
                     util::SharedFactory<Dissimilarity> dissfac;
-                    dissfac.FactoryRegister<L2>("L2",_parameters._w,_parameters._transformed);
-                    dissfac.FactoryRegister<H1>("H1",_parameters._w,_parameters._alpha,_parameters._transformed);
+                    dissfac.FactoryRegister<L2>("L2",_parameters._w,_parameters._transformed); 
+                    dissfac.FactoryRegister<H1>("H1",_parameters._w,_parameters._alpha,_parameters._transformed); 
 
                     //Create Motif factory
                     util::SharedFactory<MotifPure> motfac;
@@ -308,8 +308,9 @@ public:
         Rcpp::warning("maximum number of iterations reached, method stops");
 
       /////  prepare output //////////////////////////////////
-      KMA::matrix  P_clean(_n_rows_Y,_n_rows_V,arma::fill::zeros);
-      KMA::imatrix S_clean(S);
+      _P_clean.set_size(_n_rows_Y,_n_rows_V);
+      _P_clean.fill(0);
+      _S_clean = S;
       KMA::matrix  D_clean(_n_rows_Y,_n_rows_V);
 
       for(arma::uword k=0; k < _n_rows_V; ++k){
@@ -325,13 +326,13 @@ public:
       for (arma::uword k: empty_k)
         keep(arma::index_min(_D.col(k)),k) = 1;
 
-      P_clean(arma::find(keep==1)).fill(1);
+      _P_clean(arma::find(keep==1)).fill(1);
       KMA::Mfield V_clean(_n_rows_V,_V.n_cols);
       std::map<arma::sword,arma::sword> shift_s;
       for(arma::uword k=0; k < _n_rows_V; ++k){
         const auto& new_motif =  _motfac->compute_motif(V_dom[k], S.col(k),
-                                                         P_clean.col(k), _Y,
-                                                         _parameters._m);
+                                                        arma::conv_to<KMA::vector>::from(_P_clean.col(k)),
+                                                         _Y,_parameters._m);
         if (auto ptr = std::get_if<KMA::Mfield>(&new_motif)){
           V_clean.row(k) = *ptr;
         } else {
@@ -342,7 +343,7 @@ public:
         }
       }
       for(auto it = shift_s.begin();it != shift_s.cend(); ++it){
-        S_clean.col(it->first) += it->second;
+        _S_clean.col(it->first) += it->second;
       }
       std::vector<arma::urowvec> V_dom_new(_n_rows_V);
       for(arma::uword k=0; k < _n_rows_V ; ++k){
@@ -350,12 +351,12 @@ public:
       }
 
       /// compute dissimilarities from cleaned motifs, fill D_clean //////////////
-      _dissfac -> computeDissimilarityClean(D_clean,S_clean,V_dom_new,V_clean,_Y);
+      _dissfac -> computeDissimilarityClean(D_clean,_S_clean,V_dom_new,V_clean,_Y);
 
       /// return output //////////////////////////////////////////////////////
       J_iter.resize(iter);
       BC_dist_iter.resize(iter);
-      return toR(V_clean,P_clean,S_clean,_D,D_clean,J_iter,BC_dist_iter,iter,P,S);
+      return toR(V_clean,_P_clean,_S_clean,_D,D_clean,J_iter,BC_dist_iter,iter,P,S);
 
     }
 
@@ -397,19 +398,6 @@ public:
       }
     }
 
-    Rcpp::List get_motifs() const{
-      Rcpp::List V0(_V.n_rows);
-      Rcpp::List V1(_V.n_rows);
-      for(arma::uword k = 0; k < _V.n_rows; ++k)
-      {
-        if (_isY0)
-         V0[k] = _V(k,0);
-        if (_isY1)
-         V1[k] = _V(k,1);
-      }
-      return Rcpp::List::create(V0,V1);
-    }
-
     void set_P0(const KMA::matrix& P0)
     {
         _P0 = P0;
@@ -422,7 +410,7 @@ public:
 
     // return Rcpp::List with all the outputs of probKMA
     Rcpp::List toR(const KMA::Mfield& V_clean,
-                   const KMA::matrix& P_clean,
+                   const KMA::imatrix& P_clean,
                    const KMA::imatrix& S_clean,
                    const KMA::matrix& _D,
                    const KMA::matrix& D_clean,
@@ -480,7 +468,7 @@ public:
                           const Rcpp::List V0_clean,
                           const Rcpp::List V1_clean,
                           const KMA::Mfield & V_clean,
-                          const KMA::matrix & P_clean,
+                          const KMA::imatrix & P_clean,
                           const KMA::imatrix & S_clean,
                           const KMA::matrix & _D,
                           const KMA::matrix & D_clean,
@@ -561,6 +549,229 @@ public:
       return result;
     }
 
+
+    Rcpp::List compute_silhouette(bool align)
+    { 
+      const double alpha = _parameters._alpha;
+      const KMA::vector & w = _parameters._w;
+      const KMA::matrix & first_y0 = _Y(0,0);
+      const arma::uword d = first_y0.n_cols;
+      const arma::uword K = _parameters._K;
+
+      std::vector<KMA::uvector> V_dom(K); 
+      KMA::ivector V_length(K);
+      KMA::uvector v_dom_k;
+      for(arma::uword k = 0; k < K; ++k)
+      {
+        V_length(k) = _V(k,0).n_rows;
+        v_dom_k.set_size(_V(k,0).n_rows);
+        for (arma::uword j = 0; j < _V(k,0).n_rows; ++j)
+        {
+          const arma::uvec & nan_v_row_j = arma::find_nan(_V(k,0).row(j));
+          v_dom_k[j] = (nan_v_row_j.n_elem != d); 
+        }
+        V_dom[k] = v_dom_k;
+      }
+      
+      std::vector<KMA::uvector> curves_in_motifs(_P_clean.n_cols); 
+      for (arma::uword k = 0; k < K; ++k) 
+      {
+        const KMA::ivector & P_clean_k = _P_clean.col(k);
+        const KMA::uvector & P_clean_1 = find(P_clean_k == 1); 
+        curves_in_motifs[k] = P_clean_1;
+      }
+ 
+      KMA::ivector curves_in_motifs_number = arma::sum(_P_clean,0).t();
+
+      // for each centroid take the shift of the curve associated to that centroid 
+      std::vector<KMA::ivector> S_clean_k(K);
+      for (unsigned int k=0; k < K; ++k)
+      {
+        const KMA::ivector & col_S_clean = _S_clean.col(k);
+        S_clean_k[k] = col_S_clean.elem(curves_in_motifs[k]);
+      }
+ 
+      // compute distances between pieces of curves
+      const arma::uword Y_in_motifs_size = arma::accu(_P_clean);
+      KMA::Mfield Y_in_motifs(Y_in_motifs_size,_isY0 + _isY1);
+      KMA::uvector index;
+      arma::uword l = 0;
+      unsigned int y_len;
+      for (unsigned int k= 0; k < K; ++k) // for each centroid
+      { 
+        const KMA::uvector & curves_in_motif = curves_in_motifs[k];
+        const KMA::uvector & v_dom = V_dom[k];
+        for(unsigned int j = 0; j < curves_in_motif.n_elem; ++j) // for each curve assigned to that centroid
+        { 
+          const int s = S_clean_k[k][j];
+          index = arma::regspace<arma::uvec>(1,v_dom.n_elem - std::max(0,1-s)) + std::max(1,s) - 1;
+          int index_size = index.n_elem;
+          const KMA::matrix & y0 = _Y(curves_in_motif[j],0);
+          y_len = y0.n_rows;
+          Y_in_motifs(l,0).set_size(v_dom.n_elem,d);
+          Y_in_motifs(l,0).fill(arma::datum::nan);
+          auto filtered_j = std::views::iota(0,index_size)  
+            | std::views::filter([&y_len,&v_dom, &index](int j){return (index[j] <= y_len && v_dom(j));});
+          for(int j : filtered_j) 
+            Y_in_motifs(l,0).row(std::max(0,1-s) + j) =  y0.row(index[j] - 1);
+          if (_isY0 and _isY1)
+          {
+            const KMA::matrix & y1 = _Y(curves_in_motif[j],1);
+            y_len = y1.n_rows;
+            Y_in_motifs(l,1).set_size(v_dom.n_elem,d);
+            Y_in_motifs(l,1).fill(arma::datum::nan);
+            auto filtered_j = std::views::iota(0,index_size) 
+              | std::views::filter([&y_len,&v_dom, &index](int j){return (index[j] <= y_len && v_dom(j));});
+            for(int j : filtered_j)
+              Y_in_motifs(l,1).row(std::max(0,1-s) + j) =  y1.row(index[j] - 1);
+          }
+          l++;
+        }
+      }
+
+      
+      KMA::uvector Y_motifs = util::repLem<arma::uvec>(arma::regspace<arma::uvec>(0,K-1),curves_in_motifs_number);
+
+      const arma::uword Y_motifs_size = Y_motifs.size();
+
+      KMA::umatrix indeces_YY = util::combn2<arma::uword>(arma::regspace<arma::uvec>(0,Y_in_motifs_size-1)); //combn of indeces of Y_in_motifs
+
+      KMA::ivector V_length_Y_motifs = util::repLem<arma::ivec>(V_length,curves_in_motifs_number);
+      
+      const KMA::ivector c = _parameters._c;
+      
+      KMA::ivector c_Y_motifs = util::repLem<arma::ivec>(c,curves_in_motifs_number);
+      
+      KMA::imatrix YY_lengths = util::combn2<arma::sword>(V_length_Y_motifs);
+      
+      const int YY_length_size = YY_lengths.n_cols;
+
+      const arma::irowvec & YY_length_row0 = YY_lengths.row(0);
+
+      const arma::irowvec & YY_length_row1 = YY_lengths.row(1);
+
+      const arma::urowvec & swap = (YY_length_row0 < YY_length_row1);
+
+      const arma::urowvec & equal_length = (YY_length_row0 == YY_length_row1);
+
+      auto filtered_j_swap = std::views::iota(0,YY_length_size) 
+           | std::views::filter([&swap](int j){return swap(j);});
+      
+      for (int j : filtered_j_swap)
+        std::swap(indeces_YY(0,j),indeces_YY(1,j));
+      
+      KMA::vector SD(YY_length_size);
+      KMA::vector min_diss;
+      _dissfac->set_both(true); // utile solo se _transformed = true
+      if(align)
+      {
+        #ifdef _OPENMP
+            #pragma omp parallel for firstprivate(min_diss)
+        #endif
+        for(int i = 0; i < YY_length_size; ++i)
+        {
+          min_diss = _dissfac->find_diss_aligned(Y_in_motifs.row(indeces_YY(0,i)),    
+                                                 Y_in_motifs.row(indeces_YY(1,i)),
+                                                 equal_length(i));
+                                                                  
+          SD(i) = min_diss(1);
+        }
+      }
+      else
+      { 
+        KMA::imatrix c_Y_motifs_comb = util::combn2<arma::sword>(c_Y_motifs);  
+        #ifdef _OPENMP
+            #pragma omp parallel for firstprivate(min_diss)
+        #endif
+        for(int i = 0; i < YY_length_size; ++i){
+          min_diss = _dissfac->find_diss(Y_in_motifs.row(indeces_YY(0,i)),
+                                         Y_in_motifs.row(indeces_YY(1,i)),
+                                         w, alpha, std::min(c_Y_motifs_comb(0,i),
+                                                            c_Y_motifs_comb(1,i)));
+                                     
+          SD(i) = min_diss(1);
+        }
+      }
+
+      KMA::matrix YY_D(Y_motifs_size,Y_motifs_size,arma::fill::zeros);
+      arma::uword k = 0;
+      for (arma::uword j = 0; j < Y_motifs_size; ++j){
+        for (arma::uword i = j+1; i < Y_motifs_size; ++i){
+          YY_D(i,j) = SD(k);
+          k++;
+        }
+      }
+      
+      YY_D = YY_D + YY_D.t(); 
+        
+      // compute intra-cluster distances
+      KMA::umatrix intra(Y_motifs_size,Y_motifs_size,arma::fill::zeros);
+      for(unsigned int i = 0; i < Y_motifs_size; ++i){
+        const KMA::uvector & temp = (Y_motifs == Y_motifs(i));
+        intra.col(i) = temp;
+      }
+      intra.diag().fill(0);
+      
+      const KMA::vector & curves_in_motifs_number_Y_motifs = arma::conv_to<KMA::vector>::from(curves_in_motifs_number.elem(Y_motifs));
+      const KMA::vector & a = arma::sum(intra%YY_D, 0).t()/(curves_in_motifs_number_Y_motifs - 1);
+
+      // compute inter-cluster distances
+      Y_motifs += 1;
+      KMA::uvector Y_motifs_mod(Y_motifs_size);
+      for(unsigned int i=0; i < Y_motifs_size; ++i)
+          Y_motifs_mod(i) = Y_motifs(i)+1>K ? (Y_motifs(i)+1)%K - 1 : Y_motifs(i);
+      const KMA::vector & curves_in_motifs_number_rep = arma::conv_to<KMA::vector>::from(curves_in_motifs_number.elem(Y_motifs_mod));
+      
+      KMA::umatrix inter(Y_motifs_size,Y_motifs_size,arma::fill::zeros);
+      KMA::matrix b_k(K-1,Y_motifs_size,arma::fill::zeros);
+      arma::uword motif;
+      arma::uword inter_motif;
+      for(unsigned int k = 1; k <= K-1; ++k){
+        for(unsigned int i = 0; i < Y_motifs_size; ++i){
+          motif = Y_motifs(i);
+          inter_motif = (motif+k)>K? (motif+k)%K : motif+k; 
+          inter.col(i) = (Y_motifs== inter_motif);
+        }
+        b_k.row(k-1) = sum(inter%YY_D,0)/(curves_in_motifs_number_rep.t());
+      }
+      
+      arma::rowvec b_tmp(Y_motifs_size);
+      if(b_k.n_rows > 1){
+        b_tmp = arma::min(b_k,0);
+      }else{
+        b_tmp = b_k;
+      }
+      arma::vec b = b_tmp.t();
+      
+      // compute silhouette
+      KMA::vector silhouette= (b-a)/arma::max(a,b);
+      for(auto & sil : silhouette){ 
+        if(!arma::is_finite(sil))
+          sil = 0;
+      }
+      
+      // compute average silhouette per cluster
+      KMA::vector silhouette_average(K);
+      silhouette_average.fill(arma::datum::nan);
+      KMA::vector silhouette_k;
+      KMA::uvector indexes;
+      KMA::uvector sorted_indexes;
+      for (unsigned int k = 0; k < K; k++) { 
+        indexes = find(Y_motifs == k + 1);
+        silhouette_k = silhouette.elem(indexes);
+        sorted_indexes = arma::sort_index(silhouette_k, "descend");
+        curves_in_motifs[k] = curves_in_motifs[k].elem(sorted_indexes);
+        curves_in_motifs[k] += 1;
+        silhouette.elem(indexes) = arma::sort(silhouette_k, "descend");
+        silhouette_average(k) = mean(silhouette_k);
+      }
+
+      _dissfac->set_both(false); // per usi futuri 
+
+      return Rcpp::List::create(silhouette,Y_motifs,curves_in_motifs,silhouette_average,curves_in_motifs_number);
+
+    }
+
     // Functional Data
     KMA::Mfield _Y;
     KMA::Mfield _V;
@@ -576,6 +787,8 @@ public:
     // Membership and shifting matrix
     KMA::matrix _P0;
     KMA::imatrix _S0;
+    KMA::imatrix _P_clean;
+    KMA::imatrix _S_clean;
     bool _isY0 = true;
     bool _isY1 = true;
     bool init_motifs = false;
@@ -625,35 +838,11 @@ void ProbKMA::set_S0(const KMA::imatrix& S0)
     _probKMA -> set_S0(S0);
 }
 
-
-Rcpp::List ProbKMA::get_motifs() const
+Rcpp::List ProbKMA::compute_silhouette(bool align)
 {
-  return _probKMA -> get_motifs();
+  return _probKMA -> compute_silhouette(align);
 }
 
-// [[Rcpp::export(initialChecks)]]
-Rcpp::List initialChecks(const Rcpp::List& Y0,const Rcpp::List& Y1,
-                         const Rcpp::NumericMatrix& P0,
-                         const Rcpp::NumericMatrix& S0,
-                         const Rcpp::List& params,
-                         const Rcpp::String& diss)
-{
-  try
-  {
-    Rcpp::Function checks = Rcpp::Environment::namespace_env("ProbKMAcpp")[".initialChecks"];
-    // Call R checks and updata data and parameters
-    return checks(Y0,Y1,P0,S0,params,diss);
-  }catch (Rcpp::exception& e) {
-    // Handle the Rcpp exception
-    Rcpp::Rcerr << "Caught exception: " << e.what() << std::endl;
-    return Rcpp::List::create();
-
-  } catch (...){
-    // Handle other types of exceptions
-    Rcpp::Rcerr << "Caught unknown exception." << std::endl;
-    return Rcpp::List::create();
-  }
-}
 
 RCPP_EXPOSED_CLASS(ProbKMA);
 
@@ -666,8 +855,8 @@ RCPP_MODULE(ProbKMAModule) {
                std::string,Rcpp::List>()
   .method("probKMA_run",&ProbKMA::probKMA_run)
   .method("set_parameters", &ProbKMA::set_parameters)
-  .method("get_motifs", &ProbKMA::get_motifs)
   .method("reinit_motifs", &ProbKMA::reinit_motifs)
   .method("set_P0", &ProbKMA::set_P0)
-  .method("set_S0", &ProbKMA::set_S0);
+  .method("set_S0", &ProbKMA::set_S0)
+  .method("compute_silhouette", &ProbKMA::compute_silhouette);
 }
